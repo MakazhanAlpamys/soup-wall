@@ -5,7 +5,7 @@ members = ["crates/core", "crates/bench", "crates/agent", "crates/agentfw", "cra
 [workspace.package]
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/MakazhanAlpamys/ai-firewall-core-public"
+repository = "https://github.com/MakazhanAlpamys/soup-wall"
 
 [workspace.dependencies]
 regex = "1"
