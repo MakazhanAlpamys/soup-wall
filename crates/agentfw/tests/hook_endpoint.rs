@@ -11,7 +11,7 @@ use agentfw::handlers::{AppState, Sessions};
 use agentfw::{app, Config};
 use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
-use llm_firewall_agent::AgentFirewall;
+use soup_wall_agent::AgentFirewall;
 use tower::ServiceExt;
 
 const TOKEN: &str = "test-token-abcdefghijklmnopqrstuvwxyz012345";

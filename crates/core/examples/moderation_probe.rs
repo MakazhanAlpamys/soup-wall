@@ -2,10 +2,10 @@
 
 //! Probe the content-moderation classifier (BeaverTails harmful-QA; labels
 //! index 0 = harmful, 1 = safe). Run with:
-//! `cargo run -p llm-firewall-core --features ml --release --example moderation_probe`
+//! `cargo run -p soup-wall-core --features ml --release --example moderation_probe`
 #[cfg(feature = "ml")]
 fn main() -> anyhow::Result<()> {
-    use llm_firewall_core::ModerationClassifier;
+    use soup_wall_core::ModerationClassifier;
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../models/moderation");
     let clf = ModerationClassifier::load_with_labels(dir, vec!["harmful".into(), "safe".into()])?;
     let cases = [

@@ -5,7 +5,7 @@
 //! These assert against the real file operators deploy, not an inline fixture,
 //! so a change to the shipped defaults cannot pass silently.
 
-use llm_firewall_core::{Action, Direction, Finding, PolicySet, Severity};
+use soup_wall_core::{Action, Direction, Finding, PolicySet, Severity};
 
 fn shipped() -> PolicySet {
     // Embedded at compile time, the way `agent` embeds `agent-default.yaml`.

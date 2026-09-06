@@ -15,9 +15,9 @@ name = "agentfw"
 path = "src/main.rs"
 
 [dependencies]
-llm-firewall-adapter = { path = "../adapter", version = "0.1.0" }
-llm-firewall-agent = { path = "../agent", version = "0.2.0" }
-llm-firewall-core = { path = "../core", version = "0.2.0" }
+soup-wall-adapter = { path = "../adapter", version = "0.1.0" }
+soup-wall-agent = { path = "../agent", version = "0.2.0" }
+soup-wall-core = { path = "../core", version = "0.2.0" }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 serde = { workspace = true }

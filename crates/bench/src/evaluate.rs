@@ -4,8 +4,8 @@
 
 use std::time::Instant;
 
-use llm_firewall_core::{Action, Direction, Firewall};
 use serde::Serialize;
+use soup_wall_core::{Action, Direction, Firewall};
 
 use crate::dataset::Example;
 use crate::metrics::{percentile, Confusion};
@@ -28,7 +28,7 @@ pub struct CoreGuard {
 
 impl Guard for CoreGuard {
     fn name(&self) -> String {
-        "llm-firewall".into()
+        "soup-wall".into()
     }
     fn predict(&self, text: &str) -> bool {
         let out = self.firewall.run(text, self.direction);
@@ -71,7 +71,7 @@ pub fn evaluate(guard: &dyn Guard, data: &[Example]) -> EvalResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use llm_firewall_core::{InjectionDetector, PolicySet};
+    use soup_wall_core::{InjectionDetector, PolicySet};
 
     fn core_guard() -> CoreGuard {
         let policy = PolicySet::from_yaml(

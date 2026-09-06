@@ -5,7 +5,7 @@
 //! We do not implement JSON-RPC; we only need to spot the `tools/list` response so we
 //! can extract the manifest. Anything unrecognized is treated as opaque bytes.
 
-use llm_firewall_agent::ToolDecl;
+use soup_wall_agent::ToolDecl;
 
 /// If `line` is a JSON-RPC response whose `result.tools` is an array, return the
 /// declared tools. Returns `None` for anything else — a request, a different

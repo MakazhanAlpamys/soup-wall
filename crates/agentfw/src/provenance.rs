@@ -7,7 +7,7 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use llm_firewall_agent::Provenance;
+use soup_wall_agent::Provenance;
 
 /// Tools that retrieve third-party content over the network.
 const NETWORK_TOOLS: &[&str] = &["WebFetch", "WebSearch"];
@@ -103,7 +103,7 @@ fn is_inside(path: &str, root: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use llm_firewall_agent::{Provenance, Trust};
+    use soup_wall_agent::{Provenance, Trust};
 
     fn args(v: serde_json::Value) -> serde_json::Value {
         v

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
 //! HTTP surface: `POST /hook` for every hook event, `GET /health` for liveness.
-//! No detection logic lives here — verdicts come from `llm-firewall-agent`.
+//! No detection logic lives here — verdicts come from `soup-wall-agent`.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -11,7 +11,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
-use llm_firewall_agent::{AgentFirewall, EventKind, Trust, Verdict};
+use soup_wall_agent::{AgentFirewall, EventKind, Trust, Verdict};
 
 use crate::audit::{AuditFinding, AuditLine, AuditSink, AuditTaint};
 use crate::config::Config;
@@ -341,7 +341,7 @@ pub async fn hook(
 pub struct McpHandshakeReq {
     pub server: String,
     #[serde(default)]
-    pub tools: Vec<llm_firewall_agent::ToolDecl>,
+    pub tools: Vec<soup_wall_agent::ToolDecl>,
 }
 
 /// The MCP handshake endpoint. Computes drift + shadowing from persistent state, runs

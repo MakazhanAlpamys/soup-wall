@@ -13,8 +13,8 @@ mod scorecard;
 
 use clap::Parser;
 #[cfg(feature = "ml")]
-use llm_firewall_core::ModerationDetector;
-use llm_firewall_core::{
+use soup_wall_core::ModerationDetector;
+use soup_wall_core::{
     Direction, Firewall, InjectionDetector, Normalizer, OutputDetector, PiiDetector, PolicySet,
     SecretDetector,
 };
@@ -23,7 +23,7 @@ use crate::evaluate::{evaluate, CoreGuard, EvalResult, Guard};
 use crate::rivals::SubprocessGuard;
 
 #[derive(Parser)]
-#[command(name = "llm-firewall-bench")]
+#[command(name = "soup-wall-bench")]
 struct Cli {
     /// One or more dataset .jsonl files (text benchmark).
     #[arg(long, num_args = 1..)]
@@ -107,7 +107,7 @@ fn core_guard(
     // With the `ml` feature, attach the DeBERTa Stage-C classifier when its asset is
     // present; fall back to regex+heuristics (with a warning) if the model is missing.
     #[cfg(feature = "ml")]
-    let injection = match llm_firewall_core::MlClassifier::load("models/injection") {
+    let injection = match soup_wall_core::MlClassifier::load("models/injection") {
         Ok(clf) => {
             eprintln!("ML stage: loaded models/injection (DeBERTa Stage C active)");
             InjectionDetector::new().with_ml(clf)
@@ -121,7 +121,7 @@ fn core_guard(
     let injection = InjectionDetector::new();
 
     #[allow(unused_mut)] // `mut` is only exercised when the `ml` moderation branch pushes.
-    let mut detectors: Vec<Box<dyn llm_firewall_core::Detector>> = vec![
+    let mut detectors: Vec<Box<dyn soup_wall_core::Detector>> = vec![
         Box::new(injection),
         Box::new(SecretDetector::new()),
         Box::new(PiiDetector::new()),
@@ -135,7 +135,7 @@ fn core_guard(
         #[cfg(not(feature = "ml"))]
         let _ = moderation_threshold;
         #[cfg(feature = "ml")]
-        match llm_firewall_core::ModerationClassifier::load_with_labels(
+        match soup_wall_core::ModerationClassifier::load_with_labels(
             "models/moderation",
             vec!["harmful".into(), "safe".into()],
         ) {
@@ -174,7 +174,7 @@ fn core_guard(
 /// threshold and the ML cutoff offline without re-running the model each time.
 #[cfg(feature = "ml")]
 fn dump_features(data: &[dataset::Example], path: &str) -> anyhow::Result<()> {
-    use llm_firewall_core::{Action, Direction, MlClassifier};
+    use soup_wall_core::{Action, Direction, MlClassifier};
     use std::io::Write;
 
     let policy = PolicySet::from_yaml(
@@ -233,7 +233,7 @@ fn run_agent_benchmark(corpus: &str, policy_path: Option<&str>) -> anyhow::Resul
             let yaml = std::fs::read_to_string(path)
                 .map_err(|e| anyhow::anyhow!("cannot read policy {path}: {e}"))?;
             Some(
-                llm_firewall_agent::AgentPolicySet::from_yaml(&yaml)
+                soup_wall_agent::AgentPolicySet::from_yaml(&yaml)
                     .map_err(|e| anyhow::anyhow!("policy {path} does not parse: {e}"))?,
             )
         }

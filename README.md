@@ -51,7 +51,7 @@ sequence, not a flag flip:
 3. **Narrow the wrong rule, then gate it.** If a rule interrupted legitimate work, narrow it in
    your policy YAML, then prove the edit did not weaken anything:
    ```sh
-   llm-firewall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy my-policy.yaml
+   soup-wall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy my-policy.yaml
    ```
    This replays the reviewed attack and benign corpus under your policy and exits non-zero if
    any reviewed attack is now missed or any reviewed benign session is now interrupted.

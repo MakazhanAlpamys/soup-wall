@@ -22,7 +22,7 @@ use agentfw::judge::Judge;
 use agentfw::{app, Config};
 use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
-use llm_firewall_agent::{AgentFirewall, AgentPolicySet, DEFAULT_TAINT_CAP};
+use soup_wall_agent::{AgentFirewall, AgentPolicySet, DEFAULT_TAINT_CAP};
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

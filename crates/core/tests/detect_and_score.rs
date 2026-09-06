@@ -4,7 +4,7 @@
 //! Locks the cross-module seam every later plan (PII/secret detectors, ML stage,
 //! policy engine, proxy) builds on.
 
-use llm_firewall_core::{
+use soup_wall_core::{
     mask, score_findings, Context, Detector, Direction, InjectionDetector, PiiDetector,
     SecretDetector,
 };

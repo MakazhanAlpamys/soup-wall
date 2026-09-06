@@ -15,7 +15,7 @@
 The reviewed agent-session scorecard is reproducible with:
 
 ```sh
-cargo run --locked --release -p llm-firewall-bench -- \
+cargo run --locked --release -p soup-wall-bench -- \
   --agent crates/bench/corpora/agent_sessions.jsonl
 ```
 
@@ -36,7 +36,7 @@ the Hugging Face datasets-server REST API — standard library only, no `pip ins
   *broad*: it tags many roleplay, capability ("write SQL that…"), and non-English benign prompts as
   injection, so a strict injection detector shows conservative recall (41.4%). That is a property of
   the ground truth, not muted detection — verify classifier fidelity directly with
-  `cargo run -p llm-firewall-core --features ml --release --example ml_probe` (unambiguous attacks
+  `cargo run -p soup-wall-core --features ml --release --example ml_probe` (unambiguous attacks
   score P(injection) ≈ 1.00, clean prompts ≈ 0.00).
 - **`JailbreakBench/JBB-Behaviors`** (harmful split, 100 goals) — **out of scope**: it measures
   harmful-*content* requests, not prompt injection. Reported (0% recall) only for scope transparency;

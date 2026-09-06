@@ -9,8 +9,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use llm_firewall_agent::ToolDecl;
 use serde::{Deserialize, Serialize};
+use soup_wall_agent::ToolDecl;
 
 /// How many superseded manifests are kept per server.
 ///

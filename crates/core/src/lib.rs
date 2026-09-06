@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
-//! `llm-firewall-core` — the pure-Rust detection engine.
+//! `soup-wall-core` — the pure-Rust detection engine.
 //! No I/O lives here; detectors return `Finding`s and the scorer aggregates them.
 
 mod context;

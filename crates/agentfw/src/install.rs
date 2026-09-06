@@ -83,7 +83,7 @@ pub fn instructions(port: u16, token_path: &Path) -> String {
          3. Narrow any rule that was wrong BEFORE enforcing, not after. Then gate the edited \
          policy against the reviewed attack and benign corpus -- it exits non-zero if your edit \
          now misses a known attack or interrupts known-benign work:\n\n       \
-         llm-firewall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy my-policy.yaml\n\n  \
+         soup-wall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy my-policy.yaml\n\n  \
          4. Set `enforce: true` in ~/.agentfw/config.yaml, restart, then confirm the change \
          actually took effect:\n\n       \
          agentfw preflight --require-enforce\n\n\

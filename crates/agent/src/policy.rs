@@ -4,8 +4,8 @@
 //! Flat, first-match YAML policy over agent signals. Mirrors `core::policy` in shape
 //! so operators only learn one format.
 
-use llm_firewall_core::{Finding, Severity};
 use serde::Deserialize;
+use soup_wall_core::{Finding, Severity};
 
 use crate::action::ActionClass;
 use crate::egress::is_allowed;
@@ -318,7 +318,7 @@ mod tests {
     use crate::action::ActionClass;
     use crate::event::Provenance;
     use crate::taint::TaintMark;
-    use llm_firewall_core::{Finding, Severity};
+    use soup_wall_core::{Finding, Severity};
 
     const YAML: &str = r#"
 agent_policies:

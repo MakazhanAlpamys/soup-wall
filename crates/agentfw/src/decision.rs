@@ -3,8 +3,8 @@
 
 //! Verdict -> Claude Code `permissionDecision`, and shadow mode.
 
-use llm_firewall_agent::Verdict;
 use serde::Serialize;
+use soup_wall_agent::Verdict;
 
 /// A verdict resolved against the enforcement setting.
 #[derive(Debug, Clone)]
@@ -99,7 +99,7 @@ impl Decision {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use llm_firewall_agent::Verdict;
+    use soup_wall_agent::Verdict;
 
     #[test]
     fn allow_maps_to_defer_never_to_allow() {

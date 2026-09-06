@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
 //! Hook payload -> `AgentEvent`. The daemon supplies the clock and the sequence
-//! number; `llm-firewall-agent` has neither by design.
+//! number; `soup-wall-agent` has neither by design.
 
-use llm_firewall_agent::{AgentEvent, EventKind};
+use soup_wall_agent::{AgentEvent, EventKind};
 
 use crate::hook::{HookEvent, HookPayload};
 use crate::provenance;
@@ -91,7 +91,7 @@ pub fn to_event(p: &HookPayload, seq: u64, at_ms: u64, max_bytes: usize) -> Opti
 mod tests {
     use super::*;
     use crate::hook::HookPayload;
-    use llm_firewall_agent::{EventKind, Provenance};
+    use soup_wall_agent::{EventKind, Provenance};
 
     fn payload(j: &str) -> HookPayload {
         serde_json::from_str(j).unwrap()

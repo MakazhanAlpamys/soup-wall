@@ -9,8 +9,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use anyhow::{bail, Context};
-use llm_firewall_agent::{AgentEvent, EventKind};
 use serde::Deserialize;
+use soup_wall_agent::{AgentEvent, EventKind};
 
 /// One labelled session from the corpus.
 #[derive(Debug, Clone, Deserialize)]

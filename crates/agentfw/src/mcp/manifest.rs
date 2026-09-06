@@ -6,8 +6,8 @@
 
 use std::collections::BTreeMap;
 
-use llm_firewall_agent::ToolDecl;
 use sha2::{Digest, Sha256};
+use soup_wall_agent::ToolDecl;
 
 /// Recursively sort object keys so semantically-equal JSON hashes equally.
 fn canonical(v: &serde_json::Value) -> serde_json::Value {

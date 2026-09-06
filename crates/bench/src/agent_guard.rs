@@ -10,7 +10,7 @@
 //! is *not* an interruption here, which is the honest no-judge behavior. The judge tier
 //! is measured separately (phase 10).
 
-use llm_firewall_agent::{AgentFirewall, AgentPolicySet, Verdict, DEFAULT_TAINT_CAP};
+use soup_wall_agent::{AgentFirewall, AgentPolicySet, Verdict, DEFAULT_TAINT_CAP};
 
 use crate::agent_dataset::Session;
 

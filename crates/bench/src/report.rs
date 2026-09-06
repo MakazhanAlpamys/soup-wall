@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use llm_firewall_core::{taxonomy, Direction, Firewall};
+use soup_wall_core::{taxonomy, Direction, Firewall};
 
 use crate::dataset::Example;
 
@@ -105,7 +105,7 @@ pub fn build_report(fw: &Firewall, data: &[Example]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use llm_firewall_core::{InjectionDetector, PolicySet};
+    use soup_wall_core::{InjectionDetector, PolicySet};
 
     #[test]
     fn report_lists_all_ten_and_marks_injection_covered() {

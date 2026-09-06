@@ -30,7 +30,7 @@ If you change an agent policy rule or the default policy, gate it against the re
 before enforcing it anywhere:
 
 ```sh
-llm-firewall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy <your-policy.yaml>
+soup-wall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy <your-policy.yaml>
 ```
 
 It exits non-zero if any reviewed attack is now missed or any reviewed benign session is now

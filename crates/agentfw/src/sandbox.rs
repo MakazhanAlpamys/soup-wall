@@ -17,10 +17,10 @@ use std::{fs, io::Write, path::Path};
 
 use anyhow::{bail, Context};
 use futures_util::StreamExt;
-use llm_firewall_adapter::DecisionResponse;
-use llm_firewall_agent::{AgentEvent, AgentFirewall, EventKind, Verdict};
 use reqwest::{Client, Url};
 use serde::Serialize;
+use soup_wall_adapter::DecisionResponse;
+use soup_wall_agent::{AgentEvent, AgentFirewall, EventKind, Verdict};
 
 /// Network access for a sandboxed command.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -898,8 +898,8 @@ async fn run_linux(spec: SandboxSpec, workspace: PathBuf) -> anyhow::Result<Sand
 #[cfg(test)]
 mod tests {
     use super::*;
-    use llm_firewall_adapter::Verdict as AdapterVerdict;
-    use llm_firewall_agent::{AgentFirewall, AgentPolicySet, DEFAULT_TAINT_CAP};
+    use soup_wall_adapter::Verdict as AdapterVerdict;
+    use soup_wall_agent::{AgentFirewall, AgentPolicySet, DEFAULT_TAINT_CAP};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 

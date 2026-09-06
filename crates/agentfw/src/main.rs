@@ -13,7 +13,7 @@ use agentfw::sandbox::{
 };
 use agentfw::{app, Config};
 use clap::{Parser, Subcommand};
-use llm_firewall_agent::{AgentFirewall, AgentPolicySet, DEFAULT_TAINT_CAP};
+use soup_wall_agent::{AgentFirewall, AgentPolicySet, DEFAULT_TAINT_CAP};
 
 #[derive(Parser)]
 #[command(name = "agentfw", about = "Agent firewall daemon and tooling")]

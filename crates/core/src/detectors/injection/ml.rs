@@ -89,7 +89,7 @@ mod tests {
     use super::*;
 
     /// Integration test — requires the model asset. Run with:
-    /// `cargo test -p llm-firewall-core --features ml -- --ignored`
+    /// `cargo test -p soup-wall-core --features ml -- --ignored`
     #[test]
     #[ignore = "requires models/injection asset (run scripts/fetch-model.sh)"]
     fn loads_and_scores() {

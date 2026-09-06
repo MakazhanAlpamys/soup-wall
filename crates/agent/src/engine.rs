@@ -4,8 +4,8 @@
 //! Wires facets, core detectors, taint, action classification, egress, and authority
 //! into a single `inspect()` call. Holds all per-session state.
 
-use llm_firewall_adapter::{DecisionResponse, Verdict as AdapterVerdict, CONTRACT_VERSION};
-use llm_firewall_core::{
+use soup_wall_adapter::{DecisionResponse, Verdict as AdapterVerdict, CONTRACT_VERSION};
+use soup_wall_core::{
     score_findings, Context, Detector, Finding, InjectionDetector, OutputDetector, PiiDetector,
     SecretDetector, Severity,
 };
@@ -145,8 +145,8 @@ impl AgentFirewall {
         let mut findings: Vec<(Facet, Finding)> = Vec::new();
         for (facet, text) in &projected {
             let ctx = match facet.direction() {
-                llm_firewall_core::Direction::Input => Context::input(text),
-                llm_firewall_core::Direction::Output => Context::output(text),
+                soup_wall_core::Direction::Input => Context::input(text),
+                soup_wall_core::Direction::Output => Context::output(text),
             };
             for det in &self.detectors {
                 for f in det.inspect(&ctx) {
@@ -269,8 +269,8 @@ impl AgentFirewall {
         let mut findings: Vec<(Facet, Finding)> = Vec::new();
         for (facet, text) in &projected {
             let ctx = match facet.direction() {
-                llm_firewall_core::Direction::Input => Context::input(text),
-                llm_firewall_core::Direction::Output => Context::output(text),
+                soup_wall_core::Direction::Input => Context::input(text),
+                soup_wall_core::Direction::Output => Context::output(text),
             };
             for det in &self.detectors {
                 for f in det.inspect(&ctx) {
@@ -362,7 +362,7 @@ mod tests {
         let response = out.adapter_response("local-policy-1");
         assert_eq!(
             response.verdict,
-            llm_firewall_adapter::Verdict::Ask,
+            soup_wall_adapter::Verdict::Ask,
             "an unresolved escalate must never become allow"
         );
         assert_eq!(response.policy_version, "local-policy-1");
@@ -372,9 +372,9 @@ mod tests {
         assert!(response.validate_for(&adapter_request(), 100).is_ok());
     }
 
-    fn adapter_request() -> llm_firewall_adapter::DecisionRequest {
-        llm_firewall_adapter::DecisionRequest {
-            contract_version: llm_firewall_adapter::CONTRACT_VERSION.into(),
+    fn adapter_request() -> soup_wall_adapter::DecisionRequest {
+        soup_wall_adapter::DecisionRequest {
+            contract_version: soup_wall_adapter::CONTRACT_VERSION.into(),
             request_id: "req".into(),
             agent_id: "agent".into(),
             session_id: "session".into(),

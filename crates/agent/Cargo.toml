@@ -1,5 +1,5 @@
 [package]
-name = "llm-firewall-agent"
+name = "soup-wall-agent"
 version = "0.2.0"
 edition.workspace = true
 license.workspace = true
@@ -7,8 +7,8 @@ repository.workspace = true
 description = "Agent-loop inspection: tool-call gating, taint tracking, subagent authority."
 
 [dependencies]
-llm-firewall-core = { path = "../core", version = "0.2.0" }
-llm-firewall-adapter = { path = "../adapter", version = "0.1.0" }
+soup-wall-core = { path = "../core", version = "0.2.0" }
+soup-wall-adapter = { path = "../adapter", version = "0.1.0" }
 regex.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true

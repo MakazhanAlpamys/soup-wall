@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
-//! Projects an `AgentEvent` into the text spans that `llm-firewall-core` detectors
+//! Projects an `AgentEvent` into the text spans that `soup-wall-core` detectors
 //! already know how to inspect, each tagged with which part of the event it came from.
 
-use llm_firewall_core::Direction;
 use serde::{Deserialize, Serialize};
+use soup_wall_core::Direction;
 
 use crate::event::{AgentEvent, EventKind};
 
@@ -138,7 +138,7 @@ mod tests {
     /// a literal space where any join inserts a separator.
     #[test]
     fn a_secret_split_across_leaves_is_not_detected() {
-        use llm_firewall_core::{Context, Detector, SecretDetector};
+        use soup_wall_core::{Context, Detector, SecretDetector};
 
         let e = ev(EventKind::ToolCall {
             tool: "Write".into(),

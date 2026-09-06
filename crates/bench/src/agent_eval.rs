@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use llm_firewall_agent::AgentPolicySet;
+use soup_wall_agent::AgentPolicySet;
 
 use crate::agent_dataset::Session;
 use crate::agent_guard::flags_with;

@@ -50,9 +50,9 @@ mod tests {
 
     #[test]
     fn markdown_has_header_and_row() {
-        let md = to_markdown(&[res("llm-firewall")]);
+        let md = to_markdown(&[res("soup-wall")]);
         assert!(md.contains("Malicious acc"));
-        assert!(md.contains("llm-firewall"));
+        assert!(md.contains("soup-wall"));
         assert!(md.contains("90.0%"));
     }
 
