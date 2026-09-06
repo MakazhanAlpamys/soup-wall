@@ -1,10 +1,3 @@
-<!--
-DRAFT README for the public thin-Core repository (core + agent + agentfw + adapter + bench).
-`Soup Wall` is a placeholder: the name is not decided. Binary names (`agentfw`,
-`llm-firewall-bench`) are the current ones and will likely follow the rename.
-Every claim below is one the repository can back today; nothing here is aspirational.
--->
-
 # Soup Wall
 
 A firewall for what an AI agent *does* — every tool call, tool result, MCP handshake and
