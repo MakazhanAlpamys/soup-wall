@@ -1,11 +1,11 @@
 <!--
 DRAFT README for the public thin-Core repository (core + agent + agentfw + adapter + bench).
-`{{PROJECT_NAME}}` is a placeholder: the name is not decided. Binary names (`agentfw`,
+`AI Firewall Core` is a placeholder: the name is not decided. Binary names (`agentfw`,
 `llm-firewall-bench`) are the current ones and will likely follow the rename.
 Every claim below is one the repository can back today; nothing here is aspirational.
 -->
 
-# {{PROJECT_NAME}}
+# AI Firewall Core
 
 A firewall for what an AI agent *does* — every tool call, tool result, MCP handshake and
 subagent spawn — that runs on one machine, needs no account, and makes no network call of
