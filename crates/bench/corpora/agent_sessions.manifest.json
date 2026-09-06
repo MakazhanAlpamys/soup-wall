@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "name": "LLM Firewall hand-authored agent security regression corpus",
+  "name": "Hand-authored agent security regression corpus",
   "license_spdx": "Apache-2.0",
   "provenance": "All 40 sessions are synthetic examples authored for this repository. They contain no customer prompts, credentials, audit logs, benchmark samples, or copied third-party dataset rows. Public corpora may inform future clean-room scenarios only after their own license and terms are reviewed.",
   "record_count": 40,

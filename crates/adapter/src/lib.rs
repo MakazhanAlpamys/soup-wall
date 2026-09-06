@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
-//! Stable, dependency-light wire types for the optional Soup Wall Enterprise adapter.
+//! Stable, dependency-light wire types for the optional control-plane adapter.
 //!
 //! This crate deliberately contains no network, storage, identity, or proxy code. Core
 //! can use the types locally and Enterprise can transport the same JSON without importing

@@ -56,7 +56,7 @@ pub fn build_report(fw: &Firewall, data: &[Example]) -> String {
     }
 
     let mut s = String::new();
-    s.push_str("# LLM Firewall — OWASP LLM Top 10 (2025) Compliance Report\n\n");
+    s.push_str("# OWASP LLM Top 10 (2025) Compliance Report\n\n");
     s.push_str(&format!(
         "Scanned **{}** prompts; **{}** produced at least one finding.\n\n",
         data.len(),
