@@ -1,0 +1,18 @@
+/target
+**/*.rs.bk
+/.worktrees
+/audit
+/data
+
+# ML model weights -- fetched on demand via scripts/fetch-model.sh (large, upstream-licensed)
+/models
+
+# Benchmark corpora + raw output -- regenerated via scripts/fetch-datasets.sh + the bench CLI
+/datasets
+/results*.json
+/identity-sandbox-evidence.json
+
+# Local credentials. Keep the documented template versioned, never real secrets.
+/.env
+/.env.*
+!/.env.example

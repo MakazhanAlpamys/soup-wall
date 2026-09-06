@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "name": "LLM Firewall hand-authored agent security regression corpus",
+  "license_spdx": "Apache-2.0",
+  "provenance": "All 40 sessions are synthetic examples authored for this repository. They contain no customer prompts, credentials, audit logs, benchmark samples, or copied third-party dataset rows. Public corpora may inform future clean-room scenarios only after their own license and terms are reviewed.",
+  "record_count": 40,
+  "attack_count": 19,
+  "benign_count": 21,
+  "categories": [
+    "allowlisted-egress",
+    "destructive-from-taint",
+    "indirect-injection",
+    "local-work",
+    "mcp-clean",
+    "mcp-poisoning",
+    "pii-egress",
+    "read-only",
+    "secret-egress",
+    "subagent-escalation",
+    "subagent-ok",
+    "tainted-but-benign",
+    "unknown-host"
+  ]
+}

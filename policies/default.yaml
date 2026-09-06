@@ -1,0 +1,42 @@
+policies:
+  - name: block-high-injection
+    # Scoped to `input`: prompt injection is an attack on *our* model, carried by
+    # what we are about to send it. A reply that merely discusses or quotes an
+    # injection (a security article, a CTF writeup) is not an attack on us, and
+    # blocking it is over-defense. A downstream consumer of this reply inspects
+    # it as its own `input`.
+    # NOTE: `detector: injection` matches `injection.ml` too (segment prefix), so
+    # this rule must be scoped or it re-blocks what block-ml-injection scopes.
+    when: { detector: injection, min_severity: high, direction: input }
+    action: block
+    message: "Blocked: possible prompt injection"
+  - name: block-ml-injection
+    # ML classifier positively identified injection (see injection detector's
+    # ml_threshold, default 0.5). Blocks directly, independent of risk-score banding.
+    #
+    # Scoped to `input` deliberately. The classifier is trained on user prompts
+    # that try to hijack a model; a model's own reply is not such a prompt.
+    # Measured on the phase-13 output corpus, running it on replies caught 0% of
+    # harmful content while over-blocking 16% of legitimate security answers.
+    # Indirect injection is NOT lost: retrieved content and tool results are
+    # projected as `input` and remain covered.
+    when: { detector: injection.ml, direction: input }
+    action: block
+    message: "Blocked: ML-detected prompt injection"
+  - name: mask-pii
+    when: { detector: pii }
+    action: mask
+  - name: block-secret-output
+    when: { detector: secret, direction: output }
+    action: block
+    message: "Blocked: secret in model output"
+  - name: block-dangerous-output
+    # Improper Output Handling (LLM05): dangerous shell/HTML/JS or markdown exfiltration
+    # in the model's reply.
+    when: { detector: output, direction: output, min_severity: high }
+    action: block
+    message: "Blocked: dangerous content in model output"
+  - name: block-high-risk
+    when: { risk_score_gte: 85 }
+    action: block
+default: allow

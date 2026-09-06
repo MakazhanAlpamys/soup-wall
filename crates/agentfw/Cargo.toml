@@ -1,0 +1,42 @@
+[package]
+name = "agentfw"
+version = "0.3.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Agent firewall daemon: inspects Claude Code tool calls via native hooks."
+
+[lib]
+name = "agentfw"
+path = "src/lib.rs"
+
+[[bin]]
+name = "agentfw"
+path = "src/main.rs"
+
+[dependencies]
+llm-firewall-adapter = { path = "../adapter", version = "0.1.0" }
+llm-firewall-agent = { path = "../agent", version = "0.2.0" }
+llm-firewall-core = { path = "../core", version = "0.2.0" }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { workspace = true }
+serde_json.workspace = true
+serde_yaml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+anyhow = "1"
+rand = "0.8"
+subtle = "2"
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+futures-util = "0.3"
+sha2 = "0.10"
+# Already present in the locked graph and license-reviewed in PROVENANCE.md
+# for the proxy CSRF proofs; declared here for the approval-grant HMAC.
+hmac = "0.12"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+tempfile = "3"
+wiremock = "0.6"

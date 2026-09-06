@@ -1,0 +1,51 @@
+# CI for the public Core repository.
+#
+# There is nothing to prune here: this repository never contains the
+# commercial proxy. The lock guard below is kept as a regression tripwire so a
+# dependency that only ever belonged to that layer cannot be reintroduced
+# without the build saying so.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace --locked
+
+  lock-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No commercial-layer dependency may enter this tree
+        run: |
+          set -euo pipefail
+          if grep -E '^name = "(saml-rs|rsa|tokio-postgres|deadpool-postgres|redis|jsonwebtoken)"' Cargo.lock; then
+            echo "a dependency that belongs to the commercial layer entered Cargo.lock" >&2
+            exit 1
+          fi
+          echo "lock is clean"
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-audit --locked
+      # No exceptions. The only advisory the parent workspace tolerates
+      # (RUSTSEC-2023-0071, rsa via saml-rs) cannot occur here.
+      - run: cargo audit
