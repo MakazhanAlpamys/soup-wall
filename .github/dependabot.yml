@@ -20,6 +20,12 @@ updates:
       # when the whole RustCrypto stack has matching stable releases.
       - dependency-name: sha2
         update-types: ["version-update:semver-major"]
+      # Same generation, same refusal, and the proof arrived on its own: hmac
+      # 0.13 was proposed hours after sha2 0.11 was declined. Taking it alone
+      # breaks the other way round -- Hmac<Sha256> needs sha2 and hmac from the
+      # same digest generation, which is exactly why neither moves by itself.
+      - dependency-name: hmac
+        update-types: ["version-update:semver-major"]
       # axum 0.8 compiles here, but this crate is exported byte-identical into
       # the private tree, where the proxy declares axum too across 86 routes.
       # Landing it on one side alone would either break that or put two axum

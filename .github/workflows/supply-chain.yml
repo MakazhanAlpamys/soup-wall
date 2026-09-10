@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       # Prebuilt binary: compiling cargo-audit from source costs several minutes
       # per run for a tool that does no compilation itself.
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@v2
         with:
@@ -55,7 +55,7 @@ jobs:
       # classifier's dependency graph even though the default build omits it.
       - name: Generate SBOM
         run: cargo cyclonedx --all --format json --all-features --target all
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: soup-wall-sbom
           path: "**/*.cdx.json"
