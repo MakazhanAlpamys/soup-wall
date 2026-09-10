@@ -70,7 +70,7 @@ jobs:
           cp LICENSE NOTICE README.md "$d/"
           7z a -tzip "staging/$d.zip" "$d" > /dev/null
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.target }}
           path: staging/*
@@ -94,7 +94,7 @@ jobs:
           mkdir -p staging
           find . -name '*.cdx.json' -exec cp {} staging/ \;
           ls -la staging
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-sbom
           path: staging/*

@@ -55,7 +55,7 @@ jobs:
       # classifier's dependency graph even though the default build omits it.
       - name: Generate SBOM
         run: cargo cyclonedx --all --format json --all-features --target all
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: soup-wall-sbom
           path: "**/*.cdx.json"
