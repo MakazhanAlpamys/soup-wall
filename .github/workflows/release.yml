@@ -9,7 +9,17 @@ name: release
 on:
   push:
     tags: ["v*"]
+  # Re-runnable against a tag that is already pushed, so a single stuck runner
+  # does not cost a re-tag.
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and publish (e.g. v0.3.0)"
+        required: true
+        type: string
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -27,12 +37,18 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - os: macos-latest
             target: aarch64-apple-darwin
-          - os: macos-13
+          # Cross-compiled on Apple silicon rather than on a `macos-13` Intel
+          # runner: that runner class is being retired and the first attempt at
+          # this release sat queued for it while every other target finished in
+          # under four minutes. Xcode on the ARM runner links x86_64 natively.
+          - os: macos-latest
             target: x86_64-apple-darwin
           - os: windows-latest
             target: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -50,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p staging
-          d="soup-wall-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          d="soup-wall-${TAG}-${{ matrix.target }}"
           mkdir "$d"
           cp "target/${{ matrix.target }}/release/agentfw" "$d/"
           cp "target/${{ matrix.target }}/release/soup-wall-bench" "$d/"
@@ -63,7 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p staging
-          d="soup-wall-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          d="soup-wall-${TAG}-${{ matrix.target }}"
           mkdir "$d"
           cp "target/${{ matrix.target }}/release/agentfw.exe" "$d/"
           cp "target/${{ matrix.target }}/release/soup-wall-bench.exe" "$d/"
@@ -136,8 +152,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" dist/* --clobber
           else
-            gh release create "${GITHUB_REF_NAME}" dist/*               --title "${GITHUB_REF_NAME}"               --generate-notes               --verify-tag
+            gh release create "${TAG}" dist/*               --title "${TAG}"               --generate-notes               --verify-tag
           fi
