@@ -19,6 +19,18 @@ use soup_wall_agent::ToolDecl;
 /// must not grow this file without bound.
 pub const MAX_HISTORY: usize = 10;
 
+/// How much of the readable part of a record filename is kept.
+///
+/// The discriminator makes the name unique on its own, so truncating here costs
+/// legibility and nothing else — while an unbounded `--id` would produce a
+/// filename past the 255-byte limit most filesystems impose.
+const MAX_STEM: usize = 64;
+
+/// Hex characters of the id digest appended to a record name. Thirty-two bits
+/// against accidental collision between operator-chosen ids; this is a
+/// uniqueness discriminator, not a security boundary.
+const STEM_DIGEST_HEX: usize = 8;
+
 /// One recorded manifest: the pin, and the tools it pinned.
 ///
 /// The tools are the point. Storing only the hash makes drift detectable but
@@ -57,8 +69,15 @@ impl ManifestStore {
         }
     }
 
-    /// Keep the filename filesystem-safe regardless of the `--id` value.
-    fn safe_name(server: &str) -> String {
+    /// The readable half of a record filename: filesystem-safe regardless of the
+    /// `--id` value.
+    ///
+    /// Deliberately lossy — every character outside `[A-Za-z0-9_-]` becomes
+    /// `_`, so no separator and no dot survives and traversal is structurally
+    /// impossible. That also makes it **not injective**: `foo.bar`, `foo/bar`
+    /// and `foo_bar` all clean to `foo_bar`. Never build a path from this
+    /// alone; use [`Self::safe_name`], which restores uniqueness.
+    fn stem(server: &str) -> String {
         server
             .chars()
             .map(|c| {
@@ -68,20 +87,60 @@ impl ManifestStore {
                     '_'
                 }
             })
+            .take(MAX_STEM)
             .collect()
+    }
+
+    /// A filesystem-safe **and injective** record name.
+    ///
+    /// Uniqueness is not cosmetic here. This is the pin store: two configured
+    /// servers sharing one record file means each `put_manifest` overwrites the
+    /// other's pinned hash and history, and the next handshake compares against
+    /// a manifest belonging to a different server — so genuine drift reads as
+    /// "no change". Of everything this component can get wrong, failing *open*
+    /// is the one it cannot afford.
+    ///
+    /// The discriminator is taken over the **original** string, not the cleaned
+    /// one, so ids that clean to the same stem still land in different files.
+    fn safe_name(server: &str) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(server.as_bytes());
+        let digest = format!("{:x}", hasher.finalize());
+        format!("{}-{}", Self::stem(server), &digest[..STEM_DIGEST_HEX])
     }
 
     fn path(&self, server: &str) -> PathBuf {
         self.dir.join(format!("{}.json", Self::safe_name(server)))
     }
 
-    /// Pre-retention pin location: a bare hash, no manifest.
+    /// Record location from before `safe_name` gained its discriminator. Read,
+    /// never written: a record found here migrates to [`Self::path`] on the
+    /// next write.
+    fn pre_unique_path(&self, server: &str) -> PathBuf {
+        self.dir.join(format!("{}.json", Self::stem(server)))
+    }
+
+    /// Pre-retention pin location: a bare hash, no manifest. Written before the
+    /// discriminator existed, so it is addressed by the stem.
     fn legacy_path(&self, server: &str) -> PathBuf {
-        self.dir.join(format!("{}.pin", Self::safe_name(server)))
+        self.dir.join(format!("{}.pin", Self::stem(server)))
     }
 
     fn read_record(&self, server: &str) -> ServerRecord {
         if let Ok(text) = fs::read_to_string(self.path(server)) {
+            if let Ok(record) = serde_json::from_str::<ServerRecord>(&text) {
+                return record;
+            }
+        }
+        // A record written before names carried a discriminator. Read it so an
+        // upgrade does not silently re-pin whatever the server now claims.
+        //
+        // Two ids that used to collide share this one file, so only the first
+        // of them to be handled inherits it; the other is treated as a server
+        // never seen before. That is the pre-existing corruption surfacing, not
+        // new loss — while they shared a file neither record was trustworthy.
+        if let Ok(text) = fs::read_to_string(self.pre_unique_path(server)) {
             if let Ok(record) = serde_json::from_str::<ServerRecord>(&text) {
                 return record;
             }
@@ -153,9 +212,11 @@ impl ManifestStore {
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
         }
-        // The legacy pin is now stale and would mislead anyone reading the
-        // directory by hand.
+        // Superseded locations are now stale and would mislead anyone reading
+        // the directory by hand. Removing the pre-unique file is also what
+        // completes the migration: the record now lives under its unique name.
         let _ = fs::remove_file(self.legacy_path(server));
+        let _ = fs::remove_file(self.pre_unique_path(server));
         Ok(())
     }
 }
@@ -329,6 +390,100 @@ mod tests {
         assert!(!dir.path().join("docs.pin").exists());
         assert_eq!(store.get("docs").as_deref(), Some("h-new"));
         assert_eq!(store.history("docs").len(), 1, "the legacy pin is history");
+    }
+
+    /// The defect this store cannot tolerate: the filename sanitizer maps every
+    /// character outside `[A-Za-z0-9_-]` to `_`, so distinct ids used to clean
+    /// onto one record file. One server's pin then overwrote the other's, and
+    /// the next handshake compared a manifest against a *different server's*
+    /// pin — real drift reading as "no change", which is failing open.
+    #[test]
+    fn ids_differing_only_in_replaced_characters_do_not_share_a_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ManifestStore::new(dir.path());
+
+        // All four clean to the same stem, `foo_bar`.
+        let ids = ["foo.bar", "foo/bar", "foo bar", "foo_bar"];
+        for (i, id) in ids.iter().enumerate() {
+            store
+                .put_manifest(id, &format!("hash-{i}"), &[], i as u64)
+                .unwrap();
+        }
+
+        for (i, id) in ids.iter().enumerate() {
+            assert_eq!(
+                store.get(id).as_deref(),
+                Some(format!("hash-{i}").as_str()),
+                "{id} must keep its own pin, not the last writer's"
+            );
+            assert!(
+                store.history(id).is_empty(),
+                "{id} was never superseded, so nothing belongs in its history"
+            );
+        }
+
+        let mut paths: Vec<_> = ids.iter().map(|id| store.path(id)).collect();
+        paths.sort();
+        paths.dedup();
+        assert_eq!(paths.len(), ids.len(), "one record file per id");
+    }
+
+    /// A long `--id` must not produce a filename past the limit filesystems
+    /// impose, and truncating must not reintroduce the collision it was the
+    /// discriminator's job to prevent.
+    #[test]
+    fn a_long_id_is_bounded_and_still_unique() {
+        let a = format!("{}-alpha", "x".repeat(400));
+        let b = format!("{}-beta", "x".repeat(400));
+        let name_a = ManifestStore::safe_name(&a);
+        let name_b = ManifestStore::safe_name(&b);
+
+        assert!(name_a.len() <= MAX_STEM + 1 + STEM_DIGEST_HEX);
+        assert_ne!(
+            name_a, name_b,
+            "ids sharing a truncated stem must still differ by digest"
+        );
+    }
+
+    /// Upgrade path: a record written before names carried a discriminator is
+    /// read, not ignored — otherwise the upgrade would silently re-pin whatever
+    /// the server presented next, which is the rug-pull this store exists to
+    /// catch.
+    #[test]
+    fn a_record_written_before_the_discriminator_is_migrated_not_lost() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ManifestStore::new(dir.path());
+
+        // Write one in the old location, by the old rules.
+        let old_path = dir.path().join("docs.json");
+        let old_record = serde_json::json!({
+            "current": { "hash": "pinned-before-upgrade", "tools": [], "recorded_at_ms": 7 },
+            "history": []
+        });
+        std::fs::write(&old_path, serde_json::to_string(&old_record).unwrap()).unwrap();
+
+        assert_eq!(
+            store.get("docs").as_deref(),
+            Some("pinned-before-upgrade"),
+            "the pre-upgrade pin must still be found"
+        );
+
+        // Writing migrates it: the record moves under the unique name and the
+        // old file is retired rather than left to mislead a reader.
+        store.put_manifest("docs", "after-upgrade", &[], 8).unwrap();
+        assert!(!old_path.exists(), "the pre-unique file is retired");
+        assert!(
+            store.path("docs").exists(),
+            "the record now lives under its unique name"
+        );
+
+        let reopened = ManifestStore::new(dir.path());
+        assert_eq!(reopened.get("docs").as_deref(), Some("after-upgrade"));
+        assert_eq!(
+            reopened.history("docs").first().map(|p| p.hash.as_str()),
+            Some("pinned-before-upgrade"),
+            "the migrated pin is superseded, not discarded"
+        );
     }
 
     #[test]

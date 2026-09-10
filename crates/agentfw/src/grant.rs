@@ -275,6 +275,17 @@ impl GrantStore {
         }
     }
 
+    /// Same lossy character map as the manifest store's, and therefore not
+    /// injective in general — but here it never has to be. A nonce comes from
+    /// [`crate::token::generate`], which emits base64url without padding, and
+    /// that alphabet is exactly `[A-Za-z0-9-_]`: the set this map preserves. On
+    /// a real nonce the map is the identity, so two grants cannot collide onto
+    /// one file. `nonces_are_already_in_the_preserved_alphabet` holds that
+    /// invariant in place; if the generator's alphabet ever widens, it fails
+    /// here rather than silently clobbering a pending approval.
+    ///
+    /// Unlike the manifest store this needs no discriminator, and adding one
+    /// would break every pending grant file on disk for no gain.
     fn file_name(nonce: &str) -> String {
         let safe: String = nonce
             .chars()
@@ -372,6 +383,29 @@ mod tests {
 
     const KEY: &[u8] = b"test-key-material";
     const NOW: u64 = 1_000_000;
+
+    /// `file_name` uses the same lossy map as the manifest store, where it was
+    /// a real defect: distinct ids collided onto one file. It is safe here only
+    /// because a nonce is base64url, whose alphabet is exactly the set the map
+    /// preserves. That is the load-bearing fact, so assert it rather than
+    /// trusting the two functions to stay in agreement.
+    #[test]
+    fn nonces_are_already_in_the_preserved_alphabet() {
+        for _ in 0..64 {
+            let nonce = crate::token::generate();
+            assert!(
+                nonce
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+                "nonce {nonce} left the alphabet file_name preserves"
+            );
+            assert_eq!(
+                GrantStore::file_name(&nonce),
+                format!("{nonce}.json"),
+                "the sanitizer must be the identity on a real nonce"
+            );
+        }
+    }
 
     fn action() -> ActionRef {
         ActionRef {
