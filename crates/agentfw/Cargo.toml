@@ -26,7 +26,7 @@ serde_yaml = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 anyhow = "1"
-rand = "0.8"
+rand = "0.10"
 subtle = "2"
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }

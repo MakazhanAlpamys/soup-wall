@@ -27,6 +27,23 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace --locked
 
+  # The `ml` stack is optional and off by default, so the `test` job above never
+  # compiles it. That blind spot let a dependency bump go green while being
+  # uncompilable: candle-transformers was raised to 0.11 while candle-core and
+  # candle-nn stayed at 0.8, which puts two versions of `Tensor` in one graph.
+  # Public runners are free and unmetered -- the private tree can only afford
+  # this weekly, this repository can afford it on every push.
+  all-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      - run: cargo test --workspace --all-features --locked
+
   lock-guard:
     runs-on: ubuntu-latest
     steps:

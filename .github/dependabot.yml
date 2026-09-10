@@ -7,6 +7,27 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Both of these were opened, reviewed and declined on 2026-09-10 for a
+      # reason that a re-opened pull request would not carry. Patch and minor
+      # updates still come through; only the major bump is held.
+      #
+      # sha2 0.11 moves to the next RustCrypto generation (digest 0.11,
+      # hybrid-array), so it cannot land alone: hmac, and in the private tree
+      # aes-gcm, have to move with it, and the output type stops implementing
+      # LowerHex so every `format!("{:x}", ..)` over a digest breaks. There is
+      # no security reason to hurry -- cargo audit is clean on 0.10. Unblocks
+      # when the whole RustCrypto stack has matching stable releases.
+      - dependency-name: sha2
+        update-types: ["version-update:semver-major"]
+      # axum 0.8 compiles here, but this crate is exported byte-identical into
+      # the private tree, where the proxy declares axum too across 86 routes.
+      # Landing it on one side alone would either break that or put two axum
+      # versions in one workspace. Unblocks when the proxy migrates in the same
+      # change -- which needs that repository's CI, currently refused by an
+      # account billing gate.
+      - dependency-name: axum
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
