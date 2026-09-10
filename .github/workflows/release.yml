@@ -120,7 +120,10 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          sha256sum * > SHA256SUMS
+          # Redirect first, glob second: `sha256sum * > SHA256SUMS` would list
+          # the (already created, still empty) checksum file among its inputs.
+          sha256sum -- * > ../SHA256SUMS
+          mv ../SHA256SUMS .
           cat SHA256SUMS
 
       # Upload into the release if one already exists for this tag -- the notes
