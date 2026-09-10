@@ -31,7 +31,7 @@ subtle = "2"
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 futures-util = "0.3"
-sha2 = "0.10"
+sha2 = "0.11"
 # Already present in the locked graph and license-reviewed in PROVENANCE.md
 # for the proxy CSRF proofs; declared here for the approval-grant HMAC.
 hmac = "0.12"
