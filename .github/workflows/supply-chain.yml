@@ -1,0 +1,63 @@
+# Advisory scan and SBOM, kept in the same shape as the private tree's
+# workflow of the same name so the two stay diffable.
+#
+# One deliberate difference: there is no `--ignore`. The single advisory the
+# private workspace tolerates (RUSTSEC-2023-0071, `rsa` reached through
+# `saml-rs`) cannot occur here, because `saml-rs` belongs to the commercial
+# layer and the lock guard in ci.yml fails the build if it ever appears.
+
+name: supply-chain
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-audit:
+    name: Cargo audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      # Prebuilt binary: compiling cargo-audit from source costs several minutes
+      # per run for a tool that does no compilation itself.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit@0.22.2
+      - run: cargo audit
+
+  sbom:
+    name: CycloneDX SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-cyclonedx@0.5.9
+      # `--all-features` includes `ml`, so the SBOM covers the optional
+      # classifier's dependency graph even though the default build omits it.
+      - name: Generate SBOM
+        run: cargo cyclonedx --all --format json --all-features --target all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soup-wall-sbom
+          path: "**/*.cdx.json"
+          if-no-files-found: error
+          retention-days: 90

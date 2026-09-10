@@ -1,0 +1,140 @@
+# Build the two binaries for each supported host on a version tag, publish them
+# with one SHA256SUMS file, and attach the SBOM.
+#
+# No third-party release action: `gh` is preinstalled on every runner and the
+# token it uses is the one already scoped to this repository.
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-13
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+
+      # The default feature set on purpose: the `ml` classifier needs model
+      # assets the user fetches themselves, and shipping a binary that expects
+      # them would break the single-command install the README promises.
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} -p agentfw -p soup-wall-bench
+
+      - name: Stage (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging
+          d="soup-wall-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          mkdir "$d"
+          cp "target/${{ matrix.target }}/release/agentfw" "$d/"
+          cp "target/${{ matrix.target }}/release/soup-wall-bench" "$d/"
+          cp LICENSE NOTICE README.md "$d/"
+          tar -czf "staging/$d.tar.gz" "$d"
+
+      - name: Stage (windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging
+          d="soup-wall-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          mkdir "$d"
+          cp "target/${{ matrix.target }}/release/agentfw.exe" "$d/"
+          cp "target/${{ matrix.target }}/release/soup-wall-bench.exe" "$d/"
+          cp LICENSE NOTICE README.md "$d/"
+          7z a -tzip "staging/$d.zip" "$d" > /dev/null
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: staging/*
+          if-no-files-found: error
+
+  sbom:
+    name: SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-cyclonedx@0.5.9
+      - run: cargo cyclonedx --all --format json --all-features --target all
+      - name: Collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging
+          find . -name '*.cdx.json' -exec cp {} staging/ \;
+          ls -la staging
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-sbom
+          path: staging/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: [build, sbom]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      # One checksum file over everything published, generated where the files
+      # are, so a reader can verify the whole release with a single command.
+      - name: Checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      # Upload into the release if one already exists for this tag -- the notes
+      # for a security tool are written by a person, not generated from a commit
+      # list -- and only fall back to creating one if the tag was pushed without
+      # it. `--clobber` makes a re-run of this job idempotent.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/*               --title "${GITHUB_REF_NAME}"               --generate-notes               --verify-tag
+          fi

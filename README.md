@@ -11,6 +11,10 @@ rewriting a tool description. It is deterministic, local, and shadow-first.
 
 Pure Rust. Apache-2.0.
 
+[![ci](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml)
+[![supply-chain](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml)
+![license](https://img.shields.io/badge/license-Apache--2.0-blue)
+
 ## What is in this repository
 
 | Crate | Purpose |
@@ -51,7 +55,7 @@ sequence, not a flag flip:
 3. **Narrow the wrong rule, then gate it.** If a rule interrupted legitimate work, narrow it in
    your policy YAML, then prove the edit did not weaken anything:
    ```sh
-   soup-wall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy my-policy.yaml
+   ./target/release/soup-wall-bench --agent crates/bench/corpora/agent_sessions.jsonl      --policy my-policy.yaml
    ```
    This replays the reviewed attack and benign corpus under your policy and exits non-zero if
    any reviewed attack is now missed or any reviewed benign session is now interrupted.
@@ -121,6 +125,14 @@ manifests are kept per server.
 - Audit lines record the trust class of tainted content and the nonce of any human approval,
   so a log reader can tell "policy allowed this" from "a human allowed this" without reading
   the source.
+- GitHub CodeQL runs on this repository and its results are public (Security → Code scanning).
+  The first Rust analysis raised 21 alerts and **none are open**: 12 hard-coded-cryptographic-value
+  alerts are test-only literals below the `#[cfg(test)]` in `crates/agentfw/src/grant.rs` or in
+  `tests/hook_endpoint.rs`, and 9 path-injection alerts are sanitized before use — `safe_name`
+  in `crates/agentfw/src/mcp/store.rs` and `file_name` in `grant.rs` map every character outside
+  `A-Za-z0-9-_` to an underscore, so no separator or dot survives and traversal is structurally
+  impossible. Each dismissal carries that reasoning on the alert itself, so you can disagree with
+  a specific one rather than with a summary.
 
 ## Layout note
 
