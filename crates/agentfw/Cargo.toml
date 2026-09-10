@@ -34,7 +34,7 @@ futures-util = "0.3"
 sha2 = "0.10"
 # Already present in the locked graph and license-reviewed in PROVENANCE.md
 # for the proxy CSRF proofs; declared here for the approval-grant HMAC.
-hmac = "0.12"
+hmac = "0.13"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
