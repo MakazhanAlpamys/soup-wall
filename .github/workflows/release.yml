@@ -77,13 +77,11 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - os: macos-latest
+          # Pin the standard macOS 15 pools so release scheduling and toolchain
+          # behavior do not change when GitHub advances the `latest` image.
+          - os: macos-15
             target: aarch64-apple-darwin
-          # Cross-compiled on Apple silicon rather than on a `macos-13` Intel
-          # runner: that runner class is being retired and the first attempt at
-          # this release sat queued for it while every other target finished in
-          # under four minutes. Xcode on the ARM runner links x86_64 natively.
-          - os: macos-latest
+          - os: macos-15-intel
             target: x86_64-apple-darwin
           - os: windows-latest
             target: x86_64-pc-windows-msvc
