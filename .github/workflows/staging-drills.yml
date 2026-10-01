@@ -1,0 +1,64 @@
+name: Soup Wall staging drills
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Soup Wall staging HTTPS base URL (no credentials or query)"
+        required: true
+        type: string
+      phase:
+        description: "Dependency state induced by the staging operator"
+        required: true
+        default: Baseline
+        type: choice
+        options:
+          - Baseline
+          - PostgresDown
+          - RedisDown
+          - Recovered
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soup-wall-staging-drills
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    name: Staging ${{ inputs.phase }} acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check health, TLS, metrics, and dependency state
+        shell: pwsh
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          PHASE: ${{ inputs.phase }}
+        run: |
+          if ($env:PHASE -in @('Baseline', 'Recovered')) {
+            & ./scripts/staging-acceptance.ps1 `
+              -BaseUrl $env:BASE_URL -RequireRedis -TimeoutSeconds 15 |
+              Tee-Object -FilePath staging-acceptance.json
+            if ($LASTEXITCODE -ne 0) { throw 'staging-acceptance.ps1 failed.' }
+          }
+          else {
+            '{"acceptance":"skipped","reason":"dependency-outage-phase"}' |
+              Set-Content -LiteralPath staging-acceptance.json -Encoding utf8
+          }
+
+          & ./scripts/dependency-failure-drill.ps1 `
+            -BaseUrl $env:BASE_URL -Phase $env:PHASE -TimeoutSeconds 15 |
+            Tee-Object -FilePath dependency-drill.json
+          if ($LASTEXITCODE -ne 0) { throw 'dependency-failure-drill.ps1 failed.' }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: soup-wall-staging-${{ inputs.phase }}-evidence
+          path: |
+            staging-acceptance.json
+            dependency-drill.json
+          if-no-files-found: error
+          retention-days: 30

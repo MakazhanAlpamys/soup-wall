@@ -58,11 +58,15 @@ Set `LLM_FW_ADMIN_TOKEN` to a long random value in the environment or a local, i
 
 The customer panel at `/customer` requires an active organization, workspace membership, and configured OIDC or SAML sign-in. There is no local password login. The code includes an organization-scoped SCIM `/Users` and `/Groups` subset, but provisioning does not automatically grant workspace authority. Validate the chosen IdP and the supported SCIM operations with a real integration before customer use.
 
+The [identity interoperability checks](operations/IDENTITY_INTEROPERABILITY.md) separate local fixtures from external discovery probes and customer pilot acceptance.
+
 ## 4. Plan a networked deployment
 
 The local SQLite mode is for one instance. For multiple Gateway replicas, configure PostgreSQL as the control-plane store and run `llm-firewall migrate` with a migration database role before starting runtime replicas. Use a separate least-privileged runtime role. Shared Redis is optional for cross-replica rate and spend admission windows; it is not the immutable usage ledger. Review the deployment templates under `deploy/` and run their checks for your chosen environment.
 
 A non-loopback bind requires `proxy_auth` or `tenant_store`. Put a trusted HTTPS edge in front of remote traffic, restrict the admin and metrics routes, keep provider and identity secrets in a secret manager, and verify `/readyz` as well as `/healthz`. Treat OIDC, SAML, SCIM, backup/restore, and alerting as deployment acceptance work; local fixtures alone do not prove a production integration.
+
+Use the [production runbook](operations/PRODUCTION_RUNBOOK.md) and [staging drill guide](operations/STAGING_DRILLS.md) to plan dependency and encrypted restore checks. The GitHub workflows run only when an operator dispatches them and supplies an approved staging environment.
 
 ## 5. Understand the data paths
 
@@ -78,6 +82,8 @@ The Gateway records outcomes and privacy-safe usage evidence without intentional
 ## Enforcement and billing limits
 
 The Agent daemon starts in shadow mode. Its Claude Code hook fails open when the daemon is unavailable, so run `agentfw preflight` before sessions that depend on it. Guarded execution has a separate fail-closed process boundary and its shell sandbox requires Linux/bubblewrap.
+
+The [guarded execution guide](operations/SANDBOX.md) shows the explicit shell, file, and retrieval commands and explains what the Linux sandbox covers.
 
 The Gateway's model traffic policy is independent of its opt-in `agent_inspection` and `capability_policy`. Those agent controls default to off and start shadow-first when enabled. `fail_mode: fail_closed` governs the Gateway's configured proxy failure behavior; review individual streaming and provider cases before promising complete enforcement.
 

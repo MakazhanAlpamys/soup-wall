@@ -3,6 +3,7 @@
 //! Run an external (e.g. Python) guard as a subprocess. Protocol: we send the text on
 //! stdin; the process prints "1" (malicious) or "0" (benign) on stdout.
 
+use anyhow::{bail, Context};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -18,24 +19,41 @@ impl Guard for SubprocessGuard {
     fn name(&self) -> String {
         self.name.clone()
     }
-    fn predict(&self, text: &str) -> bool {
-        let mut child = match Command::new(&self.program)
+    fn predict(&self, text: &str) -> anyhow::Result<bool> {
+        let mut child = Command::new(&self.program)
             .args(&self.args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
-        {
-            Ok(c) => c,
-            Err(_) => return false, // rival unavailable -> counted as benign prediction
-        };
-        if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin.write_all(text.as_bytes());
+            .with_context(|| format!("cannot launch rival {} ({})", self.name, self.program))?;
+        let mut stdin = child
+            .stdin
+            .take()
+            .context("rival subprocess has no stdin pipe")?;
+        if let Err(error) = stdin.write_all(text.as_bytes()) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(error)
+                .with_context(|| format!("cannot write input to rival {}", self.name));
         }
-        let out = match child.wait_with_output() {
-            Ok(o) => o,
-            Err(_) => return false,
-        };
-        String::from_utf8_lossy(&out.stdout).trim().starts_with('1')
+        drop(stdin);
+        let out = child
+            .wait_with_output()
+            .with_context(|| format!("cannot read output from rival {}", self.name))?;
+        if !out.status.success() {
+            bail!("rival {} exited with status {}", self.name, out.status);
+        }
+        let verdict = std::str::from_utf8(&out.stdout)
+            .with_context(|| format!("rival {} output is not UTF-8", self.name))?
+            .trim();
+        match verdict {
+            "1" => Ok(true),
+            "0" => Ok(false),
+            _ => bail!(
+                "rival {} returned invalid verdict; expected exactly 0 or 1",
+                self.name
+            ),
+        }
     }
 }
 
@@ -66,9 +84,45 @@ mod tests {
     fn parses_subprocess_verdict() {
         // Cross-platform stand-in for a rival: echo 1 => malicious.
         let g = echo_guard("echo-1", "1");
-        assert!(g.predict("anything"));
+        assert!(g.predict("anything").unwrap());
 
         let g0 = echo_guard("echo-0", "0");
-        assert!(!g0.predict("anything"));
+        assert!(!g0.predict("anything").unwrap());
+    }
+
+    #[test]
+    fn missing_rival_is_an_error() {
+        let g = SubprocessGuard {
+            name: "missing".into(),
+            program: "".into(),
+            args: Vec::new(),
+        };
+        assert!(g.predict("anything").is_err());
+    }
+
+    #[test]
+    fn failed_rival_is_an_error() {
+        #[cfg(windows)]
+        let (program, args) = (
+            "cmd".to_string(),
+            vec!["/C".to_string(), "exit /B 7".to_string()],
+        );
+        #[cfg(not(windows))]
+        let (program, args) = (
+            "sh".to_string(),
+            vec!["-c".to_string(), "exit 7".to_string()],
+        );
+        let g = SubprocessGuard {
+            name: "failed".into(),
+            program,
+            args,
+        };
+        assert!(g.predict("anything").is_err());
+    }
+
+    #[test]
+    fn malformed_verdict_is_an_error() {
+        assert!(echo_guard("invalid", "10").predict("anything").is_err());
+        assert!(echo_guard("missing", "").predict("anything").is_err());
     }
 }

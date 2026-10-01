@@ -1,70 +1,82 @@
-# Benchmark methodology (fairness rules)
+# Benchmark methodology
 
-- **Same corpora, same labels** for every guard (ours + rivals), loaded from `datasets/*.jsonl`.
-- **Two headline metrics**, always reported together: malicious accuracy (recall on attacks) and
-  over-defense FPR (false positives on benign sets like NotInject). One without the other is not a
-  valid comparison.
-- **Rivals run isolated**: each Python rival in its own venv, warmed once before timing.
-- **Same hardware / same process invocation overhead**; subprocess startup is included for all
-  subprocess-based guards so latency is apples-to-apples (or noted when it isn't).
-- **Missing rival = visible under-count**, never a silent skip: if a rival isn't installed the
-  adapter emits benign, which *lowers* its measured recall rather than inflating ours.
-- **Published numbers** for guards we don't re-run (e.g. Lakera) are cited with source + date, and
-  clearly separated from numbers we measured locally.
+## Reproducible agent regression scorecard
 
-The reviewed agent-session scorecard is reproducible with:
+The benchmark that runs in this repository and in CI is an offline replay of the
+versioned, synthetic agent sessions in
+[`crates/bench/corpora/agent_sessions.jsonl`](../crates/bench/corpora/agent_sessions.jsonl).
+Its adjacent manifest records the reviewed labels and counts. Run it with:
 
 ```sh
 cargo run --locked --release -p soup-wall-bench -- \
   --agent crates/bench/corpora/agent_sessions.jsonl
 ```
 
-CI publishes the generated Markdown as an artifact. The committed snapshot is
-coverage of the versioned hand-authored corpus only; it is not a claim of
-generalization or a substitute for a held-out public agent benchmark.
+The current corpus has 19 attack and 21 benign sessions. The committed
+[generated scorecard](benchmarks/agent-security-scorecard.generated.md) is
+compared byte-for-byte with a fresh run by the benchmark CI workflow. The
+[human-readable scorecard](benchmarks/agent-security-scorecard.md) reports the
+raw counts and explains the categories. A session is detected when the agent
+policy interrupts at least one event; the benign count records interruptions
+of ordinary work. You can check a candidate policy with `--policy path/to/policy.yaml`;
+the command exits nonzero if it misses a reviewed attack or interrupts a
+reviewed benign session.
 
-## Corpus notes
+This small, hand-authored corpus checks regressions in known scenarios. It is
+not a held-out sample, a measure of novel-attack detection, or evidence of a
+production protection rate. No current rival comparison is published from it.
 
-We report against four recognized public corpora (all pulled by `./scripts/fetch-datasets.sh` from
-the Hugging Face datasets-server REST API — standard library only, no `pip install datasets`):
+## Text benchmark: available tool, historical results
 
-- **`xTRam1/safe-guard-prompt-injection`** (test split, 2060 prompts, 650 inj / 1410 benign) — our
-  largest and most representative prompt-injection set. Full system: **84.3% recall @ 0.2% FPR**.
-- **`jackhhao/jailbreak-classification`** (test split, 262 prompts, 139 / 123) — jailbreak vs. benign.
-  Full system: **85.6% recall @ 1.6% FPR**.
-- **`deepset/prompt-injections`** (train+test, 662 prompts, 263 / 399) — its "injection" label is
-  *broad*: it tags many roleplay, capability ("write SQL that…"), and non-English benign prompts as
-  injection, so a strict injection detector shows conservative recall (41.4%). That is a property of
-  the ground truth, not muted detection — verify classifier fidelity directly with
-  `cargo run -p soup-wall-core --features ml --release --example ml_probe` (unambiguous attacks
-  score P(injection) ≈ 1.00, clean prompts ≈ 0.00).
-- **`JailbreakBench/JBB-Behaviors`** (harmful split, 100 goals) — **out of scope**: it measures
-  harmful-*content* requests, not prompt injection. Reported (0% recall) only for scope transparency;
-  this firewall is not a content-moderation classifier.
-- **Latency** is measured per-prompt on Apple Silicon CPU, single-threaded. The ML stage runs unless
-  a cheap stage already produced a blocking (High) finding, so the default (rules-only) build stays in
-  the microseconds while the full system pays the model cost (~0.1–0.3 s) only when needed.
-- **Operating point.** The ML stage flags at the classifier's own decision boundary
-  (`P(injection) ≥ 0.5`, `InjectionDetector::with_ml_threshold`) and a positive detection blocks
-  directly (policy rule on the `injection.ml` detector id), independent of the risk-score banding.
-  Because the DeBERTa model is well-calibrated (benign ≈ 0), honoring the 0.5 boundary rather than an
-  accidental ~0.85 cutoff lifts recall ~5–12 points with no measurable FPR change.
+The text benchmark accepts labeled JSONL (`{"text":"...","label":true}`,
+where `true` means malicious) and reports malicious recall, benign false-positive
+rate, F1, and per-example p50/p99 latency. For a local run:
 
-## Obfuscation resilience
+```sh
+./scripts/fetch-datasets.sh
+cargo run --locked --release -p soup-wall-bench -- \
+  --dataset datasets/safe_guard.jsonl --out results.json
+```
 
-- **Method.** We transform the *malicious* rows of a recognized corpus with the same evasion
-  techniques trusted red-team tools apply — **Unicode UTS #39** confusables (homoglyphs),
-  **Trojan-Source** zero-width insertion, and **NVIDIA garak / Microsoft PyRIT** base64 wrapping
-  (`scripts/obfuscate-dataset.py`) — then compare recall `--no-normalize` (baseline) vs. with the
-  dual-scan normalization pre-pass. Benign rows are left untouched so FPR is measured on controls,
-  including a **multilingual benign set** (Russian/Greek/Arabic/Japanese/accented + emoji).
-- **Result (safe-guard, rule-based build, no ML).** Homoglyph and zero-width obfuscation drop recall
-  from the clean 14.6% to **0.0%** (regex cannot match the altered bytes); the pre-pass restores it to
-  **~14.5%** (and base64 to 30.6%), with **0.00% FPR** on the multilingual control — no over-defense.
-- **Honest caveat.** The **DeBERTa ML stage is already largely robust** to these obfuscations on its
-  own (homoglyph ~97–99%, zero-width ~100% recall even without the pre-pass, because anomalous text
-  scores high). So the pre-pass's decisive value is (a) protecting the fast **rule-only default build**
-  and (b) making detection *principled* — acting on the decoded attack, not merely on "looks weird."
-- **Dual-scan / no over-defense.** Obfuscation is never itself a block reason; the pre-pass only adds
-  signal when the de-obfuscated text triggers a real detector, so legitimate multilingual/data-bearing
-  prompts pass through unchanged (see `firewall.rs`). Base64 decoding is opt-in.
+The download script currently requests deepset/prompt-injections,
+jackhhao/jailbreak-classification, xTRam1/safe-guard-prompt-injection, and
+JailbreakBench/JBB-Behaviors from the Hugging Face datasets-server API. The
+JailbreakBench harmful-goal set tests a different content-moderation question;
+it should not be presented as prompt-injection recall. The dataset rows are
+not bundled or revision-pinned, and upstream content or availability may
+change. Check each dataset's terms before downloading, redistributing, or
+publishing results.
+
+Earlier versions of this methodology listed text-corpus percentages and ML
+latencies from separate experiments. The repository does not contain the exact
+dataset snapshots, model weights, machine configuration, or complete run
+artifacts needed to reproduce those figures. Treat them as historical results,
+not current Soup Wall measurements. Before publishing new text scores, record
+the source revision and license of every dataset, exact model asset revision,
+Soup Wall commit, build flags, policy and threshold, hardware, and raw per-run
+output. Report attack recall and benign false-positive rate together.
+
+The default Rust build uses rules and heuristics. `--features ml` enables the
+optional model code, but model assets are fetched separately by
+`scripts/fetch-model.sh` and are not included in the open-source repository.
+The text benchmark warns and falls back to rules when the injection model is
+unavailable; optional moderation is likewise disabled if its model is missing.
+Verify that the intended model actually loaded before describing a run as an
+ML result. Review upstream model and training-data terms separately; the
+repository's Apache-2.0 license does not cover those assets.
+
+## External guards and fair comparisons
+
+`--rival "name=program arg arg"` is a simple adapter: the process receives one
+example on stdin and must return exactly `0` (benign) or `1` (malicious) on
+stdout. A missing program, write error, nonzero exit, or invalid response now
+fails the run. It is never converted into a benign prediction or a score. No
+rival implementation, isolated environment, or current rival score is bundled.
+
+The adapter starts a new process for every example while Soup Wall runs in the
+benchmark process. Its latency therefore includes subprocess startup and is
+not directly comparable to the in-process Soup Wall latency. A fair published
+comparison needs pinned rival versions, the same labeled corpus and hardware,
+documented warmup and invocation method, and separate attack-recall and benign
+false-positive results. The text benchmark exercises the core detector path;
+it does not measure gateway networking or the end-to-end agent runtime.
