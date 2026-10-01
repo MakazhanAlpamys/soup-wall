@@ -221,7 +221,7 @@ jobs:
           tags: |
             type=raw,value=${{ env.TAG }}
             type=raw,value=latest,enable=${{ !contains(env.TAG, '-') }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/Dockerfile
