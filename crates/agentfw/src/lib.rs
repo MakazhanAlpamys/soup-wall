@@ -15,6 +15,8 @@ pub mod judge;
 pub mod map;
 pub mod mcp;
 pub mod preflight;
+#[cfg(windows)]
+mod private_file_windows;
 pub mod provenance;
 pub mod replay;
 pub mod sandbox;
