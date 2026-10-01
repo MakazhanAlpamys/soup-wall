@@ -40,7 +40,7 @@ impl Outcome {
     /// Project the local decision onto the provider-neutral adapter contract.
     ///
     /// This projection is intentionally local: it carries no raw content and no
-    /// Enterprise credentials. An `Escalate` that somehow reaches this boundary is
+    /// deployment credentials. An `Escalate` that somehow reaches this boundary is
     /// tightened to its declared fallback, or to `Ask` when no fallback exists.
     pub fn adapter_response(&self, policy_version: impl Into<String>) -> DecisionResponse {
         let verdict = match self.verdict {

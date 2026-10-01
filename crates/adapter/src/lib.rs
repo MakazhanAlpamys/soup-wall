@@ -4,8 +4,8 @@
 //! Stable, dependency-light wire types for the optional control-plane adapter.
 //!
 //! This crate deliberately contains no network, storage, identity, or proxy code. Core
-//! can use the types locally and Enterprise can transport the same JSON without importing
-//! private proxy implementation details.
+//! can use the types locally, while a self-hosted control plane can transport the same JSON
+//! without importing Gateway implementation details.
 
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt};
@@ -66,7 +66,7 @@ pub struct DestinationSummary {
     pub host_classes: Vec<String>,
 }
 
-/// Local Core context sent to an optional Enterprise policy adapter.
+/// Local decision context sent to an optional policy adapter.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DecisionRequest {
     pub contract_version: String,
@@ -110,7 +110,7 @@ impl DecisionRequest {
     }
 }
 
-/// Optional signed response from the Enterprise policy adapter.
+/// Optional signed response from a policy adapter.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DecisionResponse {
     pub contract_version: String,
@@ -135,7 +135,7 @@ impl DecisionResponse {
     /// Validate a response against its request using local time and replay data.
     ///
     /// This checks the envelope only; cryptographic signature verification belongs to
-    /// the adapter transport because key storage and rotation are Enterprise concerns.
+    /// the adapter transport because key storage and rotation depend on the deployment.
     pub fn validate_for(
         &self,
         request: &DecisionRequest,
@@ -166,7 +166,7 @@ impl DecisionResponse {
         Ok(())
     }
 
-    /// Validate a response that came from a remote Enterprise adapter.
+    /// Validate a response that came from a remote policy adapter.
     pub fn validate_remote_for(
         &self,
         request: &DecisionRequest,
@@ -230,7 +230,7 @@ pub struct ReplayEnvelope {
     pub sequence: u64,
 }
 
-/// Signed policy state distributed by Enterprise or loaded from a local file.
+/// Signed policy state distributed by a self-hosted control plane or loaded locally.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PolicyBundle {
     pub contract_version: String,
@@ -271,7 +271,7 @@ impl PolicyBundle {
     }
 }
 
-/// Privacy-safe event emitted by Core to a local sink or Enterprise telemetry adapter.
+/// Privacy-safe event emitted to a local sink or optional self-hosted telemetry adapter.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AuditEvent {
     pub contract_version: String,
