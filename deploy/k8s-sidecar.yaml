@@ -1,0 +1,95 @@
+# Inject the firewall next to your app; app talks to localhost:8080, firewall egresses upstream.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-with-soup-wall
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: myapp }
+  template:
+    metadata:
+      labels: { app: myapp }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: myapp:latest
+          env:
+            - name: OPENAI_BASE_URL
+              value: "http://localhost:8080/v1"
+        - name: soup-wall-gateway
+          # Pin this to an immutable release digest before production use.
+          image: ghcr.io/makazhanalpamys/soup-wall:latest
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsUser: 65532
+            runAsGroup: 65532
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            - name: LLM_FW_BIND
+              value: "0.0.0.0:8080"
+            - name: LLM_FW_OPENAI_BASE
+              value: "https://api.openai.com"
+            # The referenced Secret must contain only runtime credentials and
+            # is managed outside this manifest (never commit its values).
+            - name: LLM_FW_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: soup-wall-secrets
+                  key: admin-token
+            - name: LLM_FW_OIDC_STATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: soup-wall-secrets
+                  key: oidc-state-key
+            - name: LLM_FW_WEBHOOK_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: soup-wall-secrets
+                  key: webhook-signing-key
+            - name: LLM_FW_POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: soup-wall-secrets
+                  key: postgres-url
+            - name: LLM_FW_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: soup-wall-secrets
+                  key: redis-url
+          volumeMounts:
+            - name: soup-wall-config
+              mountPath: /app/firewall.yaml
+              subPath: firewall.yaml
+              readOnly: true
+      # Create this ConfigMap from deploy/production.firewall.yaml and review
+      # it as part of the release; the image's local-development config is not
+      # a production fallback.
+      volumes:
+        - name: soup-wall-config
+          configMap:
+            name: soup-wall-config

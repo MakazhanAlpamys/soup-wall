@@ -1,0 +1,39 @@
+name: benchmark
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "research/**"]
+  pull_request:
+    paths-ignore: ["**.md", "docs/**", "research/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agent-scorecard:
+    name: Agent security scorecard
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run reproducible agent benchmark
+        shell: bash
+        run: |
+          cargo run --locked --release -p soup-wall-bench -- \
+            --agent crates/bench/corpora/agent_sessions.jsonl \
+            > agent-security-scorecard.md
+          diff -u docs/benchmarks/agent-security-scorecard.generated.md agent-security-scorecard.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: agent-security-scorecard
+          path: agent-security-scorecard.md
+          if-no-files-found: error
+          retention-days: 90

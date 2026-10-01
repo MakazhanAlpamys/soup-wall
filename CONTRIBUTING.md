@@ -1,49 +1,45 @@
-# Contributing
+# Contributing to Soup Wall
 
-## What belongs here
+Soup Wall is an Apache-2.0 project. The Agent, Gateway, Console, and their supporting crates live in this repository. Contributions to detectors, policy, provider handling, identity, administration, usage evidence, documentation, and deployment are welcome.
 
-This repository is the local Core: detectors, the agent reference monitor, the daemon, the
-adapter contract, and the regression tooling. It protects one developer on one machine, needs no
-account, and makes no network call of its own.
-
-It deliberately does not contain the HTTP proxy for provider traffic, SSO, SCIM, multi-tenant
-administration, usage ledgers, or billing. A change that needs any of those is not a Core change.
-CI enforces one consequence of that: a dependency that only ever belonged to that layer
-(`saml-rs`, `rsa`, `tokio-postgres`, `redis`, `jsonwebtoken`) fails the build if it enters
-`Cargo.lock`.
+The current Gateway executable is named `llm-firewall`; its `LLM_FW_*` variables and existing HTTP headers are compatibility interfaces. Please discuss a migration before changing names that affect clients, stored tokens, cryptographic domain separation, or deployment state.
 
 ## Before opening a pull request
+
+Run from the repository root:
 
 ```sh
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo test --locked --workspace
 ```
 
-Every security-relevant change needs, in the same pull request:
+For an optional ML change, fetch only the reviewed model asset required by the feature and run its focused checks. Model weights and datasets have separate licenses and are not covered by the Rust workspace's Apache-2.0 declaration. See [source provenance](docs/PROVENANCE.md).
 
-- a regression test, and for a bypass, the payload that demonstrated it;
-- an explicit fail-open or fail-closed decision, stated in a comment where the decision is made;
-- audit evidence that stays privacy-safe (no prompts, tokens, or secrets in telemetry).
+Keep a pull request focused. Describe the behavior, threat or user need, compatibility impact, and how you verified it. Update the user-facing instructions when a setting, API, or default changes.
 
-If you change an agent policy rule or the default policy, gate it against the reviewed corpus
-before enforcing it anywhere:
+## Security changes
+
+For a security-relevant behavior change, include a regression case that exercises the intended boundary. For a bypass, retain a safe version of the payload that demonstrated it. State whether failures allow or block the action, and make audit output useful without logging prompts, completions, credentials, raw tokens, or identity assertions.
+
+Check both sides of an authorization boundary: a permitted action still works, and the same action is refused for an unauthorized user, workspace, tenant, or agent. Browser visibility is not authorization; enforce roles in the server and storage layers. Changes to provider streaming must account for fragmented events and tool calls as well as buffered responses.
+
+If you change an agent rule or the shipped policy, run the reviewed corpus:
 
 ```sh
-soup-wall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy <your-policy.yaml>
+cargo run --locked --release -p soup-wall-bench -- \
+  --agent crates/bench/corpora/agent_sessions.jsonl \
+  --policy path/to/your-policy.yaml
 ```
 
-It exits non-zero if any reviewed attack is now missed or any reviewed benign session is now
-interrupted. Fix the rule, not the corpus.
+The gate fails if a reviewed attack is missed or a reviewed benign session is interrupted. Do not change corpus labels merely to make a rule pass. Add new cases with provenance and an explanation of the intended verdict.
 
-## Numbers
+## Evidence and claims
 
-Do not add a detection or false-positive percentage to the README or documentation from the
-hand-authored corpus. It measures coverage of reviewed attack shapes, not generalization; raw
-counts are the honest form. Held-out results belong in `docs/methodology.md` with the method
-that produced them.
+The agent-session corpus is hand-authored. It checks known cases but does not establish detection rates on novel attacks. Report malicious recall and benign false-positive rate together for a genuinely held-out evaluation, and document its data, method, model assets, and limitations in [benchmark methodology](docs/methodology.md). Do not advertise a percentage from the in-repository agent corpus.
 
-## Provenance
+Do not describe local OIDC, SAML, or SCIM fixtures as certification against a customer identity provider. Do not describe read-only invoice previews or spend admission counters as final billing. Update [README.md](README.md) and [self-hosting guidance](docs/SELF_HOSTING.md) when release evidence changes these limits.
 
-External code, models, and datasets go through the intake lanes in `docs/PROVENANCE.md` before
-they are introduced. Keep SPDX headers on every source file.
+## License and attribution
+
+Keep SPDX identifiers, [LICENSE](LICENSE), and [NOTICE](NOTICE). Soup Wall derives from [carbon-evolution/llm-firewall](https://github.com/carbon-evolution/llm-firewall) by Arthur Lin and contributors. Record the origin, version, license, and required notices for any new external code, model, dataset, or frontend asset under the [provenance rules](docs/PROVENANCE.md).

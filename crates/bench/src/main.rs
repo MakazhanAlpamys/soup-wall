@@ -207,12 +207,18 @@ fn dump_features(data: &[dataset::Example], path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn parse_rival(spec: &str) -> Option<SubprocessGuard> {
-    let (name, cmd) = spec.split_once('=')?;
+fn parse_rival(spec: &str) -> anyhow::Result<SubprocessGuard> {
+    let (name, cmd) = spec
+        .split_once('=')
+        .ok_or_else(|| anyhow::anyhow!("invalid --rival; expected name=program args"))?;
+    anyhow::ensure!(!name.trim().is_empty(), "--rival name cannot be empty");
     let mut parts = cmd.split_whitespace();
-    let program = parts.next()?.to_string();
+    let program = parts
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("--rival program cannot be empty"))?
+        .to_string();
     let args = parts.map(String::from).collect();
-    Some(SubprocessGuard {
+    Ok(SubprocessGuard {
         name: name.to_string(),
         program,
         args,
@@ -358,19 +364,13 @@ fn main() -> anyhow::Result<()> {
         eprintln!("wrote compliance report to {path}");
     }
 
-    results.push(evaluate(&core, &data));
+    results.push(evaluate(&core, &data)?);
 
     for spec in &cli.rival {
-        match parse_rival(spec) {
-            Some(g) => {
-                let name = g.name();
-                results.push(evaluate(&g as &dyn Guard, &data));
-                eprintln!("evaluated rival {name}");
-            }
-            None => {
-                eprintln!("skipping malformed --rival (expected \"name=program args\"): {spec}")
-            }
-        }
+        let g = parse_rival(spec)?;
+        let name = g.name();
+        results.push(evaluate(&g as &dyn Guard, &data)?);
+        eprintln!("evaluated rival {name}");
     }
 
     std::fs::write(

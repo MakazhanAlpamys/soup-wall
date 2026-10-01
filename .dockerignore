@@ -1,0 +1,35 @@
+# Never send local credentials or runtime state to the Docker daemon.
+.env
+.env.*
+!.env.example
+
+# Source-control metadata and generated/local artifacts are not needed by the
+# release image and may contain customer data or large model weights.
+.git
+.github
+.worktrees
+target
+audit
+data
+datasets
+models
+results*.json
+
+# Production images do not compile or ship test fixtures (including the
+# intentionally test-only SAML private key), documentation, research notes, or
+# developer helper scripts.
+crates/agent/tests
+crates/agentfw/tests
+crates/bench/tests
+crates/core/tests
+crates/proxy/tests
+docs
+research
+rivals
+scripts
+
+# Editor and OS noise.
+.vscode
+.idea
+*.swp
+Thumbs.db

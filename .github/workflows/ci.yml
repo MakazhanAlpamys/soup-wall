@@ -1,9 +1,5 @@
-# CI for the public Core repository.
-#
-# There is nothing to prune here: this repository never contains the
-# commercial proxy. The lock guard below is kept as a regression tripwire so a
-# dependency that only ever belonged to that layer cannot be reintroduced
-# without the build saying so.
+# CI for the complete open-source Soup Wall workspace.
+# Every workspace member, including the gateway, is built from the same lock.
 
 name: ci
 
@@ -11,48 +7,118 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux sandbox runtime
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y bubblewrap
       - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
 
-  # The `ml` stack is optional and off by default, so the `test` job above never
-  # compiles it. That blind spot let a dependency bump go green while being
-  # uncompilable: candle-transformers was raised to 0.11 while candle-core and
-  # candle-nn stayed at 0.8, which puts two versions of `Tensor` in one graph.
-  # Public runners are free and unmetered -- the private tree can only afford
-  # this weekly, this repository can afford it on every push.
+  # The optional ML stack is not compiled by the default-feature job.
   all-features:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      - name: Install Linux sandbox runtime
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y bubblewrap
+      - run: cargo clippy --workspace --all-features --all-targets --locked -- -D warnings
       - run: cargo test --workspace --all-features --locked
 
-  lock-guard:
+  redis-integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
-      - name: No commercial-layer dependency may enter this tree
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked -p llm-firewall redis_limits::tests::redis_shares_rate_and_spend_windows -- --ignored
+        env:
+          LLM_FW_TEST_REDIS_URL: redis://127.0.0.1:6379/15
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: firewall
+          POSTGRES_USER: firewall
+          POSTGRES_PASSWORD: firewall
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U firewall -d firewall"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked -p llm-firewall tenant_store::tests::postgres_control_plane_persists_tenants_tokens_policies_and_audit -- --ignored
+        env:
+          LLM_FW_TEST_POSTGRES_URL: postgresql://firewall:firewall@127.0.0.1:5432/firewall?sslmode=disable
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: false
+          load: true
+          tags: soup-wall:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke gateway health endpoint
+        shell: bash
         run: |
           set -euo pipefail
-          if grep -E '^name = "(saml-rs|rsa|tokio-postgres|deadpool-postgres|redis|jsonwebtoken)"' Cargo.lock; then
-            echo "a dependency that belongs to the commercial layer entered Cargo.lock" >&2
-            exit 1
-          fi
-          echo "lock is clean"
+          container="$(docker run -d soup-wall:ci)"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          for attempt in {1..20}; do
+            if docker exec "$container" curl --fail --silent http://127.0.0.1:8080/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs "$container"
+          exit 1

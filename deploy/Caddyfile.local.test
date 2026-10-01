@@ -1,0 +1,22 @@
+# Disposable local TLS-edge fixture for the Compose staging drill.
+# Production uses deploy/Caddyfile.example with a real ACME hostname.
+https://localhost:8443 {
+    tls internal
+    encode gzip
+
+    request_body {
+        max_size 8MB
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        -Server
+    }
+
+    @metrics path /metrics
+    respond @metrics 404
+
+    reverse_proxy firewall:8080
+}

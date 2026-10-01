@@ -1,10 +1,4 @@
-# Advisory scan and SBOM, kept in the same shape as the private tree's
-# workflow of the same name so the two stay diffable.
-#
-# One deliberate difference: there is no `--ignore`. The single advisory the
-# private workspace tolerates (RUSTSEC-2023-0071, `rsa` reached through
-# `saml-rs`) cannot occur here, because `saml-rs` belongs to the commercial
-# layer and the lock guard in ci.yml fails the build if it ever appears.
+# Advisory scan and six-crate SBOM for the complete open-source workspace.
 
 name: supply-chain
 
@@ -39,7 +33,12 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit@0.22.2
-      - run: cargo audit
+      # saml-rs 0.5.0 pulls rsa 0.9.10 for optional XML-Enc decryption.
+      # Soup Wall never configures a decryption key; encrypted assertions fail
+      # closed and a regression test protects that invariant. See
+      # docs/PROVENANCE.md. Only this advisory is excepted; any other
+      # advisory, including one affecting rustls, still fails this job.
+      - run: cargo audit --ignore RUSTSEC-2023-0071
 
   sbom:
     name: CycloneDX SBOM
@@ -51,10 +50,19 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-cyclonedx@0.5.9
-      # `--all-features` includes `ml`, so the SBOM covers the optional
-      # classifier's dependency graph even though the default build omits it.
+      # Include the optional ML classifier and the gateway's SAML/DB stack.
       - name: Generate SBOM
         run: cargo cyclonedx --all --format json --all-features --target all
+      - name: Confirm all six workspace packages have an SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          for package in soup-wall-core soup-wall-agent agentfw soup-wall-adapter soup-wall-bench llm-firewall; do
+            test "$(find . -name "$package.cdx.json" | wc -l)" -eq 1 || {
+              echo "missing or duplicate SBOM for $package" >&2
+              exit 1
+            }
+          done
       - uses: actions/upload-artifact@v7
         with:
           name: soup-wall-sbom

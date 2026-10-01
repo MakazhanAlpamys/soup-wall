@@ -1,0 +1,27 @@
+# Caddy v2 edge template for a hosted single-region deployment.
+# Replace the hostname and keep the Gateway bound to loopback (127.0.0.1:8080).
+# Caddy obtains and renews the public certificate through ACME; do not put
+# provider credentials or customer secrets in this file.
+
+soup-wall.example.com {
+    encode gzip
+
+    # Keep the edge limit at or below the Gateway's configured body bound.
+    request_body {
+        max_size 8MB
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        -Server
+    }
+
+    # Metrics stay on the internal monitoring network; never publish them at
+    # the customer-facing edge. Scrape the Gateway listener separately.
+    @metrics path /metrics
+    respond @metrics 404
+
+    reverse_proxy 127.0.0.1:8080
+}

@@ -1,5 +1,4 @@
-# Mirrors the private tree's configuration, minus the docker entry: this
-# repository ships no container.
+# Keep Rust, Actions, and gateway container dependencies current.
 version: 2
 updates:
   - package-ecosystem: cargo
@@ -13,11 +12,11 @@ updates:
       # updates still come through; only the major bump is held.
       #
       # sha2 0.11 moves to the next RustCrypto generation (digest 0.11,
-      # hybrid-array), so it cannot land alone: hmac, and in the private tree
-      # aes-gcm, have to move with it, and the output type stops implementing
+      # hybrid-array), so it cannot land alone: hmac and aes-gcm have to move
+      # with it, and the output type stops implementing
       # LowerHex so every `format!("{:x}", ..)` over a digest breaks. There is
-      # no security reason to hurry -- cargo audit is clean on 0.10. Unblocks
-      # when the whole RustCrypto stack has matching stable releases.
+      # no known advisory requiring this major bump. Unblocks when the whole
+      # RustCrypto stack has matching stable releases.
       - dependency-name: sha2
         update-types: ["version-update:semver-major"]
       # Same generation, same refusal, and the proof arrived on its own: hmac
@@ -26,13 +25,14 @@ updates:
       # same digest generation, which is exactly why neither moves by itself.
       - dependency-name: hmac
         update-types: ["version-update:semver-major"]
-      # axum 0.8 compiles here, but this crate is exported byte-identical into
-      # the private tree, where the proxy declares axum too across 86 routes.
-      # Landing it on one side alone would either break that or put two axum
-      # versions in one workspace. Unblocks when the proxy migrates in the same
-      # change -- which needs that repository's CI, currently refused by an
-      # account billing gate.
+      # agentfw and the gateway both declare axum. Move them together with
+      # their route tests in a dedicated migration.
       - dependency-name: axum
+        update-types: ["version-update:semver-major"]
+      # rusqlite 0.40 removes FromSql/ToSql for u64 and usize. The gateway's
+      # tenant store handles spend and rate-limit values; review each signed
+      # conversion rather than allowing a broad automated cast.
+      - dependency-name: rusqlite
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
@@ -40,3 +40,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: "/deploy"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

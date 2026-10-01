@@ -1,0 +1,1281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Soup Wall — Workspace</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    body { background: #10131a; color: #edf2ff; margin: 0; min-height: 100vh; }
+    main { width: min(1120px, calc(100% - 48px)); margin: 32px auto; background: #181d28; border: 1px solid #2d3545; border-radius: 16px; padding: 32px; box-shadow: 0 24px 64px #0006; }
+    h1 { margin: 0 0 6px; font-size: 28px; } h2 { font-size: 18px; margin: 32px 0 6px; } p { color: #adb9cc; line-height: 1.5; }
+    dl { margin: 28px 0; display: grid; grid-template-columns: 150px 1fr; gap: 12px 18px; }
+    dt { color: #91a0b8; } dd { margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .role { display: inline-block; background: #263c66; color: #bdd7ff; border-radius: 99px; padding: 4px 10px; font-family: inherit; }
+    button { border: 0; border-radius: 8px; padding: 10px 15px; background: #e7edf9; color: #151a24; cursor: pointer; font-weight: 650; }
+    button:hover { background: white; } .error { color: #ffb4aa; } [hidden] { display: none; }
+    ul { margin: 12px 0 0; padding: 0; list-style: none; border-top: 1px solid #2d3545; } li { border-bottom: 1px solid #2d3545; padding: 12px 0; color: #d8e1f1; } time { color: #91a0b8; font-size: 13px; }
+    textarea { box-sizing: border-box; width: 100%; min-height: 112px; resize: vertical; border: 1px solid #3d485e; border-radius: 8px; background: #111722; color: #edf2ff; padding: 10px; font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    input, select { border: 1px solid #3d485e; border-radius: 6px; background: #111722; color: #edf2ff; padding: 8px; font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; } input[type="checkbox"] { accent-color: #bdd7ff; }
+    .limit-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0 18px; } .limit-fields label { display: grid; gap: 5px; color: #adb9cc; font-size: 13px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; } .secondary { background: #2a3241; color: #edf2ff; }
+    .member { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; } .member-name { font-weight: 650; } .member-meta { color: #91a0b8; font-size: 13px; margin-top: 4px; } .member-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; } .member-controls label { color: #adb9cc; font-size: 13px; }
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+    .card { background: #111722; border: 1px solid #2d3545; border-radius: 10px; padding: 14px; }
+    .card-label { color: #91a0b8; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    .card-value { display: block; margin-top: 7px; font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }
+    .notice { border: 1px solid #765c24; background: #2b2518; color: #ffe19a; border-radius: 8px; padding: 12px; }
+    .notice.ok { border-color: #285c4a; background: #14261f; color: #a8f0d0; }
+    .table-wrap { overflow-x: auto; border: 1px solid #2d3545; border-radius: 10px; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; min-width: 620px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #2d3545; white-space: nowrap; }
+    th { color: #91a0b8; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .settings-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+    .settings-grid label { display: grid; gap: 5px; color: #adb9cc; font-size: 13px; }
+    a.button { display: inline-block; text-decoration: none; border-radius: 8px; padding: 10px 15px; background: #2a3241; color: #edf2ff; font-weight: 650; }
+    @media (max-width: 820px) { .cards, .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .limit-fields { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { main { width: auto; margin: 0; border: 0; border-radius: 0; padding: 22px; } .cards, .settings-grid { grid-template-columns: 1fr; } dl { grid-template-columns: 1fr; } }
+  </style>
+  <style>
+    body{background:radial-gradient(circle at 8% 0%,#254c36 0,transparent 35rem),#101914;color:#f5f3e9;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    main{box-sizing:border-box;background:#1a2920;border-color:#344b3b;box-shadow:0 24px 64px #020b0759}
+    .soup-header{display:flex;align-items:center;gap:12px;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid #344b3b}
+    .soup-mark{width:42px;height:42px;flex:none;padding:7px;border:1px solid #718b5f;border-radius:13px;background:#243a28;color:#f3bc68}
+    .soup-wordmark{font-size:23px;font-weight:780;letter-spacing:-.035em}
+    .soup-header p{margin:1px 0 0;font-size:13px;color:#b0c2b1}
+    h1{letter-spacing:-.035em}
+    p,dt,.member-meta,.card-label,time,.limit-fields label,.settings-grid label{color:#b0c2b1}
+    .card,textarea,input,select{background:#142119;border-color:#344b3b;color:#f5f3e9}
+    .table-wrap,ul,li,th,td{border-color:#344b3b}
+    .role{background:#284734;color:#b9edc9}
+    button{background:#f3bc68;color:#182218}
+    button:hover{background:#ffd08c}
+    .secondary,a.button{background:#304537;color:#f5f3e9}
+    input[type="checkbox"]{accent-color:#f3bc68}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="soup-header"><svg class="soup-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M9 21h22c-.8 8-4.6 12-11 12S9.8 29 9 21Z" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M7 21h26M14 7c-3 4 3 5 0 9m7-10c-3 4 3 5 0 9m7-8c-3 4 3 5 0 9" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><div><div class="soup-wordmark">Soup Wall</div><p>Self-hosted workspace</p></div></div>
+    <h1>Customer workspace</h1>
+    <p id="status">Checking your secure session…</p>
+    <section id="identity" hidden aria-live="polite">
+      <dl>
+        <dt>Organization</dt><dd id="organization"></dd>
+        <dt>Workspace</dt><dd id="workspace"></dd>
+        <dt>Principal</dt><dd id="principal"></dd>
+        <dt>Current role</dt><dd><span id="role" class="role"></span></dd>
+      </dl>
+      <p>This workspace shows privacy-safe controls and immutable usage evidence. It never exposes an upstream identity token to the browser.</p>
+      <section id="usage" hidden aria-live="polite">
+        <h2>Usage overview</h2>
+        <p id="usage-status">Loading the last 30 days of immutable usage…</p>
+        <div id="usage-cards" class="cards" hidden>
+          <div class="card"><span class="card-label">Requests</span><span id="usage-requests" class="card-value"></span></div>
+          <div class="card"><span class="card-label">Input tokens</span><span id="usage-input" class="card-value"></span></div>
+          <div class="card"><span class="card-label">Output tokens</span><span id="usage-output" class="card-value"></span></div>
+          <div class="card"><span class="card-label">Priced usage</span><span id="usage-cost" class="card-value"></span></div>
+        </div>
+        <p id="usage-evidence" class="notice" hidden></p>
+        <div class="actions">
+          <button id="refresh-usage" type="button">Refresh usage</button>
+          <a id="usage-export" class="button" href="/customer/v1/usage/export.csv">Download CSV page (up to 1,000 events)</a>
+        </div>
+        <section id="invoice-preview" hidden aria-live="polite">
+          <h2>Invoice preview</h2>
+          <p id="invoice-preview-status">Owner-only preview from immutable usage events.</p>
+          <div class="actions"><button id="refresh-invoice-preview" type="button">Refresh invoice preview</button></div>
+          <p id="invoice-preview-notice" class="notice" hidden></p>
+          <div class="table-wrap"><table><thead><tr><th>Provider</th><th>Model</th><th>Requests</th><th>Input</th><th>Output</th><th>Cost</th></tr></thead><tbody id="invoice-preview-lines"></tbody></table></div>
+        </section>
+        <h2>Current UTC-month quotas and alerts</h2>
+        <p id="quota-status">Loading quota status…</p>
+        <div id="quota-alert" class="notice" hidden></div>
+        <div id="quota-cards" class="cards" hidden></div>
+        <form id="quota-form" hidden>
+          <p>Monitoring only: these thresholds do not block traffic and are not an invoice.</p>
+          <div class="settings-grid">
+            <label>Request limit<input id="quota-requests" type="number" min="1" step="1" placeholder="Disabled"></label>
+            <label>Token limit<input id="quota-tokens" type="number" min="1" step="1" placeholder="Disabled"></label>
+            <label>Cost limit (USD micros)<input id="quota-cost" type="number" min="1" step="1" placeholder="Disabled"></label>
+            <label>Alert threshold (%)<input id="quota-threshold" type="number" min="0.01" max="100" step="0.01" value="80"></label>
+          </div>
+          <div class="actions">
+            <button type="submit">Save quotas</button>
+            <button id="clear-quota" class="secondary" type="button">Clear quotas</button>
+          </div>
+          <p id="quota-save-status" aria-live="polite"></p>
+        </form>
+        <h2>Daily usage</h2>
+        <div class="table-wrap"><table><thead><tr><th>UTC day</th><th>Requests</th><th>Input</th><th>Output</th><th>Priced cost</th></tr></thead><tbody id="usage-daily"></tbody></table></div>
+        <h2>Provider and model breakdown</h2>
+        <div class="table-wrap"><table><thead><tr><th>Provider</th><th>Requested model</th><th>Requests</th><th>Tokens</th><th>Priced cost</th></tr></thead><tbody id="usage-models"></tbody></table></div>
+        <h2>Reconciliation readiness</h2>
+        <dl id="usage-reconciliation"></dl>
+        <h2>Evidence retention</h2>
+        <p id="retention-status">Loading retention policy and run history…</p>
+        <form id="retention-form" hidden>
+          <label><input id="retention-enabled" type="checkbox"> Enable an explicit retention policy</label>
+          <label id="retention-days-label">Retention days <input id="retention-days" type="number" min="30" max="3650" step="1" value="365"></label>
+          <div class="actions"><button type="submit">Save retention policy</button></div>
+          <p id="retention-save-status" aria-live="polite"></p>
+        </form>
+        <ul id="retention-runs"></ul>
+      </section>
+      <section id="audit" hidden aria-live="polite">
+        <h2>Workspace administration history</h2>
+        <p id="audit-status">Loading workspace changes…</p>
+        <ul id="audit-list"></ul>
+      </section>
+      <section id="proxy-audit" hidden aria-live="polite">
+        <h2>Recent proxy requests</h2>
+        <p id="proxy-audit-status">Loading recent request outcomes…</p>
+        <ul id="proxy-audit-list"></ul>
+      </section>
+      <section id="members" hidden aria-live="polite">
+        <h2>Workspace members</h2>
+        <p id="members-status">Loading workspace members…</p>
+        <p id="members-help">Only an owner can change workspace roles. Use an OIDC/SAML invitation for a new person, or explicitly assign an already SCIM-provisioned person.</p>
+        <form id="scim-member-form" hidden>
+          <label for="scim-member">SCIM directory user</label>
+          <select id="scim-member"></select>
+          <label for="scim-member-role">Workspace role</label>
+          <select id="scim-member-role"></select>
+          <button type="submit">Assign role</button>
+          <span id="scim-member-status" aria-live="polite"></span>
+        </form>
+        <ul id="members-list"></ul>
+      </section>
+      <section id="invitations" hidden aria-live="polite">
+        <h2>Federated invitations</h2>
+        <p id="invitations-status">Loading workspace invitations...</p>
+        <p>The recipient label is only a display name. Identity is established by the organization's verified OIDC or SAML issuer and subject.</p>
+        <form id="invitation-form" hidden>
+          <div class="settings-grid">
+            <label>Recipient label<input id="invitation-label" type="text" maxlength="128" autocomplete="off" required></label>
+            <label>Workspace role<select id="invitation-role"></select></label>
+            <label>Expires<input id="invitation-expires" type="datetime-local" required></label>
+          </div>
+          <div class="actions"><button type="submit">Create invitation</button></div>
+          <p id="invitation-save-status" aria-live="polite"></p>
+        </form>
+        <p id="invitation-token" class="notice" hidden></p>
+        <ul id="invitation-list"></ul>
+      </section>
+      <section id="service-accounts" hidden aria-live="polite">
+        <h2>Service accounts</h2>
+        <p id="service-accounts-status">Loading workspace machine identities…</p>
+        <p>Tokens are shown only once after creation. Store the token in your secret manager; it is never recoverable from this panel.</p>
+        <form id="service-account-form" hidden>
+          <div class="settings-grid">
+            <label>Name<input id="service-account-name" type="text" maxlength="128" autocomplete="off" required></label>
+            <label>Expires<input id="service-account-expires" type="datetime-local" required></label>
+          </div>
+          <div class="actions"><button type="submit">Create service account</button></div>
+          <p id="service-account-save-status" aria-live="polite"></p>
+        </form>
+        <p id="service-account-token" class="notice" hidden></p>
+        <ul id="service-account-list"></ul>
+      </section>
+      <section id="webhooks" hidden aria-live="polite">
+        <h2>SIEM and webhook destinations</h2>
+        <p id="webhooks-status">Loading delivery destinations…</p>
+        <p>Only an owner can add or deactivate a destination. The signing secret is shown once after creation; store it in your secret manager.</p>
+        <form id="webhook-form" hidden>
+          <label>HTTPS endpoint<input id="webhook-url" type="url" maxlength="2048" placeholder="https://hooks.example.com/soup-wall" autocomplete="off" required></label>
+          <p>Currently sends <code>policy.deployed</code> events. Private, localhost, and literal IP addresses are rejected.</p>
+          <div class="actions"><button type="submit">Add destination</button></div>
+          <p id="webhook-save-status" aria-live="polite"></p>
+        </form>
+        <p id="webhook-secret" class="notice" hidden></p>
+        <ul id="webhook-list"></ul>
+        <h3>Recent deliveries</h3>
+        <ul id="webhook-delivery-list"></ul>
+      </section>
+      <section id="controls" hidden aria-live="polite">
+        <h2>Configuration controls</h2>
+        <p id="controls-status">Loading workspace controls…</p>
+        <dl id="controls-details" hidden>
+          <dt>Model policy</dt><dd id="control-model-policy"></dd>
+          <dt>Rate limit</dt><dd id="control-rate-limit"></dd>
+          <dt>Spend guardrail</dt><dd id="control-spend-limit"></dd>
+        </dl>
+        <form id="model-policy-form" hidden>
+          <label for="allowed-models">Allowed models — one exact model ID per line</label>
+          <textarea id="allowed-models" autocomplete="off" spellcheck="false" aria-describedby="policy-help"></textarea>
+          <p id="policy-help">Saving requires at least one model. Clearing removes this workspace-specific allowlist and restores the operator default.</p>
+          <p id="policy-status" aria-live="polite"></p>
+          <div class="actions">
+            <button type="submit">Save model policy</button>
+            <button id="clear-model-policy" class="secondary" type="button">Clear workspace policy</button>
+          </div>
+        </form>
+        <form id="limits-form" hidden>
+          <h2>Admission limits</h2>
+          <p>These are guardrails for requests and spend, not an invoice or usage ledger.</p>
+          <label><input id="rate-enabled" type="checkbox"> Enable rate limit</label>
+          <div id="rate-fields" class="limit-fields" hidden>
+            <label>Requests per window<input id="rate-requests" type="number" min="1" step="1"></label>
+            <label>Window seconds<input id="rate-window" type="number" min="1" step="1"></label>
+          </div>
+          <label><input id="spend-enabled" type="checkbox"> Enable spend guardrail</label>
+          <div id="spend-fields" class="limit-fields" hidden>
+            <label>Window seconds<input id="spend-window" type="number" min="1" step="1"></label>
+            <label>Maximum USD micros<input id="spend-maximum" type="number" min="1" step="1"></label>
+            <label>Reserve per request (USD micros)<input id="spend-reserve" type="number" min="1" step="1"></label>
+          </div>
+          <p id="limits-status" aria-live="polite"></p>
+          <div class="actions"><button type="submit">Save admission limits</button></div>
+        </form>
+      </section>
+      <button id="logout" type="button">Log out</button>
+    </section>
+  </main>
+  <script>
+    const status = document.getElementById('status');
+    const identity = document.getElementById('identity');
+    const audit = document.getElementById('audit');
+    const auditStatus = document.getElementById('audit-status');
+    const auditList = document.getElementById('audit-list');
+    const proxyAudit = document.getElementById('proxy-audit');
+    const proxyAuditStatus = document.getElementById('proxy-audit-status');
+    const proxyAuditList = document.getElementById('proxy-audit-list');
+    const members = document.getElementById('members');
+    const membersStatus = document.getElementById('members-status');
+    const membersList = document.getElementById('members-list');
+    const scimMemberForm = document.getElementById('scim-member-form');
+    const scimMember = document.getElementById('scim-member');
+    const scimMemberRole = document.getElementById('scim-member-role');
+    const scimMemberStatus = document.getElementById('scim-member-status');
+    const invitations = document.getElementById('invitations');
+    const invitationsStatus = document.getElementById('invitations-status');
+    const invitationForm = document.getElementById('invitation-form');
+    const invitationList = document.getElementById('invitation-list');
+    const invitationToken = document.getElementById('invitation-token');
+    const invitationSaveStatus = document.getElementById('invitation-save-status');
+    const serviceAccounts = document.getElementById('service-accounts');
+    const serviceAccountsStatus = document.getElementById('service-accounts-status');
+    const serviceAccountForm = document.getElementById('service-account-form');
+    const serviceAccountList = document.getElementById('service-account-list');
+    const serviceAccountToken = document.getElementById('service-account-token');
+    const serviceAccountSaveStatus = document.getElementById('service-account-save-status');
+    const webhooks = document.getElementById('webhooks');
+    const webhooksStatus = document.getElementById('webhooks-status');
+    const webhookForm = document.getElementById('webhook-form');
+    const webhookList = document.getElementById('webhook-list');
+    const webhookDeliveryList = document.getElementById('webhook-delivery-list');
+    const webhookSecret = document.getElementById('webhook-secret');
+    const webhookSaveStatus = document.getElementById('webhook-save-status');
+    const controls = document.getElementById('controls');
+    const controlsStatus = document.getElementById('controls-status');
+    const controlsDetails = document.getElementById('controls-details');
+    const policyForm = document.getElementById('model-policy-form');
+    const allowedModels = document.getElementById('allowed-models');
+    const policyStatus = document.getElementById('policy-status');
+    const limitsForm = document.getElementById('limits-form');
+    const limitsStatus = document.getElementById('limits-status');
+    const rateEnabled = document.getElementById('rate-enabled');
+    const spendEnabled = document.getElementById('spend-enabled');
+    const usage = document.getElementById('usage');
+    const usageStatus = document.getElementById('usage-status');
+    const invoicePreview = document.getElementById('invoice-preview');
+    const invoicePreviewStatus = document.getElementById('invoice-preview-status');
+    const invoicePreviewNotice = document.getElementById('invoice-preview-notice');
+    const invoicePreviewLines = document.getElementById('invoice-preview-lines');
+    const quotaStatus = document.getElementById('quota-status');
+    const quotaForm = document.getElementById('quota-form');
+    const quotaSaveStatus = document.getElementById('quota-save-status');
+    const retentionForm = document.getElementById('retention-form');
+    const retentionEnabled = document.getElementById('retention-enabled');
+    const retentionStatus = document.getElementById('retention-status');
+    const retentionSaveStatus = document.getElementById('retention-save-status');
+    let csrfToken = null;
+    let sessionRole = null;
+    let sessionPrincipal = null;
+    const text = (id, value) => { document.getElementById(id).textContent = value || '—'; };
+    function renderAuditEvent(event) {
+      const item = document.createElement('li');
+      const action = document.createElement('div');
+      action.textContent = event.action || 'workspace change';
+      const details = document.createElement('time');
+      const target = event.target_principal_id ? ` · target ${event.target_principal_id}` : '';
+      const timestamp = Number.isFinite(event.created_at_unix)
+        ? new Date(event.created_at_unix * 1000).toLocaleString()
+        : 'time unavailable';
+      details.textContent = `${timestamp}${target}`;
+      item.append(action, details);
+      auditList.append(item);
+    }
+    async function loadAudit() {
+      const response = await fetch('/customer/v1/audit?limit=20', { credentials: 'same-origin', cache: 'no-store' });
+      audit.hidden = false;
+      if (response.status === 403) {
+        auditStatus.textContent = 'Your current role cannot read workspace administration history.';
+        return;
+      }
+      if (!response.ok) throw new Error('audit request failed');
+      const events = await response.json();
+      if (events.length === 0) {
+        auditStatus.textContent = 'No workspace administration changes have been recorded yet.';
+        return;
+      }
+      auditStatus.textContent = 'Most recent workspace administration changes.';
+      events.forEach(renderAuditEvent);
+    }
+    function renderProxyAuditEvent(event) {
+      const item = document.createElement('li');
+      const action = document.createElement('div');
+      action.textContent = `${event.outcome || 'unknown'} ${event.status_code || ''} · ${event.path || 'request'}`;
+      const details = document.createElement('time');
+      const timestamp = Number(event.created_at_unix);
+      const latency = Number(event.latency_ms);
+      details.textContent = `${Number.isFinite(timestamp) ? new Date(timestamp * 1000).toLocaleString() : 'time unavailable'} · ${Number.isFinite(latency) ? latency : '–'} ms`;
+      item.append(action, details);
+      proxyAuditList.append(item);
+    }
+    async function loadProxyAudit() {
+      const response = await fetch('/customer/v1/proxy-audit?limit=20', { credentials: 'same-origin', cache: 'no-store' });
+      proxyAudit.hidden = false;
+      if (response.status === 403) {
+        proxyAuditStatus.textContent = 'Your current role cannot read proxy request history.';
+        return;
+      }
+      if (!response.ok) throw new Error('proxy audit request failed');
+      const events = await response.json();
+      proxyAuditList.replaceChildren();
+      if (events.length === 0) {
+        proxyAuditStatus.textContent = 'No proxy requests have been recorded yet.';
+        return;
+      }
+      proxyAuditStatus.textContent = 'Recent request outcomes. Prompt and response content is never shown.';
+      events.forEach(renderProxyAuditEvent);
+    }
+    async function updateMember(member) {
+      if (!csrfToken) await loadCsrfToken();
+      const response = await fetch('/customer/v1/members', {
+        method: 'PATCH', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+        body: JSON.stringify(member),
+      });
+      if (!response.ok) throw new Error('membership save failed');
+      return response.json();
+    }
+    async function assignScimMember(member) {
+      if (!csrfToken) await loadCsrfToken();
+      const response = await fetch('/customer/v1/members', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+        body: JSON.stringify(member),
+      });
+      if (!response.ok) throw new Error('SCIM membership assignment failed');
+      return response.json();
+    }
+    function memberOption(role) {
+      const option = document.createElement('option');
+      option.value = role;
+      option.textContent = role;
+      return option;
+    }
+    function renderMember(member) {
+      const item = document.createElement('li');
+      item.className = 'member';
+      const details = document.createElement('div');
+      const name = document.createElement('div');
+      name.className = 'member-name';
+      name.textContent = member.principal_name || member.principal_id;
+      const metadata = document.createElement('div');
+      metadata.className = 'member-meta';
+      metadata.textContent = `${member.principal_id} · ${member.active ? 'active' : 'suspended'}`;
+      details.append(name, metadata);
+      item.append(details);
+      if (sessionRole !== 'owner') return item;
+      const controls = document.createElement('form');
+      controls.className = 'member-controls';
+      const role = document.createElement('select');
+      for (const value of ['owner', 'admin', 'analyst', 'developer']) role.append(memberOption(value));
+      role.value = member.role;
+      const activeLabel = document.createElement('label');
+      const active = document.createElement('input');
+      active.type = 'checkbox';
+      active.checked = Boolean(member.active);
+      activeLabel.append(active, document.createTextNode(' Active'));
+      const save = document.createElement('button');
+      save.type = 'submit';
+      save.textContent = 'Save';
+      const result = document.createElement('span');
+      result.setAttribute('aria-live', 'polite');
+      controls.append(role, activeLabel, save, result);
+      controls.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        save.disabled = true;
+        try {
+          await updateMember({ principal_id: member.principal_id, role: role.value, active: active.checked });
+          result.textContent = 'Saved.';
+          result.className = '';
+          await loadMembers();
+        } catch (_) {
+          result.textContent = 'Not saved. The last active owner cannot be removed.';
+          result.className = 'error';
+        } finally {
+          save.disabled = false;
+        }
+      });
+      item.append(controls);
+      return item;
+    }
+    async function loadMembers() {
+      const response = await fetch('/customer/v1/members', { credentials: 'same-origin', cache: 'no-store' });
+      members.hidden = false;
+      membersList.replaceChildren();
+      if (response.status === 403) {
+        membersStatus.textContent = 'Only a workspace owner can view and manage members.';
+        return;
+      }
+      if (!response.ok) throw new Error('member request failed');
+      const workspaceMembers = await response.json();
+      membersStatus.textContent = workspaceMembers.length
+        ? 'Roles and access are recorded in workspace administration history.'
+        : 'No workspace members found.';
+      workspaceMembers.forEach(member => membersList.append(renderMember(member)));
+      await loadScimDirectory(workspaceMembers);
+    }
+
+    function invitationState(invitation) {
+      if (invitation.accepted_at_unix) return 'accepted';
+      if (invitation.revoked_at_unix) return 'revoked';
+      if (!invitation.active) return 'inactive';
+      if (invitation.expires_at_unix < Math.floor(Date.now() / 1000)) return 'expired';
+      return 'active';
+    }
+
+    function renderInvitation(invitation) {
+      const item = document.createElement('li');
+      item.className = 'member';
+      const details = document.createElement('div');
+      const name = document.createElement('div');
+      name.className = 'member-name';
+      name.textContent = invitation.recipient_label || invitation.id;
+      const metadata = document.createElement('div');
+      metadata.className = 'member-meta';
+      const expiry = Number(invitation.expires_at_unix);
+      const state = invitationState(invitation);
+      metadata.textContent = `${invitation.role} · ${state} · expires ${Number.isFinite(expiry) ? new Date(expiry * 1000).toLocaleString() : 'unknown'}`;
+      details.append(name, metadata);
+      item.append(details);
+      if ((state === 'active' || state === 'expired') && sessionRole === 'owner') {
+        const resend = document.createElement('button');
+        resend.type = 'button';
+        resend.className = 'secondary';
+        resend.textContent = 'Resend';
+        resend.addEventListener('click', async () => {
+          if (!window.confirm(`Revoke the old invitation and issue a new one for "${invitation.recipient_label}"?`)) return;
+          resend.disabled = true;
+          try {
+            if (!csrfToken) await loadCsrfToken();
+            const expiresAt = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+            const response = await fetch(`/customer/v1/invitations/${encodeURIComponent(invitation.id)}/resend`, {
+              method: 'POST', credentials: 'same-origin', cache: 'no-store',
+              headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+              body: JSON.stringify({ expires_at_unix: expiresAt }),
+            });
+            if (!response.ok) throw new Error('resend failed');
+            const issued = await response.json();
+            invitationToken.textContent = `Copy this new acceptance URL now; it will not be shown again: ${window.location.origin}${issued.accept_path}`;
+            invitationToken.hidden = false;
+            invitationsStatus.textContent = 'The old invitation was revoked and a new bearer was issued.';
+            invitationsStatus.className = '';
+            await loadInvitations();
+          } catch (_) {
+            invitationsStatus.textContent = 'The invitation was not resent.';
+            invitationsStatus.className = 'error';
+            resend.disabled = false;
+          }
+        });
+        item.append(resend);
+        if (state === 'active') {
+          const revoke = document.createElement('button');
+          revoke.type = 'button';
+          revoke.className = 'secondary';
+          revoke.textContent = 'Revoke';
+          revoke.addEventListener('click', async () => {
+            if (!window.confirm(`Revoke invitation for "${invitation.recipient_label}"?`)) return;
+            revoke.disabled = true;
+            try {
+              if (!csrfToken) await loadCsrfToken();
+              const response = await fetch(`/customer/v1/invitations/${encodeURIComponent(invitation.id)}/revoke`, {
+                method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                headers: { 'X-LLM-Firewall-CSRF-Token': csrfToken },
+              });
+              if (!response.ok) throw new Error('revoke failed');
+              await loadInvitations();
+            } catch (_) {
+              invitationsStatus.textContent = 'The invitation was not revoked.';
+              invitationsStatus.className = 'error';
+              revoke.disabled = false;
+            }
+          });
+          item.append(revoke);
+        }
+      }
+      return item;
+    }
+
+    async function loadInvitations() {
+      const response = await fetch('/customer/v1/invitations', { credentials: 'same-origin', cache: 'no-store' });
+      invitations.hidden = false;
+      invitationList.replaceChildren();
+      if (response.status === 403) {
+        invitationsStatus.textContent = 'Only a workspace owner can manage invitations.';
+        invitationForm.hidden = true;
+        return;
+      }
+      if (!response.ok) throw new Error('invitation request failed');
+      const values = await response.json();
+      invitationForm.hidden = sessionRole !== 'owner';
+      invitationsStatus.textContent = values.length
+        ? 'Invitation tokens cannot be recovered from this inventory.'
+        : 'No workspace invitations have been created.';
+      values.forEach(value => invitationList.append(renderInvitation(value)));
+    }
+
+    for (const role of ['owner', 'admin', 'analyst', 'developer']) {
+      document.getElementById('invitation-role').append(memberOption(role));
+    }
+    document.getElementById('invitation-role').value = 'analyst';
+    invitationForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const recipientLabel = document.getElementById('invitation-label').value.trim();
+      const role = document.getElementById('invitation-role').value;
+      const expiresAt = Math.floor(new Date(document.getElementById('invitation-expires').value).getTime() / 1000);
+      const now = Math.floor(Date.now() / 1000);
+      if (!recipientLabel || !Number.isSafeInteger(expiresAt) || expiresAt <= now || expiresAt > now + 7 * 24 * 60 * 60) {
+        invitationSaveStatus.textContent = 'Choose a label and an expiry within the next seven days.';
+        invitationSaveStatus.className = 'error';
+        return;
+      }
+      const button = invitationForm.querySelector('button');
+      button.disabled = true;
+      invitationToken.hidden = true;
+      try {
+        if (!csrfToken) await loadCsrfToken();
+        const response = await fetch('/customer/v1/invitations', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+          body: JSON.stringify({ recipient_label: recipientLabel, role, expires_at_unix: expiresAt }),
+        });
+        if (!response.ok) throw new Error('create failed');
+        const issued = await response.json();
+        invitationToken.textContent = `Copy this acceptance URL now; it will not be shown again: ${window.location.origin}${issued.accept_path}`;
+        invitationToken.hidden = false;
+        invitationSaveStatus.textContent = 'Invitation created and recorded in workspace history.';
+        invitationSaveStatus.className = '';
+        document.getElementById('invitation-label').value = '';
+        await loadInvitations();
+        invitationToken.hidden = false;
+      } catch (_) {
+        invitationSaveStatus.textContent = 'The invitation was not created. Check the expiry and your role.';
+        invitationSaveStatus.className = 'error';
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    async function loadServiceAccounts() {
+      const response = await fetch('/customer/v1/service-accounts', { credentials: 'same-origin', cache: 'no-store' });
+      serviceAccounts.hidden = false;
+      serviceAccountList.replaceChildren();
+      if (response.status === 403) {
+        serviceAccountsStatus.textContent = 'Your current role cannot view service accounts.';
+        serviceAccountForm.hidden = true;
+        return;
+      }
+      if (!response.ok) throw new Error('service-account request failed');
+      const accounts = await response.json();
+      const canCreate = ['owner', 'admin', 'developer'].includes(sessionRole);
+      serviceAccountForm.hidden = !canCreate;
+      serviceAccountsStatus.textContent = accounts.length
+        ? 'Machine identities are scoped to this workspace and recorded in administration history.'
+        : 'No service accounts have been created in this workspace.';
+      accounts.forEach(account => {
+        const item = document.createElement('li');
+        item.className = 'member';
+        const details = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'member-name';
+        name.textContent = account.name || account.id;
+        const metadata = document.createElement('div');
+        metadata.className = 'member-meta';
+        const expiry = Number(account.expires_at_unix);
+        metadata.textContent = `${account.id} · ${account.active ? 'active' : 'revoked'} · expires ${Number.isFinite(expiry) ? new Date(expiry * 1000).toLocaleString() : 'unknown'}`;
+        details.append(name, metadata);
+        item.append(details);
+        const canRevoke = account.active && (sessionRole === 'owner' || sessionRole === 'admin' || account.created_by_principal_id === sessionPrincipal);
+        if (canRevoke) {
+          const revoke = document.createElement('button');
+          revoke.type = 'button';
+          revoke.className = 'secondary';
+          revoke.textContent = 'Revoke';
+          revoke.addEventListener('click', async () => {
+            if (!window.confirm(`Revoke service account “${account.name}”?`)) return;
+            revoke.disabled = true;
+            try {
+              if (!csrfToken) await loadCsrfToken();
+              const result = await fetch(`/customer/v1/service-accounts/${encodeURIComponent(account.id)}/revoke`, {
+                method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                headers: { 'X-LLM-Firewall-CSRF-Token': csrfToken },
+              });
+              if (!result.ok) throw new Error('revoke failed');
+              await loadServiceAccounts();
+            } catch (_) {
+              serviceAccountsStatus.textContent = 'The service account was not revoked.';
+              serviceAccountsStatus.className = 'error';
+              revoke.disabled = false;
+            }
+          });
+          item.append(revoke);
+        }
+        serviceAccountList.append(item);
+      });
+    }
+
+    serviceAccountForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const name = document.getElementById('service-account-name').value.trim();
+      const date = document.getElementById('service-account-expires').value;
+      const expiresAt = Math.floor(new Date(date).getTime() / 1000);
+      if (!name || !Number.isSafeInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) {
+        serviceAccountSaveStatus.textContent = 'Choose a name and a future expiry time.';
+        serviceAccountSaveStatus.className = 'error';
+        return;
+      }
+      const button = serviceAccountForm.querySelector('button');
+      button.disabled = true;
+      serviceAccountToken.hidden = true;
+      try {
+        if (!csrfToken) await loadCsrfToken();
+        const response = await fetch('/customer/v1/service-accounts', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+          body: JSON.stringify({ name, expires_at_unix: expiresAt }),
+        });
+        if (!response.ok) throw new Error('create failed');
+        const issued = await response.json();
+        serviceAccountToken.textContent = `Copy this token now — it will not be shown again: ${issued.token}`;
+        serviceAccountToken.hidden = false;
+        serviceAccountSaveStatus.textContent = 'Created and recorded in workspace history.';
+        serviceAccountSaveStatus.className = '';
+        document.getElementById('service-account-name').value = '';
+        await loadServiceAccounts();
+      } catch (_) {
+        serviceAccountSaveStatus.textContent = 'The service account was not created. Check the expiry and your role.';
+        serviceAccountSaveStatus.className = 'error';
+      } finally {
+        button.disabled = false;
+      }
+    });
+    function renderWebhookDestination(destination) {
+      const item = document.createElement('li');
+      item.className = 'member';
+      const details = document.createElement('div');
+      const name = document.createElement('div');
+      name.className = 'member-name';
+      name.textContent = destination.url;
+      const metadata = document.createElement('div');
+      metadata.className = 'member-meta';
+      metadata.textContent = `${destination.id} · ${destination.active ? 'active' : 'deactivated'} · ${destination.event_types.join(', ')}`;
+      details.append(name, metadata);
+      item.append(details);
+      if (sessionRole === 'owner' && destination.active) {
+        const deactivate = document.createElement('button');
+        deactivate.type = 'button';
+        deactivate.className = 'secondary';
+        deactivate.textContent = 'Deactivate';
+        deactivate.addEventListener('click', async () => {
+          if (!window.confirm(`Deactivate webhook destination “${destination.url}”?`)) return;
+          deactivate.disabled = true;
+          try {
+            if (!csrfToken) await loadCsrfToken();
+            const response = await fetch(`/customer/v1/webhook-destinations/${encodeURIComponent(destination.id)}/deactivate`, {
+              method: 'POST', credentials: 'same-origin', cache: 'no-store',
+              headers: { 'X-LLM-Firewall-CSRF-Token': csrfToken },
+            });
+            if (!response.ok) throw new Error('deactivate failed');
+            await loadWebhooks();
+          } catch (_) {
+            webhooksStatus.textContent = 'The webhook destination was not deactivated.';
+            webhooksStatus.className = 'error';
+            deactivate.disabled = false;
+          }
+        });
+        item.append(deactivate);
+      }
+      return item;
+    }
+    async function loadWebhooks() {
+      const response = await fetch('/customer/v1/webhook-destinations', { credentials: 'same-origin', cache: 'no-store' });
+      webhooks.hidden = false;
+      webhookList.replaceChildren();
+      webhookDeliveryList.replaceChildren();
+      webhookSecret.hidden = true;
+      if (response.status === 403) {
+        webhooksStatus.textContent = 'Your current role cannot view webhook delivery settings.';
+        webhookForm.hidden = true;
+        return;
+      }
+      if (!response.ok) throw new Error('webhook destination request failed');
+      const destinations = await response.json();
+      webhookForm.hidden = sessionRole !== 'owner';
+      webhooksStatus.textContent = destinations.length
+        ? 'Destinations are workspace-scoped and changes are recorded in administration history.'
+        : 'No webhook destinations have been configured.';
+      destinations.forEach(destination => webhookList.append(renderWebhookDestination(destination)));
+      const deliveriesResponse = await fetch('/customer/v1/webhook-deliveries?limit=20', { credentials: 'same-origin', cache: 'no-store' });
+      if (!deliveriesResponse.ok) return;
+      const deliveries = await deliveriesResponse.json();
+      deliveries.forEach(delivery => {
+        const item = document.createElement('li');
+        item.textContent = `${delivery.destination_id} · ${delivery.status} · attempts ${delivery.attempt_count}`;
+        webhookDeliveryList.append(item);
+      });
+    }
+    webhookForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const url = document.getElementById('webhook-url').value.trim();
+      if (!url) return;
+      const button = webhookForm.querySelector('button');
+      button.disabled = true;
+      webhookSecret.hidden = true;
+      try {
+        if (!csrfToken) await loadCsrfToken();
+        const response = await fetch('/customer/v1/webhook-destinations', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+          body: JSON.stringify({ url, event_types: ['policy.deployed'] }),
+        });
+        if (!response.ok) throw new Error('webhook destination create failed');
+        const issued = await response.json();
+        webhookSecret.textContent = `Copy this signing secret now — it will not be shown again: ${issued.secret}`;
+        webhookSecret.hidden = false;
+        webhookSaveStatus.textContent = 'Destination created and recorded in workspace history.';
+        webhookSaveStatus.className = '';
+        document.getElementById('webhook-url').value = '';
+        await loadWebhooks();
+        webhookSecret.hidden = false;
+      } catch (_) {
+        webhookSaveStatus.textContent = 'Destination was not created. Use a public HTTPS hostname and check your role.';
+        webhookSaveStatus.className = 'error';
+      } finally {
+        button.disabled = false;
+      }
+    });
+    async function loadScimDirectory(workspaceMembers) {
+      if (sessionRole !== 'owner') return;
+      const response = await fetch('/customer/v1/scim-users', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('SCIM directory request failed');
+      const directory = await response.json();
+      scimMember.replaceChildren();
+      const assigned = new Set(workspaceMembers.filter(member => member.active).map(member => member.principal_id));
+      const available = directory.filter(user => !assigned.has(user.principal_id));
+      if (available.length === 0) {
+        scimMemberForm.hidden = true;
+        return;
+      }
+      available.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.principal_id;
+        option.textContent = user.display_name || user.principal_id;
+        scimMember.append(option);
+      });
+      scimMemberRole.replaceChildren();
+      for (const role of ['owner', 'admin', 'analyst', 'developer']) scimMemberRole.append(memberOption(role));
+      scimMemberRole.value = 'analyst';
+      scimMemberStatus.textContent = '';
+      scimMemberForm.hidden = false;
+    }
+    scimMemberForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = scimMemberForm.querySelector('button');
+      button.disabled = true;
+      try {
+        await assignScimMember({ principal_id: scimMember.value, role: scimMemberRole.value });
+        scimMemberStatus.textContent = 'Role assigned.';
+        scimMemberStatus.className = '';
+        await loadMembers();
+      } catch (_) {
+        scimMemberStatus.textContent = 'Role was not assigned.';
+        scimMemberStatus.className = 'error';
+      } finally {
+        button.disabled = false;
+      }
+    });
+    function usdFromMicros(micros) {
+      const value = BigInt(micros);
+      const whole = value / 1_000_000n;
+      const fraction = (value % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '');
+      return `$${whole}${fraction ? `.${fraction}` : ''}`;
+    }
+    function integerText(value) {
+      try { return BigInt(value).toLocaleString(); } catch (_) { return '—'; }
+    }
+    function tableCell(value) {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      return cell;
+    }
+    function appendDefinition(list, label, value) {
+      const term = document.createElement('dt');
+      const description = document.createElement('dd');
+      term.textContent = label;
+      description.textContent = value;
+      list.append(term, description);
+    }
+    function renderUsageTables(report) {
+      const daily = document.getElementById('usage-daily');
+      daily.replaceChildren();
+      report.daily.forEach(day => {
+        const row = document.createElement('tr');
+        row.append(
+          tableCell(new Date(day.day_start_unix * 1000).toISOString().slice(0, 10)),
+          tableCell(integerText(day.totals.request_count)),
+          tableCell(integerText(day.totals.input_tokens)),
+          tableCell(integerText(day.totals.output_tokens)),
+          tableCell(usdFromMicros(day.totals.priced_cost_usd_micros)),
+        );
+        daily.append(row);
+      });
+      if (report.daily.length === 0) {
+        const row = document.createElement('tr');
+        const empty = tableCell('No usage in this period.');
+        empty.colSpan = 5;
+        row.append(empty);
+        daily.append(row);
+      }
+      const models = document.getElementById('usage-models');
+      models.replaceChildren();
+      report.models.forEach(model => {
+        const row = document.createElement('tr');
+        const tokens = BigInt(model.totals.input_tokens) + BigInt(model.totals.output_tokens);
+        row.append(
+          tableCell(model.provider),
+          tableCell(model.requested_model),
+          tableCell(integerText(model.totals.request_count)),
+          tableCell(tokens.toLocaleString()),
+          tableCell(usdFromMicros(model.totals.priced_cost_usd_micros)),
+        );
+        models.append(row);
+      });
+      if (report.models.length === 0) {
+        const row = document.createElement('tr');
+        const empty = tableCell('No provider/model usage in this period.');
+        empty.colSpan = 5;
+        row.append(empty);
+        models.append(row);
+      }
+    }
+    async function loadUsage() {
+      const response = await fetch('/customer/v1/usage', { credentials: 'same-origin', cache: 'no-store' });
+      usage.hidden = false;
+      if (response.status === 403) {
+        usageStatus.textContent = 'Your current role cannot read workspace usage.';
+        return;
+      }
+      if (!response.ok) throw new Error('usage request failed');
+      const report = await response.json();
+      text('usage-requests', integerText(report.totals.request_count));
+      text('usage-input', integerText(report.totals.input_tokens));
+      text('usage-output', integerText(report.totals.output_tokens));
+      text('usage-cost', usdFromMicros(report.totals.priced_cost_usd_micros));
+      document.getElementById('usage-cards').hidden = false;
+      document.getElementById('usage-export').href = `/customer/v1/usage/export.csv?from_unix=${report.from_unix}&until_unix=${report.until_unix}`;
+      usageStatus.textContent = `Exact immutable events from ${new Date(report.from_unix * 1000).toLocaleString()} to ${new Date(report.until_unix * 1000).toLocaleString()}.`;
+      const evidence = document.getElementById('usage-evidence');
+      const gaps = [];
+      if (report.totals.missing_token_events !== '0') gaps.push(`${report.totals.missing_token_events} events missing provider token counters`);
+      if (report.totals.unpriced_events !== '0') gaps.push(`${report.totals.unpriced_events} unpriced events`);
+      if (report.reconciliation.review_required_events !== '0') gaps.push(`${report.reconciliation.review_required_events} events need reconciliation review`);
+      evidence.textContent = gaps.length ? `Evidence review required: ${gaps.join('; ')}.` : 'Evidence is complete for this local period; provider confirmation remains a separate reconciliation step.';
+      evidence.className = gaps.length ? 'notice' : 'notice ok';
+      evidence.hidden = false;
+      renderUsageTables(report);
+      const reconciliation = document.getElementById('usage-reconciliation');
+      reconciliation.replaceChildren();
+      appendDefinition(reconciliation, 'Ready candidates', integerText(report.reconciliation.ready_events));
+      appendDefinition(reconciliation, 'Review required', integerText(report.reconciliation.review_required_events));
+      appendDefinition(reconciliation, 'Missing provider response ID', integerText(report.reconciliation.missing_provider_response_id_events));
+      appendDefinition(reconciliation, 'Duplicate response-ID groups', integerText(report.reconciliation.duplicate_provider_response_id_groups));
+    }
+    async function loadInvoicePreview() {
+      if (sessionRole !== 'owner') return;
+      const response = await fetch('/customer/v1/billing/invoice-preview', { credentials: 'same-origin', cache: 'no-store' });
+      invoicePreview.hidden = false;
+      if (response.status === 403) {
+        invoicePreviewStatus.textContent = 'Only the workspace owner can view billing previews.';
+        return;
+      }
+      if (!response.ok) throw new Error('invoice preview request failed');
+      const preview = await response.json();
+      invoicePreviewStatus.textContent = `USD preview for ${new Date(preview.from_unix * 1000).toLocaleString()} through ${new Date(preview.until_unix * 1000).toLocaleString()}. Status: ${preview.status}.`;
+      invoicePreviewNotice.textContent = preview.notice;
+      invoicePreviewNotice.className = preview.status === 'ready' ? 'notice ok' : 'notice';
+      invoicePreviewNotice.hidden = false;
+      invoicePreviewLines.replaceChildren();
+      preview.line_items.forEach(line => {
+        const row = document.createElement('tr');
+        row.append(
+          tableCell(line.provider),
+          tableCell(line.requested_model),
+          tableCell(integerText(line.request_count)),
+          tableCell(integerText(line.input_tokens)),
+          tableCell(integerText(line.output_tokens)),
+          tableCell(usdFromMicros(line.cost_usd_micros)),
+        );
+        invoicePreviewLines.append(row);
+      });
+      if (preview.line_items.length === 0) {
+        const row = document.createElement('tr');
+        const empty = tableCell('No usage in this period.');
+        empty.colSpan = 6;
+        row.append(empty);
+        invoicePreviewLines.append(row);
+      }
+    }
+    function quotaStateLabel(state) {
+      return ({ ok: 'OK', threshold: 'Alert threshold reached', exceeded: 'Quota exceeded', evidence_incomplete: 'Evidence incomplete' })[state] || 'Unknown';
+    }
+    function renderQuotaMetric(container, label, metric, money) {
+      if (!metric) return;
+      const card = document.createElement('div');
+      card.className = 'card';
+      const title = document.createElement('span');
+      title.className = 'card-label';
+      title.textContent = label;
+      const value = document.createElement('span');
+      value.className = 'card-value';
+      value.textContent = money ? `${usdFromMicros(metric.used)} / ${usdFromMicros(metric.limit)}` : `${integerText(metric.used)} / ${integerText(metric.limit)}`;
+      const state = document.createElement('p');
+      state.textContent = quotaStateLabel(metric.state);
+      card.append(title, value, state);
+      container.append(card);
+    }
+    async function loadQuota() {
+      const response = await fetch('/customer/v1/usage/quota', { credentials: 'same-origin', cache: 'no-store' });
+      if (response.status === 403) {
+        quotaStatus.textContent = 'Your current role cannot read usage quotas.';
+        return;
+      }
+      if (!response.ok) throw new Error('quota request failed');
+      const current = await response.json();
+      const cards = document.getElementById('quota-cards');
+      const alert = document.getElementById('quota-alert');
+      cards.replaceChildren();
+      if (!current) {
+        quotaStatus.textContent = 'No UTC-month monitoring quotas are configured.';
+        cards.hidden = true;
+        alert.hidden = true;
+        if (sessionRole === 'owner') quotaForm.hidden = false;
+        return;
+      }
+      quotaStatus.textContent = `UTC month: ${new Date(current.from_unix * 1000).toISOString().slice(0, 10)} through ${new Date((current.until_unix - 1) * 1000).toISOString().slice(0, 10)}.`;
+      renderQuotaMetric(cards, 'Requests', current.requests, false);
+      renderQuotaMetric(cards, 'Tokens', current.tokens, false);
+      renderQuotaMetric(cards, 'Priced cost', current.cost_usd_micros, true);
+      cards.hidden = false;
+      alert.textContent = current.attention_required
+        ? 'Attention required: at least one quota reached its threshold, was exceeded, or has incomplete provider evidence.'
+        : 'All configured monitoring quotas are below their alert thresholds.';
+      alert.className = current.attention_required ? 'notice' : 'notice ok';
+      alert.hidden = false;
+      document.getElementById('quota-requests').value = current.policy.request_limit || '';
+      document.getElementById('quota-tokens').value = current.policy.token_limit || '';
+      document.getElementById('quota-cost').value = current.policy.cost_usd_micros_limit || '';
+      document.getElementById('quota-threshold').value = current.policy.alert_threshold_basis_points / 100;
+      if (sessionRole === 'owner') quotaForm.hidden = false;
+    }
+    function optionalPositiveSafeInteger(id) {
+      const raw = document.getElementById(id).value.trim();
+      if (!raw) return null;
+      const value = Number(raw);
+      if (!Number.isSafeInteger(value) || value < 1) throw new Error('invalid quota');
+      return value;
+    }
+    async function updateQuota(policy) {
+      if (!csrfToken) await loadCsrfToken();
+      const response = await fetch('/customer/v1/usage/quota', {
+        method: 'PUT', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+        body: JSON.stringify(policy),
+      });
+      if (!response.ok) throw new Error('quota save failed');
+    }
+    quotaForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      try {
+        const thresholdPercent = Number(document.getElementById('quota-threshold').value);
+        const threshold = Math.round(thresholdPercent * 100);
+        if (!Number.isFinite(thresholdPercent) || threshold < 1 || threshold > 10000) throw new Error('invalid threshold');
+        const policy = {
+          request_limit: optionalPositiveSafeInteger('quota-requests'),
+          token_limit: optionalPositiveSafeInteger('quota-tokens'),
+          cost_usd_micros_limit: optionalPositiveSafeInteger('quota-cost'),
+          alert_threshold_basis_points: threshold,
+        };
+        if (policy.request_limit === null && policy.token_limit === null && policy.cost_usd_micros_limit === null) throw new Error('empty quota');
+        await updateQuota(policy);
+        quotaSaveStatus.textContent = 'Quota policy saved and recorded in workspace history.';
+        quotaSaveStatus.className = '';
+        await loadQuota();
+      } catch (_) {
+        quotaSaveStatus.textContent = 'Quotas were not saved. Configure at least one positive whole-number limit.';
+        quotaSaveStatus.className = 'error';
+      }
+    });
+    document.getElementById('clear-quota').addEventListener('click', async () => {
+      if (!window.confirm('Clear all UTC-month monitoring quotas?')) return;
+      try {
+        await updateQuota(null);
+        for (const id of ['quota-requests', 'quota-tokens', 'quota-cost']) document.getElementById(id).value = '';
+        quotaSaveStatus.textContent = 'Quota policy cleared.';
+        quotaSaveStatus.className = '';
+        await loadQuota();
+      } catch (_) {
+        quotaSaveStatus.textContent = 'Quota policy was not cleared.';
+        quotaSaveStatus.className = 'error';
+      }
+    });
+    function syncRetentionFields() {
+      document.getElementById('retention-days-label').hidden = !retentionEnabled.checked;
+    }
+    retentionEnabled.addEventListener('change', syncRetentionFields);
+    async function updateRetention(policy) {
+      if (!csrfToken) await loadCsrfToken();
+      const response = await fetch('/customer/v1/usage/retention', {
+        method: 'PUT', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+        body: JSON.stringify(policy),
+      });
+      if (!response.ok) throw new Error('retention save failed');
+    }
+    async function loadRetention() {
+      const response = await fetch('/customer/v1/usage/retention?limit=10', { credentials: 'same-origin', cache: 'no-store' });
+      if (response.status === 403) {
+        retentionStatus.textContent = 'Your current role cannot read usage retention history.';
+        return;
+      }
+      if (!response.ok) throw new Error('retention request failed');
+      const retention = await response.json();
+      retentionStatus.textContent = retention.policy
+        ? `${retention.policy.retention_days}-day policy configured. Only a platform owner can dry-run or execute deletion.`
+        : 'No retention policy is configured; usage evidence cannot be purged.';
+      retentionEnabled.checked = Boolean(retention.policy);
+      document.getElementById('retention-days').value = retention.policy ? retention.policy.retention_days : 365;
+      syncRetentionFields();
+      if (sessionRole === 'owner') retentionForm.hidden = false;
+      const runs = document.getElementById('retention-runs');
+      runs.replaceChildren();
+      retention.runs.forEach(run => {
+        const item = document.createElement('li');
+        const title = document.createElement('div');
+        title.textContent = run.executed ? `Executed: ${run.deleted_event_count} events deleted` : `Dry-run: ${run.eligible_event_count} events eligible`;
+        const details = document.createElement('time');
+        details.textContent = `${new Date(run.created_at_unix * 1000).toLocaleString()} · cutoff ${new Date(run.cutoff_unix * 1000).toISOString().slice(0, 10)} · ${run.protected_reconciliation_event_count} reconciliation-protected`;
+        item.append(title, details);
+        runs.append(item);
+      });
+    }
+    retentionForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      try {
+        let policy = null;
+        if (retentionEnabled.checked) {
+          const days = positiveSafeInteger('retention-days');
+          if (days < 30 || days > 3650) throw new Error('invalid retention');
+          policy = { retention_days: days };
+        }
+        await updateRetention(policy);
+        retentionSaveStatus.textContent = 'Retention policy saved and recorded in workspace history.';
+        retentionSaveStatus.className = '';
+        await loadRetention();
+      } catch (_) {
+        retentionSaveStatus.textContent = 'Retention policy was not saved. Use 30–3650 days.';
+        retentionSaveStatus.className = 'error';
+      }
+    });
+    async function loadCsrfToken() {
+      const response = await fetch('/customer/v1/csrf', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('csrf request failed');
+      csrfToken = (await response.json()).token;
+      if (typeof csrfToken !== 'string' || csrfToken.length === 0) throw new Error('invalid csrf token');
+    }
+    function policyText(policy) {
+      return policy ? policy.allowed_models.join('\n') : '';
+    }
+    async function updatePolicy(policy) {
+      if (!csrfToken) await loadCsrfToken();
+      const response = await fetch('/customer/v1/model-policy', {
+        method: 'PUT', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+        body: JSON.stringify(policy),
+      });
+      if (response.status === 403) throw new Error('policy permission denied');
+      if (!response.ok) throw new Error('policy save failed');
+      return response.json();
+    }
+    async function updateLimits(limits) {
+      if (!csrfToken) await loadCsrfToken();
+      const response = await fetch('/customer/v1/limits', {
+        method: 'PUT', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'X-LLM-Firewall-CSRF-Token': csrfToken },
+        body: JSON.stringify(limits),
+      });
+      if (!response.ok) throw new Error('limits save failed');
+      return response.json();
+    }
+    function syncLimitFields() {
+      document.getElementById('rate-fields').hidden = !rateEnabled.checked;
+      document.getElementById('spend-fields').hidden = !spendEnabled.checked;
+    }
+    function positiveSafeInteger(id) {
+      const value = Number(document.getElementById(id).value);
+      if (!Number.isSafeInteger(value) || value < 1) throw new Error('invalid limit');
+      return value;
+    }
+    rateEnabled.addEventListener('change', syncLimitFields);
+    spendEnabled.addEventListener('change', syncLimitFields);
+    limitsForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        const limits = {
+          rate_limit: rateEnabled.checked ? {
+            requests_per_window: positiveSafeInteger('rate-requests'),
+            window_seconds: positiveSafeInteger('rate-window'),
+          } : null,
+          spend_limit: spendEnabled.checked ? {
+            window_seconds: positiveSafeInteger('spend-window'),
+            max_usd_micros: positiveSafeInteger('spend-maximum'),
+            reserve_usd_micros_per_request: positiveSafeInteger('spend-reserve'),
+          } : null,
+        };
+        await updateLimits(limits);
+        limitsStatus.textContent = 'Admission limits saved and recorded in workspace history.';
+        limitsStatus.className = '';
+        await loadControls();
+      } catch (_) {
+        limitsStatus.textContent = 'Limits were not saved. Use positive whole numbers and check your role.';
+        limitsStatus.className = 'error';
+      }
+    });
+    policyForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const models = allowedModels.value.split('\n').map(value => value.trim()).filter(Boolean);
+      if (models.length === 0) {
+        policyStatus.textContent = 'Add at least one model, or use Clear workspace policy.';
+        policyStatus.className = 'error';
+        return;
+      }
+      try {
+        await updatePolicy({ allowed_models: models });
+        policyStatus.textContent = 'Model policy saved and recorded in workspace history.';
+        policyStatus.className = '';
+        await loadControls();
+      } catch (_) {
+        policyStatus.textContent = 'Policy was not saved. Check your role and try again.';
+        policyStatus.className = 'error';
+      }
+    });
+    document.getElementById('clear-model-policy').addEventListener('click', async () => {
+      if (!window.confirm('Clear this workspace model policy and restore the operator default?')) return;
+      try {
+        await updatePolicy(null);
+        policyStatus.textContent = 'Workspace model policy cleared and recorded in workspace history.';
+        policyStatus.className = '';
+        await loadControls();
+      } catch (_) {
+        policyStatus.textContent = 'Policy was not cleared. Check your role and try again.';
+        policyStatus.className = 'error';
+      }
+    });
+    async function loadControls() {
+      const response = await fetch('/customer/v1/controls', { credentials: 'same-origin', cache: 'no-store' });
+      controls.hidden = false;
+      if (response.status === 403) {
+        controlsStatus.textContent = 'Your current role cannot view workspace configuration controls.';
+        policyForm.hidden = true;
+        limitsForm.hidden = true;
+        return;
+      }
+      if (!response.ok) throw new Error('controls request failed');
+      const configuration = await response.json();
+      const policy = configuration.model_policy;
+      const rate = configuration.limits.rate_limit;
+      const spend = configuration.limits.spend_limit;
+      text('control-model-policy', policy
+        ? (policy.allowed_models.length ? policy.allowed_models.join(', ') : 'No models are currently allowed')
+        : 'No workspace-specific model policy');
+      text('control-rate-limit', rate
+        ? `${rate.requests_per_window} requests every ${rate.window_seconds} seconds`
+        : 'No workspace-specific rate limit');
+      text('control-spend-limit', spend
+        ? `${usdFromMicros(spend.max_usd_micros)} every ${spend.window_seconds} seconds`
+        : 'No workspace-specific spend guardrail');
+      controlsStatus.textContent = 'Current workspace configuration controls.';
+      controlsDetails.hidden = false;
+      allowedModels.value = policyText(policy);
+      policyForm.hidden = false;
+      rateEnabled.checked = Boolean(rate);
+      spendEnabled.checked = Boolean(spend);
+      document.getElementById('rate-requests').value = rate ? rate.requests_per_window : '';
+      document.getElementById('rate-window').value = rate ? rate.window_seconds : '';
+      document.getElementById('spend-window').value = spend ? spend.window_seconds : '';
+      document.getElementById('spend-maximum').value = spend ? spend.max_usd_micros : '';
+      document.getElementById('spend-reserve').value = spend ? spend.reserve_usd_micros_per_request : '';
+      syncLimitFields();
+      limitsForm.hidden = false;
+    }
+    async function loadSession() {
+      const response = await fetch('/customer/v1/session', { credentials: 'same-origin', cache: 'no-store' });
+      if (response.status === 401) {
+        status.textContent = 'Your session is missing or has expired.';
+        status.className = 'error';
+        return;
+      }
+      if (!response.ok) throw new Error('session request failed');
+      const session = await response.json();
+      text('organization', session.access.organization_id);
+      text('workspace', session.access.workspace_id);
+      text('principal', session.access.principal_id);
+      text('role', session.access.role);
+      sessionRole = session.access.role;
+      sessionPrincipal = session.access.principal_id;
+      status.textContent = 'Signed in with an active, locally authorized workspace membership.';
+      identity.hidden = false;
+      const panels = await Promise.allSettled([loadAudit(), loadProxyAudit(), loadMembers(), loadInvitations(), loadServiceAccounts(), loadWebhooks(), loadControls(), loadUsage(), loadInvoicePreview(), loadQuota(), loadRetention()]);
+      if (panels.some(panel => panel.status === 'rejected')) {
+        status.textContent = 'Signed in. One or more workspace panels are temporarily unavailable.';
+      }
+    }
+    document.getElementById('refresh-usage').addEventListener('click', async () => {
+      try {
+        await Promise.all([loadUsage(), loadInvoicePreview(), loadQuota(), loadRetention()]);
+      } catch (_) {
+        usageStatus.textContent = 'Usage could not be refreshed right now.';
+        usageStatus.className = 'error';
+      }
+    });
+    document.getElementById('refresh-invoice-preview').addEventListener('click', async () => {
+      try {
+        await loadInvoicePreview();
+      } catch (_) {
+        invoicePreviewStatus.textContent = 'Invoice preview could not be refreshed right now.';
+        invoicePreviewStatus.className = 'error';
+      }
+    });
+    document.getElementById('logout').addEventListener('click', async () => {
+      await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+      identity.hidden = true;
+      status.textContent = 'You have been logged out.';
+    });
+    loadSession().catch(() => { status.textContent = 'The customer session service is temporarily unavailable.'; status.className = 'error'; });
+  </script>
+</body>
+</html>

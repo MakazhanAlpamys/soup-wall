@@ -1,0 +1,39 @@
+# Production baseline. Keep all credentials in the environment/secret manager;
+# this file is safe to review and can be mounted read-only into the container.
+bind: "0.0.0.0:8080"
+proxy_auth:
+  # Tenant-store mode authenticates each caller with its tenant token. A
+  # shared proxy token is intentionally disabled and must not be required by
+  # the hosted deployment.
+  enabled: false
+tenant_store:
+  enabled: true
+  backend: postgres
+  postgres_url_env: "LLM_FW_POSTGRES_URL"
+  # Optional CA bundle for a private managed-PostgreSQL certificate chain.
+  # Set the environment variable to a mounted PEM file path when needed.
+  postgres_ca_cert_file_env: "LLM_FW_POSTGRES_CA_CERT_FILE"
+  postgres_command_timeout_ms: 1000
+  postgres_pool_max_size: 32
+  postgres_pool_wait_timeout_ms: 1000
+  admin_token_env: "LLM_FW_ADMIN_TOKEN"
+  audit_max_rows: 1000000
+  audit_queue_capacity: 50000
+redis_limits:
+  enabled: true
+  url_env: "LLM_FW_REDIS_URL"
+  key_prefix: "llm-firewall:v1"
+  command_timeout_ms: 250
+  fail_mode: fail_closed
+upstream:
+  openai_base: "https://api.openai.com"
+  anthropic_base: "https://api.anthropic.com"
+fail_mode: fail_closed
+stream_window: 64
+max_body_bytes: 4194304
+max_upstream_body_bytes: 8388608
+upstream_timeout_ms: 120000
+stream_idle_timeout_ms: 30000
+stream_buffer_chunks: 8
+max_stream_chunk_bytes: 1048576
+policy_file: "policies/default.yaml"

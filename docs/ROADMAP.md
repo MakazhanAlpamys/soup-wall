@@ -1,0 +1,30 @@
+# Soup Wall roadmap
+
+Status: public full-source direction, October 2026. This is a forward-looking plan, not a certification or a list of completed deployments. `[x]` means implemented in this workspace; `[ ]` means release or field evidence is still needed.
+
+## Product direction
+
+Soup Wall is one Apache-2.0 project with three self-hosted surfaces: **Agent** for local agent actions, **Gateway** for provider traffic, and **Console** for organization controls. The source distribution has no paid feature gate or required Soup Wall service. Hosting and support may be offered separately without reserving product features in a closed codebase.
+
+Security claims are based on actions and outcomes, not a classifier score alone. A detector may identify suspicious content; policies and the host runtime determine whether an action can proceed. The Agent's default shadow posture and the Claude Code hook's fail-open behavior must stay visible to operators.
+
+## Available in the combined source
+
+- [x] Local Agent daemon, Claude Code hooks, MCP manifest checks, audit/replay, approval grants, and Linux guarded execution.
+- [x] OpenAI Chat Completions and Responses, and Anthropic Messages Gateway with input/output inspection, bounded streaming, policy, and audit.
+- [x] Self-hosted operator and customer control-plane code: tenants, tokens, server-side roles, OIDC/SAML, a constrained SCIM subset, policy delivery, usage evidence, reconciliation, quotas, retention, and read-only invoice previews.
+- [x] Local build, tests, policy regression corpus, deployment examples, and supply-chain workflow definitions.
+
+These are implementation statements. They do not mean every provider, IdP, or deployment environment has been validated externally.
+
+## Next release gates
+
+1. [x] **Verify the full import.** Review code and Git history for secrets and customer material; preserve license and attribution; review every bundled dependency, model, dataset, and image. Confirm the source snapshot builds without access to the former private repository.
+2. [ ] **Make the full workspace green.** Run formatting, Clippy, tests, advisory review, SBOM generation, and CodeQL on the Gateway and control plane as well as the Agent. Record any narrowly justified advisory exception and verify that the public workflows actually execute.
+3. [ ] **Publish a reproducible self-hosted release.** Verify installation, preflight, local SQLite Console, provider proxy, PostgreSQL migrations, and container/deployment examples. Publish checksums, SBOM, known limitations, and upgrade guidance from the existing `llm-firewall` binary and `LLM_FW_*` settings.
+4. [x] **Unify the brand and operator experience.** Use Soup Wall consistently across documentation and the three browser pages. Keep stable API headers, token prefixes, stored data, and cryptographic labels compatible until a tested migration is available.
+5. [ ] **Validate in the field.** Test OIDC, SAML, and supported SCIM behavior against real IdPs; run a managed staging and restore drill; assess action protection against held-out attacks and benign tasks. Report both missed attacks and legitimate work interrupted.
+
+## Boundaries to keep clear
+
+The hand-authored agent corpus is a regression check, not an external effectiveness score. Local identity fixtures are not vendor certification. Spend admission counters and read-only invoice previews are not final billing; invoices, payments, tax, credits, and refunds remain unimplemented. The local Agent does not require a Soup Wall account or telemetry service, while the Gateway intentionally contacts configured model providers and optional deployment services.

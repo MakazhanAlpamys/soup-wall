@@ -1,33 +1,31 @@
-# Security Policy
+# Security policy
 
-## Reporting a vulnerability
+## Report a vulnerability
 
-Please report security issues privately through GitHub's **Report a vulnerability** form
-(Security → Advisories) on this repository rather than opening a public issue. Include steps to
-reproduce and, where possible, a proof of concept. We aim to acknowledge reports within a few
-days.
+Use GitHub's private [Report a vulnerability](https://github.com/MakazhanAlpamys/soup-wall/security/advisories/new) form. Please do not post an exploitable report in a public issue. Include the affected version or commit, configuration, steps to reproduce, expected and observed result, and a minimal proof of concept where possible. We aim to acknowledge reports within a few days.
 
 ## Scope
 
-This is a defensive tool. Relevant reports include:
+We welcome reports about:
 
-- Detection **bypasses**: a prompt-injection, secret, PII, or harmful-content payload that
-  evades a detector it should catch, with a concrete example.
-- **Policy bypasses** in the agent layer: an action the shipped policy should interrupt that
-  it does not, or a human approval grant that authorizes something other than the exact call
-  it was issued for.
-- **Over-defense** regressions that materially raise the false-positive rate on benign work.
-- Memory-safety, denial-of-service, or resource-exhaustion issues in the daemon or the MCP proxy.
+- Agent action-policy bypasses, approval grants that authorize a different call, MCP manifest attacks, or failures in guarded execution.
+- Gateway inspection bypasses for a rule that should apply under the reported configuration, including fragmented streaming responses and completed tool calls.
+- Authentication, authorization, cross-tenant or cross-workspace access, OIDC/SAML/SCIM validation, service-token handling, and session security.
+- Prompt, response, credential, or identity-data exposure through logs, browser pages, exports, usage records, webhooks, or error responses.
+- Request smuggling, SSRF, resource exhaustion, unsafe defaults, memory safety, or supply-chain issues in the Agent, Gateway, Console, and deployment examples.
+- Material over-defense regressions that interrupt legitimate work.
 
-## Out of scope, by design
+When testing against a hosted instance, use only systems and accounts you own or have permission to test.
 
-- The Claude Code hook fails open when the daemon is not running. The host decides that; this
-  project cannot override it and says so. Use `agentfw preflight` and the guarded execution path.
-- The default build is signatures and heuristics only; higher recall needs the optional `ml`
-  feature and model assets. A miss the ML stage would catch is a documented trade-off.
-- Detection is probabilistic and every published classifier has been bypassed by adaptive
-  attacks. The deterministic policy on actions is the control; detectors reduce risk.
-- Approval grants defend against the agent approving itself. A local attacker already running as
-  the operator can read the daemon key; that is not in the threat model.
-- The content-moderation layer is not a full safety system and makes no claim to detect illegal
-  material.
+## Documented boundaries
+
+- The Claude Code hook **fails open** if the Agent daemon is unavailable: after the hook timeout, the host proceeds. `agentfw preflight` detects an unavailable daemon; guarded execution owns the process boundary and fails closed.
+- Agent enforcement starts in **shadow mode**. Gateway agent inspection and capability policy are off by default and shadow-first when enabled. A report should include the settings and policy that were active.
+- The Gateway's default bind is loopback. A non-loopback bind requires proxy or tenant authentication; deploy a trusted HTTPS edge and protect the admin panel for remote use.
+- The default detector uses signatures and heuristics. The optional ML stage requires separate model assets. Neither stage guarantees detection of adaptive attacks.
+- Approval grants are scoped to one exact `ask` action. They do not defend against an attacker who already runs as the local operator and can read the daemon's key.
+- On Unix, the Agent tightens an existing token file to mode `0600` when loading it. On Windows, the Agent does not yet set a user-only ACL on token or audit files; their protection depends on the profile directory ACL. Use a restricted profile directory on shared Windows hosts.
+- The self-hosted identity implementation has local protocol tests, but real customer identity-provider interoperability has not been established. The constrained SCIM subset does not support every SCIM operation.
+- Usage records and invoice previews are evidence for review, not final invoices or payment collection. Spend limits are request-admission controls.
+
+These documented boundaries help describe the current threat model; regressions within them and unexpected consequences are still useful security reports.
