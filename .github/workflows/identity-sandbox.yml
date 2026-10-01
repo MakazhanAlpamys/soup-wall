@@ -1,0 +1,37 @@
+name: identity-sandbox
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "research/**"]
+  pull_request:
+    paths-ignore: ["**.md", "docs/**", "research/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-idp-evidence:
+    name: OIDC SAML SCIM sandbox fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux sandbox runtime
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y bubblewrap
+      - name: Run local identity fixtures
+        shell: pwsh
+        run: ./scripts/identity-sandbox-smoke.ps1 -OutputPath identity-sandbox-evidence.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: identity-sandbox-evidence
+          path: identity-sandbox-evidence.json
+          if-no-files-found: error
+          retention-days: 90

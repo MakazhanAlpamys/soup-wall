@@ -47,11 +47,15 @@ pub fn verify(token: &str, header: &str) -> bool {
     presented.as_bytes().ct_eq(token.as_bytes()).into()
 }
 
-/// Read the token at `path`, or create one at `0600` if absent.
+/// Read the token at `path`, or create one if absent. On Unix, existing and
+/// newly created token files are restricted to mode `0600` before return.
 pub fn load_or_create(path: &Path) -> anyhow::Result<String> {
     if let Ok(existing) = std::fs::read_to_string(path) {
         let t = existing.trim().to_string();
         if !t.is_empty() {
+            // A token left by an older installation may have loose permissions.
+            // Fail closed if we cannot tighten them before returning it.
+            restrict(path)?;
             return Ok(t);
         }
     }
@@ -89,8 +93,8 @@ fn write_private(path: &Path, contents: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Owner-only permissions. The token grants full access to session data. Public
-/// because `audit.rs` reuses it for the audit log, which holds prompts and paths.
+/// Owner-only permissions on Unix. The token grants full access to session
+/// data. Public because `audit.rs` reuses it for logs containing prompts and paths.
 #[cfg(unix)]
 pub fn restrict(path: &Path) -> anyhow::Result<()> {
     use std::os::unix::fs::PermissionsExt;
@@ -99,6 +103,8 @@ pub fn restrict(path: &Path) -> anyhow::Result<()> {
 }
 
 #[cfg(not(unix))]
+/// Non-Unix hosts currently rely on the containing directory's access controls.
+/// In particular, this does not tighten a Windows file ACL.
 pub fn restrict(_path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
@@ -179,5 +185,22 @@ mod tests {
         load_or_create(&p).unwrap();
         let mode = std::fs::metadata(&p).unwrap().permissions().mode();
         assert_eq!(mode & 0o077, 0, "token must be 0600, got {:o}", mode);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_existing_nonempty_token_is_restricted_before_reuse() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("token");
+        std::fs::write(&p, "existing-token\n").unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o666)).unwrap();
+        let before = std::fs::metadata(&p).unwrap().permissions().mode();
+        assert_eq!(before & 0o777, 0o666, "test requires a loose token file");
+
+        assert_eq!(load_or_create(&p).unwrap(), "existing-token");
+        let mode = std::fs::metadata(&p).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600, "reused token must be 0600");
     }
 }

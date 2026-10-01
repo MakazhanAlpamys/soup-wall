@@ -1,0 +1,56 @@
+[package]
+name = "llm-firewall"
+version = "0.2.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "OpenAI/Anthropic-compatible reverse proxy that inspects, scores, and filters LLM traffic."
+
+[lib]
+name = "llm_firewall"
+path = "src/lib.rs"
+
+[[bin]]
+name = "llm-firewall"
+path = "src/main.rs"
+
+[features]
+ml = ["soup-wall-core/ml"]
+
+[dependencies]
+soup-wall-core = { path = "../core", version = "0.2.0" }
+soup-wall-agent = { path = "../agent", version = "0.2.0" }
+soup-wall-adapter = { path = "../adapter", version = "0.1.0" }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+serde = { workspace = true }
+serde_json = "1"
+serde_yaml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+anyhow = "1"
+aes-gcm = "0.11.1"
+base64 = "0.23"
+jsonwebtoken = { version = "11.0.0", default-features = false, features = ["aws_lc_rs"] }
+# Enables AWS-LC's bundled assembler on Windows where NASM is not installed.
+# Feature unification applies this build option to jsonwebtoken's backend.
+aws-lc-rs = { version = "1", features = ["prebuilt-nasm"] }
+futures-util = "0.3"
+dotenvy = "0.15"
+subtle = "2"
+sha2 = "0.10"
+hmac = "0.12"
+rand = "0.10"
+rusqlite = { version = "0.32", features = ["bundled"] }
+redis = { version = "1", features = ["tokio-rustls-comp", "connection-manager"] }
+tokio-postgres = "0.7"
+tokio-postgres-rustls = { version = "0.14", default-features = false, features = ["ring"] }
+deadpool-postgres = "0.14"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+webpki-roots = "1"
+saml-rs = { version = "0.5.0", default-features = false, features = ["crypto-rustcrypto"] }
+
+[dev-dependencies]
+wiremock = "0.6"

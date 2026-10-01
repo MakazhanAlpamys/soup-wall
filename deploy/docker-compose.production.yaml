@@ -1,0 +1,78 @@
+name: soup-wall-production
+
+# This is a deployment template, not a replacement for managed PostgreSQL or
+# Redis. Copy a secret-bearing .env.production outside Git and set every
+# required variable before starting. Put TLS and the public edge proxy in
+# front of the loopback-bound host port.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.production}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env.production}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env.production}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  firewall:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: soup-wall:production
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    init: true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      # Provider credentials remain caller-supplied Authorization headers in
+      # tenant-store mode; never inject a server-side provider key here.
+      LLM_FW_ADMIN_TOKEN: ${LLM_FW_ADMIN_TOKEN:?set LLM_FW_ADMIN_TOKEN in .env.production}
+      LLM_FW_OIDC_STATE_KEY: ${LLM_FW_OIDC_STATE_KEY:?set LLM_FW_OIDC_STATE_KEY in .env.production}
+      LLM_FW_WEBHOOK_SIGNING_KEY: ${LLM_FW_WEBHOOK_SIGNING_KEY:?set LLM_FW_WEBHOOK_SIGNING_KEY in .env.production}
+      LLM_FW_POSTGRES_URL: ${LLM_FW_POSTGRES_URL:?set LLM_FW_POSTGRES_URL in .env.production}
+      LLM_FW_REDIS_URL: ${LLM_FW_REDIS_URL:?set LLM_FW_REDIS_URL in .env.production}
+    volumes:
+      - ./production.firewall.yaml:/app/firewall.yaml:ro
+
+volumes:
+  postgres-data:
+  redis-data:

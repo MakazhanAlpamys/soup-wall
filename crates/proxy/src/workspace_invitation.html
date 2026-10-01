@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Soup Wall — Join workspace</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    body { background: #10131a; color: #edf2ff; margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { width: min(520px, calc(100% - 48px)); background: #181d28; border: 1px solid #2d3545; border-radius: 16px; padding: 32px; box-shadow: 0 24px 64px #0006; }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    p { color: #adb9cc; line-height: 1.5; }
+    .error { color: #ffb4aa; }
+    .choices { display: grid; gap: 12px; margin-top: 20px; }
+    button { border: 1px solid #52617b; border-radius: 10px; background: #253149; color: #edf2ff; padding: 12px 16px; font: inherit; cursor: pointer; text-align: left; }
+    button:hover { background: #30405f; }
+  </style>
+  <style>
+    body{background:radial-gradient(circle at 10% 0%,#254c36 0,transparent 35rem),#101914;color:#f5f3e9;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    main{box-sizing:border-box;background:#1a2920;border-color:#344b3b;box-shadow:0 24px 64px #020b0759}
+    .soup-header{display:flex;align-items:center;gap:12px;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid #344b3b}
+    .soup-mark{width:42px;height:42px;flex:none;padding:7px;border:1px solid #718b5f;border-radius:13px;background:#243a28;color:#f3bc68}
+    .soup-wordmark{font-size:23px;font-weight:780;letter-spacing:-.035em}
+    .soup-header p{margin:1px 0 0;font-size:13px;color:#b0c2b1}
+    p{color:#b0c2b1}
+    button{background:#304537;border-color:#557759;color:#f5f3e9}
+    button:hover{background:#3d5a45}
+    .choices[hidden]{display:none}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="soup-header"><svg class="soup-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M9 21h22c-.8 8-4.6 12-11 12S9.8 29 9 21Z" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M7 21h26M14 7c-3 4 3 5 0 9m7-10c-3 4 3 5 0 9m7-8c-3 4 3 5 0 9" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><div><div class="soup-wordmark">Soup Wall</div><p>Self-hosted workspace</p></div></div>
+    <h1>Join workspace</h1>
+    <p id="status">Preparing your organization sign-in…</p>
+    <div id="choices" class="choices" hidden>
+      <button type="button" data-action="/auth/oidc/invitation/start">Continue with OIDC</button>
+      <button type="button" data-action="/auth/saml/invitation/start">Continue with SAML</button>
+    </div>
+    <noscript><p class="error">JavaScript is required to protect and submit this invitation.</p></noscript>
+  </main>
+  <script>
+    (() => {
+      const status = document.getElementById('status');
+      const token = window.location.hash.slice(1);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      if (!token.startsWith('llmfw_invite_') || token.length > 256) {
+        status.className = 'error';
+        status.textContent = 'This invitation is missing or invalid.';
+        return;
+      }
+      const choices = document.getElementById('choices');
+      choices.hidden = false;
+      status.textContent = 'Choose your organization sign-in provider.';
+      for (const button of choices.querySelectorAll('button')) {
+        button.addEventListener('click', () => {
+          const form = document.createElement('form');
+          form.method = 'post';
+          form.action = button.dataset.action;
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'token';
+          input.value = token;
+          form.append(input);
+          document.body.append(form);
+          choices.hidden = true;
+          status.textContent = 'Redirecting to your organization sign-in...';
+          form.submit();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

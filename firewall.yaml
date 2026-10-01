@@ -1,0 +1,46 @@
+bind: "127.0.0.1:8080"
+proxy_auth:
+  enabled: false
+  token_env: "LLM_FW_PROXY_AUTH_TOKEN"
+rate_limit:
+  enabled: false
+  requests_per_window: 60
+  window_seconds: 60
+  max_tracked_clients: 10000
+# Optional token-usage spend guard. Keep disabled until prices below are filled
+# from the provider's current price sheet. Amounts are USD micros: 1 USD = 1,000,000.
+spend_limit:
+  enabled: false
+  window_seconds: 86400
+  max_usd_micros: 0
+  reserve_usd_micros_per_request: 0
+  max_tracked_clients: 10000
+  model_prices: {}
+# Optional tenant control plane. `sqlite` is the local default. For a shared,
+# multi-server control plane select `postgres`; its TLS URL stays only in an
+# environment variable. Set LLM_FW_ADMIN_TOKEN before enabling either backend.
+tenant_store:
+  enabled: false
+  backend: sqlite
+  database_path: "data/llm-firewall.sqlite"
+  postgres_url_env: "LLM_FW_POSTGRES_URL"
+  postgres_ca_cert_file_env: "LLM_FW_POSTGRES_CA_CERT_FILE"
+  postgres_command_timeout_ms: 1000
+  postgres_pool_max_size: 16
+  postgres_pool_wait_timeout_ms: 1000
+  admin_token_env: "LLM_FW_ADMIN_TOKEN"
+  audit_max_rows: 100000
+  audit_queue_capacity: 10000
+# Optional shared Redis enforcement state. Set LLM_FW_REDIS_URL to a protected
+# redis:// or rediss:// URL before enabling. Redis sees only hashed client IDs.
+redis_limits:
+  enabled: false
+  url_env: "LLM_FW_REDIS_URL"
+  key_prefix: "llm-firewall:v1"
+  command_timeout_ms: 250
+  fail_mode: fail_closed
+upstream:
+  openai_base: "https://api.openai.com"
+policy_file: "policies/default.yaml"
+fail_mode: fail_closed
+stream_window: 64

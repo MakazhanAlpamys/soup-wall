@@ -1,146 +1,98 @@
 # Soup Wall
 
-A firewall for what an AI agent *does* — every tool call, tool result, MCP handshake and
-subagent spawn — that runs on one machine, needs no account, and makes no network call of
-its own.
+<img src="docs/img/soup-wall-mark.svg" alt="Soup Wall mark" width="88">
 
-Detection tells you content looks dangerous. This layer decides whether the *action* is
-allowed to happen: untrusted content driving a destructive command, a secret heading out
-over the network, a subagent asking for tools its parent never had, an MCP server quietly
-rewriting a tool description. It is deterministic, local, and shadow-first.
+**Open-source protection for AI apps and agents.** Soup Wall inspects model traffic and the actions an agent takes, applies local policy, and records decisions for review. The complete source for the agent, gateway, and self-hosted control plane is available under Apache-2.0.
 
-Pure Rust. Apache-2.0.
+[![CI](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml)
+[![Supply chain](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml)
+![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)
 
-[![ci](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml)
-[![supply-chain](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml)
-![license](https://img.shields.io/badge/license-Apache--2.0-blue)
+## Choose where to start
 
-## What is in this repository
+| Surface | What it does | Runs as |
+| --- | --- | --- |
+| **Soup Wall Agent** | Reviews tool calls, tool results, MCP manifests, and subagent authority. Starts in shadow mode. | `agentfw` daemon and CLI |
+| **Soup Wall Gateway** | Inspects OpenAI Chat Completions and Responses, and Anthropic Messages traffic before and after provider calls. | `llm-firewall` HTTP binary |
+| **Soup Wall Console** | Manages self-hosted tenants, tokens, policy, audit, identity, and usage. | Built into the Gateway when `tenant_store` is enabled |
+
+The `llm-firewall` binary and `LLM_FW_*` settings retain their established names for compatibility; release archives also provide a `soup-wall-gateway` binary name. They are part of Soup Wall; no paid license or Soup Wall account is required to build or self-host them. The local Agent does not send telemetry to Soup Wall. The Gateway contacts the model providers you configure, and optional features can contact your PostgreSQL, Redis, identity provider, or webhook destination.
+
+## Build
+
+Install the current stable Rust toolchain with `rustfmt` and `clippy`, then run from the repository root:
+
+```sh
+cargo build --locked --release --workspace
+cargo test --locked --workspace
+```
+
+The checked-in `firewall.yaml` loads `policies/default.yaml` at runtime, and a shipped-policy test expects that path at the repository root. Optional ML features need model assets fetched separately; the default build uses signatures and heuristics.
+
+## Agent: protect a local Claude Code session
+
+```sh
+./target/release/agentfw install
+./target/release/agentfw serve
+```
+
+`install` creates the local daemon token and prints the hook block and instructions to add to Claude Code's `settings.json`; apply that printed block before starting a session. In the shell that launches Claude Code, export the token as the printed instructions show (for example, `export AGENTFW_TOKEN="$(cat ~/.agentfw/token)"`). Keep `serve` running. In another terminal, check the daemon:
+
+```sh
+./target/release/agentfw preflight
+```
+
+The default `~/.agentfw/config.yaml` posture is **shadow mode**: verdicts are written to `~/.agentfw/audit.jsonl`, but the hook does not block tools. After reviewing real sessions with `agentfw replay`, gate any policy changes against the reviewed corpus:
+
+```sh
+./target/release/soup-wall-bench --agent crates/bench/corpora/agent_sessions.jsonl --policy my-policy.yaml
+```
+
+Then set `enforce: true` in `~/.agentfw/config.yaml`, restart the daemon, and confirm with `agentfw preflight --require-enforce`. The replay command requires at least 500 events across 20 sessions before it recommends enforcement; a human still has to review interruptions. See [Agent enforcement and limitations](#agent-enforcement-and-limitations).
+
+## Gateway: inspect provider traffic
+
+The checked-in `firewall.yaml` binds to `127.0.0.1:8080` by default. With its default settings, your application sends its existing provider authorization header through the Gateway, which forwards it upstream. From the repository root:
+
+```sh
+./target/release/llm-firewall preflight
+./target/release/llm-firewall
+```
+
+`preflight` validates configuration and policy without opening an HTTP listener or making external connections. In another terminal, `curl http://127.0.0.1:8080/healthz` checks the running process. Set an OpenAI SDK base URL to `http://127.0.0.1:8080/v1` for Chat Completions or Responses; set an Anthropic SDK base URL to `http://127.0.0.1:8080` for native Messages. Real model requests contact the provider and may incur provider charges.
+
+On the local default bind, `proxy_auth` and `tenant_store` are off. A non-loopback bind requires one of those authentication modes, and you should terminate HTTPS at a trusted edge. `agent_inspection` and `capability_policy` are separate, opt-in controls that start in shadow mode when enabled. The Gateway's request/response policy is configured by `firewall.yaml` and `policies/default.yaml`; inspect those files before sending production traffic. See [Self-hosting guide](docs/SELF_HOSTING.md).
+
+## Console: run your own control plane
+
+For a local, single-instance operator console, set `tenant_store.enabled: true` in `firewall.yaml` and provide a long random `LLM_FW_ADMIN_TOKEN` through the environment or a local `.env` file that you do not commit. Leave `tenant_store.backend: sqlite` for this first run. Restart the Gateway, then open [http://127.0.0.1:8080/admin](http://127.0.0.1:8080/admin) and enter the admin token. `proxy_auth` and `tenant_store` cannot be enabled together.
+
+The customer workspace at `/customer` requires configured OIDC or SAML federation and an active membership; there is no local password login. This source also includes an organization-scoped SCIM subset, service accounts, immutable usage events, reconciliation, quotas, retention, and an **invoice preview**. The preview is read-only and non-final. There is no final-invoice or payment-collection workflow. See [Self-hosting guide](docs/SELF_HOSTING.md) for deployment boundaries and prerequisites.
+
+## What is in the workspace
 
 | Crate | Purpose |
-|---|---|
-| `core` | Text detectors — prompt injection (signatures, heuristics, optional local classifier), secrets, PII, improper output — with OWASP LLM Top 10 and MITRE ATLAS tags, risk scoring, YAML policy |
-| `agent` | The agent reference monitor: taint tracking, action classes, egress-host control, subagent authority, MCP manifest signals, first-match policy |
-| `agentfw` | The daemon: Claude Code hook collector, MCP proxy with manifest pinning, local JSONL audit, replay, preflight, human approval grants, guarded execution |
-| `adapter` | The versioned local decision contract a control plane would speak, if you add one |
-| `bench` | Reproducible regression corpus and the policy-change gate |
+| --- | --- |
+| `soup-wall-core` | Text detectors, scoring, masking, taxonomy, and YAML policy |
+| `soup-wall-agent` | Agent events, taint, action and egress checks, subagent authority, and policy |
+| `agentfw` | Local daemon, Claude Code hook collector, MCP proxy, audit, replay, approval, and guarded execution |
+| `llm-firewall` | Gateway, provider adapters, and self-hosted control plane |
+| `soup-wall-adapter` | Versioned decision and audit contract |
+| `soup-wall-bench` | Reproducible detector and agent-policy regression tooling |
 
-Not in this repository: the HTTP proxy for OpenAI/Anthropic traffic, SSO, SCIM, multi-tenant
-administration, usage ledgers and billing. Those are the commercial layer.
+## Agent enforcement and limitations
 
-## Quickstart
+- **The Claude Code hook fails open if the daemon is unavailable.** The host waits for the hook and proceeds. Run `agentfw preflight` before a session. The guarded execution commands fail closed because they own process creation; guarded shell execution requires Linux and bubblewrap.
+- **Shadow mode is the Agent default.** It audits would-be decisions until you explicitly enable enforcement. The Gateway's agent and capability controls are also off by default. Inspect each policy and mode before relying on a block.
+- **The reviewed agent corpus is hand-authored.** Its 19 attack and 21 benign sessions are a regression check, not a measure of protection against new attacks. No held-out third-party agent benchmark has been completed. Text classifier results and their limits are in [benchmark methodology](docs/methodology.md).
+- **A detector score is not a guarantee.** Adaptive attacks can evade text detectors; the action policy and the host's own permissions remain part of the security boundary. A Soup Wall approval for one `ask` call does not override the host's permissions or a `deny` rule.
+- **Identity and billing need operational review.** Local OIDC/SAML fixtures and a constrained SCIM implementation do not establish compatibility with a real customer IdP. Usage evidence and invoice previews are not final invoices, taxes, credits, refunds, or payment collection.
 
-```sh
-cargo build --release
-./target/release/agentfw install        # prints the settings.json hook block + instructions
-export AGENTFW_TOKEN=$(cat ~/.agentfw/token)
-./target/release/agentfw serve          # shadow mode: records verdicts, blocks nothing
-./target/release/agentfw preflight      # exit 2 if the daemon is down
-```
+Security reports, including Gateway and control-plane bypasses, belong in [SECURITY.md](SECURITY.md). Contributions are described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Run your normal sessions. Nothing is blocked yet — that is deliberate, see below.
-
-## How enforcement is turned on
-
-The daemon starts in **shadow mode** and stays there until you switch it. The way out is a
-sequence, not a flag flip:
-
-1. **Soak.** Run real work in shadow mode. `agentfw replay` refuses to recommend anything
-   below 500 events across 20 sessions, because a recommendation drawn from an afternoon of
-   traffic is a guess.
-2. **Read the verdict.** `agentfw replay` ends in one of three lines: `not enough evidence`,
-   `review required`, or `evidence supports enforcing`. When it says review is required it
-   deliberately does **not** call the interruptions false positives — it cannot tell a caught
-   attack from a false alarm, only you know what you intended.
-3. **Narrow the wrong rule, then gate it.** If a rule interrupted legitimate work, narrow it in
-   your policy YAML, then prove the edit did not weaken anything:
-   ```sh
-   ./target/release/soup-wall-bench --agent crates/bench/corpora/agent_sessions.jsonl      --policy my-policy.yaml
-   ```
-   This replays the reviewed attack and benign corpus under your policy and exits non-zero if
-   any reviewed attack is now missed or any reviewed benign session is now interrupted.
-4. **Enforce, then confirm it took.** Set `enforce: true` in `~/.agentfw/config.yaml`, restart,
-   and run `agentfw preflight --require-enforce` — it exits 4 if you are still in shadow.
-
-## Approving one dangerous call
-
-When policy says `ask`, you can approve exactly that call and nothing else:
-
-```sh
-agentfw approve --session <id> --tool Bash --args '{"command":"rm -rf ./build"}'
-```
-
-The approval is signed, expires in five minutes, is single-use, and is bound to those exact
-arguments: approving `rm -rf ./build` does not authorize `rm -rf /`. It withdraws this
-firewall's objection to one `ask`; it does not override your own Claude Code permission
-rules, and a policy `deny` stays denied. Revoke before use by deleting the file it prints.
-
-## MCP servers
-
-Run a server through the proxy and its tool manifest is pinned at handshake:
-
-```sh
-agentfw mcp --id docs -- npx some-mcp-server
-```
-
-If the manifest later changes, the daemon reports exactly what moved — which tool, which
-field, and the new description text — rather than only that something changed. The excerpt
-is bounded, because that text comes from the server under suspicion. The last ten superseded
-manifests are kept per server.
-
-## Limitations, stated plainly
-
-- **The Claude Code hook fails open.** If the daemon is not running, the host waits out the
-  hook timeout and runs the tool anyway. The host decides that and this project cannot override
-  it. The hook is a decision and audit layer, not a security boundary; `agentfw preflight` exists
-  so a stopped daemon is a loud, scriptable failure instead of a silent one. Only the guarded
-  execution path (`agentfw guarded-shell` and the typed file/fetch commands) fails closed,
-  because it owns process creation rather than advising the host.
-- **Shadow mode is the default.** Until you complete the sequence above, nothing is blocked.
-- **The regression corpus is hand-authored.** Nineteen attack and twenty-one benign sessions,
-  written for this repository. Passing it means the reviewed attack shapes are still caught and
-  the reviewed benign sessions still run; it says nothing about novel attacks. No held-out or
-  third-party evaluation (AgentDojo, InjecAgent) has been run. No detection percentage is
-  published here on purpose.
-- **Classifiers are triage, not gates.** Every published prompt-injection classifier has been
-  bypassed by adaptive attacks. The deterministic policy on actions is the control; the text
-  detectors reduce risk, they do not prevent it.
-- **Approval grants defend against the agent approving itself, not against you.** A sandboxed
-  tool process cannot read the daemon key and so cannot mint or replay an approval. A local
-  attacker already running as the operator can read the key; the grant does not defend against
-  that and does not claim to.
-- **Guarded execution is Linux-only** (bubblewrap). Other hosts fail closed.
-- **The optional ML classifier needs model assets** you fetch yourself (`scripts/fetch-model.sh`)
-  and the `ml` feature. Without it the injection detector runs signatures and heuristics only.
-
-## Security posture you can check
-
-- Builds and passes its tests with the commercial proxy crate absent; `cargo audit` on that
-  tree reports no vulnerabilities.
-- `unsafe` appears in exactly two places, both memory-mapping a model file, both documented
-  with the invariant they rely on.
-- Every source file carries an SPDX identifier.
-- The full Git history was scanned with the project's own secret detector: every hit is a
-  detection pattern, a test fixture, or a declared test-only key pair.
-- Audit lines record the trust class of tainted content and the nonce of any human approval,
-  so a log reader can tell "policy allowed this" from "a human allowed this" without reading
-  the source.
-- GitHub CodeQL runs on this repository and its results are public (Security → Code scanning).
-  The first Rust analysis raised 21 alerts and **none are open**: 12 hard-coded-cryptographic-value
-  alerts are test-only literals below the `#[cfg(test)]` in `crates/agentfw/src/grant.rs` or in
-  `tests/hook_endpoint.rs`, and 9 path-injection alerts are sanitized before use — `safe_name`
-  in `crates/agentfw/src/mcp/store.rs` and `file_name` in `grant.rs` map every character outside
-  `A-Za-z0-9-_` to an underscore, so no separator or dot survives and traversal is structurally
-  impossible. Each dismissal carries that reasoning on the alert itself, so you can disagree with
-  a specific one rather than with a summary.
-
-## Layout note
-
-`policies/default.yaml` must stay at the repository root: `core` embeds it at compile time
-and a checkout without it fails to build with the path in the error.
+The [public roadmap](docs/ROADMAP.md) lists the remaining full-workspace release checks and field validation.
+The [architecture guide](docs/ARCHITECTURE.md) maps the three product surfaces to their crates and decision boundaries. The [production runbook](docs/operations/PRODUCTION_RUNBOOK.md) covers readiness, alerts, restore, and incident drills.
 
 ## Provenance and license
 
-Apache-2.0. Derived from [carbon-evolution/llm-firewall](https://github.com/carbon-evolution/llm-firewall)
-by Arthur Lin and contributors; upstream history and attribution are retained, see `NOTICE`.
-The intake rules for any external code, model, or dataset are in `docs/PROVENANCE.md`.
+Soup Wall is licensed under [Apache-2.0](LICENSE). It is derived from [carbon-evolution/llm-firewall](https://github.com/carbon-evolution/llm-firewall) by Arthur Lin and contributors. Keep the upstream attribution in [NOTICE](NOTICE) and the source intake rules in [docs/PROVENANCE.md](docs/PROVENANCE.md). Model weights and third-party datasets have separate terms and are not silently bundled with this source.
