@@ -1,12 +1,12 @@
 # Caddy v2 edge template for a hosted single-region deployment.
-# Replace the hostname and keep the firewall bound to loopback (127.0.0.1:8080).
+# Replace the hostname and keep the Gateway bound to loopback (127.0.0.1:8080).
 # Caddy obtains and renews the public certificate through ACME; do not put
 # provider credentials or customer secrets in this file.
 
-firewall.example.com {
+soup-wall.example.com {
     encode gzip
 
-    # Keep the edge limit at or below the firewall's configured body bound.
+    # Keep the edge limit at or below the Gateway's configured body bound.
     request_body {
         max_size 8MB
     }
@@ -19,7 +19,7 @@ firewall.example.com {
     }
 
     # Metrics stay on the internal monitoring network; never publish them at
-    # the customer-facing edge. Scrape the firewall listener separately.
+    # the customer-facing edge. Scrape the Gateway listener separately.
     @metrics path /metrics
     respond @metrics 404
 

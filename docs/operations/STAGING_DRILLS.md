@@ -1,51 +1,63 @@
 # Staging and restore drills
 
-The public repository includes two **manual-only** GitHub Actions workflows:
-[`staging-drills.yml`](../../.github/workflows/staging-drills.yml) and
-[`postgres-restore-drill.yml`](../../.github/workflows/postgres-restore-drill.yml).
-They are procedures, not evidence of a passing staging deployment. No public
-staging URL or customer database is supplied by this repository.
+Run these scripts from an operator-controlled host on the internal staging
+network. The repository provides procedures, not evidence of a passing staging
+deployment. No public staging URL or customer database is supplied.
 
-Configure a GitHub `staging` environment with required reviewers before
-running either workflow. Keep database URLs, the age recipient, and the age
-identity in that environment's secrets. Limit who may dispatch workflows and
-who may approve the environment. Use only a disposable or explicitly approved
-staging deployment and a separately isolated drill database. The restore
-workflow requires these `staging` environment secrets:
-
-| Secret | Purpose |
-| --- | --- |
-| `LLM_FW_SOURCE_DATABASE_URL` | Source staging PostgreSQL database |
-| `LLM_FW_DRILL_DATABASE_URL` | Separate restore target; its contents are replaced |
-| `LLM_FW_BACKUP_RECIPIENT` | age public recipient for the temporary encrypted backup |
-| `LLM_FW_BACKUP_IDENTITY` | age private identity for the temporary restore |
+Use a disposable or explicitly approved staging deployment and a separate
+drill database. Keep database URLs and the `age` identity in your existing
+secret manager. Capture the aggregate JSON output in a private release record.
+The public GitHub Actions workflows do not connect to staging infrastructure.
 
 ## Health and dependency phases
 
-Dispatch **staging-drills** with an HTTPS base URL containing no credentials,
-query, or fragment. Run `Baseline`, induce one dependency failure yourself,
-run its `PostgresDown` or `RedisDown` phase, restore the dependency, and run
-`Recovered`. The workflow reads `/healthz`, `/readyz`, and `/metrics` using
-[`staging-acceptance.ps1`](../../scripts/staging-acceptance.ps1) and
-[`dependency-failure-drill.ps1`](../../scripts/dependency-failure-drill.ps1).
-It does not stop or restart services. The generated JSON artifacts contain
-aggregate status and a staging host name; use an appropriate retention and
-access policy for Actions artifacts. The scripts require HTTPS; loopback HTTP
-is supported only when you run the scripts locally with `-AllowHttpForLocal`.
+Choose an internal HTTPS base URL that serves `/healthz`, `/readyz`, and
+`/metrics` without credentials in the URL. The supplied public
+[`Caddyfile.example`](../../deploy/Caddyfile.example) intentionally returns 404
+for `/metrics`; use an internal monitoring endpoint instead. Do not expose
+metrics at the customer-facing edge.
 
-## Encrypted restore
+From the operator host, run the baseline gate and record its output:
 
-Dispatch **postgres-restore-drill** only after checking the source and drill
-database identities and the configured staging secrets. Its script fingerprints
-both PostgreSQL endpoints and refuses the same database. It creates an
-encrypted `pg_dump`, decrypts it into a temporary runner file, restores into
-the drill database, and verifies the schema and evidence tables. The archive
-and identity file are removed from the runner after the workflow; the drill
-database must be destroyed separately. The minimum schema version input
-defaults to 25 and should be reviewed when migrations change.
+```powershell
+$baseUrl = 'https://soup-wall-staging.internal.example'
+pwsh ./scripts/staging-acceptance.ps1 -BaseUrl $baseUrl -RequireRedis
+pwsh ./scripts/dependency-failure-drill.ps1 -BaseUrl $baseUrl -Phase Baseline
+```
 
-The same scripts can be run locally with PowerShell and the required services.
-Record the observed phase results and restore evidence in a private release
-record. Do not treat local fixture tests or a workflow definition as a
-completed managed staging drill. See the [production runbook](PRODUCTION_RUNBOOK.md)
-for the expected readiness transitions and backup practices.
+Induce one dependency failure through your staging control plane and run
+`-Phase PostgresDown` or `-Phase RedisDown`. Restore the dependency before
+testing the next one. After both are healthy, run `-Phase Recovered` and repeat
+the acceptance gate. The scripts only probe endpoints; they never stop or
+restart services. They require HTTPS, except for loopback tests using
+`-AllowHttpForLocal`.
+
+## Encrypted PostgreSQL restore
+
+Install PowerShell, `pg_dump`, `pg_restore`, `psql`, and `age` on an
+operator-controlled host. Provide source and drill database URLs from the
+secret manager, an `age` recipient, and the path to an owner-readable `age`
+identity file. Confirm that the drill database can be replaced and that the
+encrypted backup path does not already exist. For example, after securely
+loading these values into the operator session:
+
+```powershell
+pwsh ./scripts/postgres-restore-drill.ps1 `
+  -SourceDatabaseUrl $env:LLM_FW_SOURCE_DATABASE_URL `
+  -DrillDatabaseUrl $env:LLM_FW_DRILL_DATABASE_URL `
+  -BackupRecipient $env:LLM_FW_BACKUP_RECIPIENT `
+  -BackupIdentity $env:LLM_FW_BACKUP_IDENTITY_FILE `
+  -BackupPath './soup-wall-staging-backup.age' `
+  -MinimumSchemaVersion 25
+```
+
+Review the minimum schema version when migrations change. The script
+fingerprints both PostgreSQL endpoints and refuses a restore into the source
+database. It creates an encrypted backup, decrypts into a private temporary
+directory, restores into the drill database, and verifies schema and evidence
+tables. It removes temporary plaintext files after the run. Retain or destroy
+the encrypted backup under your policy; destroy the drill database separately.
+
+Do not treat local fixture tests as a completed managed staging drill. See the
+[production runbook](PRODUCTION_RUNBOOK.md) for readiness transitions and
+backup practices.

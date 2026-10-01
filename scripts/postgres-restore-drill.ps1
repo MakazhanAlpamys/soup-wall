@@ -73,16 +73,30 @@ if ($backupDirectory) {
     New-Item -ItemType Directory -Force -Path $backupDirectory | Out-Null
 }
 
-$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("llm-firewall-restore-" + [guid]::NewGuid().ToString("N"))
+$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("soup-wall-restore-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $temporaryDirectory | Out-Null
 $dumpPath = Join-Path $temporaryDirectory "control-plane.dump"
 $restorePath = Join-Path $temporaryDirectory "control-plane.restore.dump"
 $restoreSqlPath = Join-Path $temporaryDirectory "control-plane.restore.sql"
+$onUnix = [System.IO.Path]::DirectorySeparatorChar -eq "/"
+
+function Set-OwnerOnlyPermissions([string]$Path, [string]$Mode) {
+    if (-not $onUnix) { return }
+    & chmod $Mode $Path
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not restrict permissions on a temporary restore path."
+    }
+}
 
 try {
+    # The 0700 directory prevents other local users from reading files while
+    # native tools create them, before their individual modes can be tightened.
+    Set-OwnerOnlyPermissions $temporaryDirectory "700"
+
     Write-Host "Creating encrypted PostgreSQL backup..."
     & pg_dump --format=custom --no-owner --no-privileges --file $dumpPath $SourceDatabaseUrl
     if ($LASTEXITCODE -ne 0) { throw "pg_dump failed." }
+    Set-OwnerOnlyPermissions $dumpPath "600"
 
     & age --encrypt --recipient $BackupRecipient --output $resolvedBackup $dumpPath
     if ($LASTEXITCODE -ne 0) { throw "age encryption failed." }
@@ -91,6 +105,7 @@ try {
     Write-Host "Decrypting backup into an isolated temporary file for the drill..."
     & age --decrypt --identity $BackupIdentity --output $restorePath $resolvedBackup
     if ($LASTEXITCODE -ne 0) { throw "age decryption failed." }
+    Set-OwnerOnlyPermissions $restorePath "600"
 
     Write-Host "Preparing a strict SQL restore for the explicitly supplied drill database..."
     # Newer pg_dump clients can emit SET transaction_timeout, which older
@@ -100,6 +115,7 @@ try {
     # incompatibility remains fatal instead of being hidden as a pg_restore warning.
     & pg_restore --clean --if-exists --no-owner --no-privileges --file $restoreSqlPath $restorePath
     if ($LASTEXITCODE -ne 0) { throw "pg_restore SQL rendering failed." }
+    Set-OwnerOnlyPermissions $restoreSqlPath "600"
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     & psql --no-psqlrc --tuples-only --no-align --quiet --dbname $DrillDatabaseUrl `

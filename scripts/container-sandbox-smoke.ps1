@@ -84,7 +84,7 @@ $containerArgs += @(
     $Image,
     "sh",
     "-ceu",
-    "printf sandbox-ok > /workspace/$markerName; test -f /workspace/$markerName; ! touch /etc/escape; test ! -s /proc/net/route; if getent hosts example.com >/dev/null 2>&1; then exit 42; fi; test -w /tmp"
+    ('printf sandbox-ok > /workspace/{0}; test -f /workspace/{0}; ! touch /etc/escape; test "$(wc -l < /proc/net/route)" -eq 1; if getent hosts example.com >/dev/null 2>&1; then exit 42; fi; test -w /tmp' -f $markerName)
 )
 
 $cleanupError = $null

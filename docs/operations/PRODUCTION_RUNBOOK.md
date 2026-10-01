@@ -112,12 +112,13 @@ Before running fault drills, run the read-only staging acceptance gate from the
 monitoring/operator host:
 
 ```powershell
-pwsh scripts/staging-acceptance.ps1 -BaseUrl https://soup-wall-staging.example.com -RequireRedis
+pwsh scripts/staging-acceptance.ps1 -BaseUrl https://soup-wall-staging.internal.example -RequireRedis
 ```
 
-The gate performs only `GET /healthz`, `GET /readyz`, and `GET /metrics`. It
-checks the control-plane and evidence-persistence gauges, requires shared Redis
-limits when requested, rejects sensitive values in the metrics response, and
+Use an internal monitoring endpoint: the supplied public Caddy edge returns
+404 for `/metrics`. The gate performs only `GET /healthz`, `GET /readyz`, and
+`GET /metrics`. It checks the control-plane and evidence-persistence gauges,
+requires shared Redis limits when requested, rejects sensitive values in the metrics response, and
 prints aggregate JSON evidence. It sends no credentials, model requests, or
 state-changing calls. Use `-AllowHttpForLocal` only with a loopback URL.
 
@@ -128,13 +129,13 @@ Redis, a container, or a managed service. The deployment owner must trigger
 and recover the fault through the approved staging control plane.
 
 ```powershell
-.\scripts\dependency-failure-drill.ps1 -BaseUrl https://soup-wall-staging.example.com -Phase Baseline
+.\scripts\dependency-failure-drill.ps1 -BaseUrl https://soup-wall-staging.internal.example -Phase Baseline
 # Make only PostgreSQL unavailable, then:
-.\scripts\dependency-failure-drill.ps1 -BaseUrl https://soup-wall-staging.example.com -Phase PostgresDown
+.\scripts\dependency-failure-drill.ps1 -BaseUrl https://soup-wall-staging.internal.example -Phase PostgresDown
 # Restore PostgreSQL, make only Redis unavailable, then:
-.\scripts\dependency-failure-drill.ps1 -BaseUrl https://soup-wall-staging.example.com -Phase RedisDown
+.\scripts\dependency-failure-drill.ps1 -BaseUrl https://soup-wall-staging.internal.example -Phase RedisDown
 # Restore both dependencies, then:
-.\scripts\dependency-failure-drill.ps1 -BaseUrl https://soup-wall-staging.example.com -Phase Recovered
+.\scripts\dependency-failure-drill.ps1 -BaseUrl https://soup-wall-staging.internal.example -Phase Recovered
 ```
 
 Each successful phase emits one compact JSON evidence record without URLs,

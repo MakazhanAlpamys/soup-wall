@@ -66,7 +66,7 @@ The local SQLite mode is for one instance. For multiple Gateway replicas, config
 
 A non-loopback bind requires `proxy_auth` or `tenant_store`. Put a trusted HTTPS edge in front of remote traffic, restrict the admin and metrics routes, keep provider and identity secrets in a secret manager, and verify `/readyz` as well as `/healthz`. Treat OIDC, SAML, SCIM, backup/restore, and alerting as deployment acceptance work; local fixtures alone do not prove a production integration.
 
-Use the [production runbook](operations/PRODUCTION_RUNBOOK.md) and [staging drill guide](operations/STAGING_DRILLS.md) to plan dependency and encrypted restore checks. The GitHub workflows run only when an operator dispatches them and supplies an approved staging environment.
+Use the [production runbook](operations/PRODUCTION_RUNBOOK.md) and [staging drill guide](operations/STAGING_DRILLS.md) to run dependency and encrypted restore checks from an operator-controlled host on the internal staging network.
 
 ## 5. Understand the data paths
 
