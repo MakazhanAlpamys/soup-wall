@@ -132,7 +132,9 @@ if (-not $RequireRedis -and $redisReady -ne 1) {
 }
 
 [pscustomobject]@{
+    schema_version = 1
     acceptance = "passed"
+    observed_at_utc = [DateTimeOffset]::UtcNow.ToString("O")
     base_url_host = $base.Host
     healthz = $liveness.StatusCode
     readyz = $readiness.StatusCode
