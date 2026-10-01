@@ -13,7 +13,7 @@ cargo build --locked --release --workspace
 
 The Gateway reads `firewall.yaml` and `policies/default.yaml` relative to its working directory. The checked-in configuration binds to `127.0.0.1:8080`, with `proxy_auth`, `tenant_store`, shared Redis limits, agent inspection, and capability policy disabled. `preflight` checks configuration, policy, and local security requirements without opening the HTTP listener or connecting to external services.
 
-The proxy executable still has the established name `llm-firewall`. Existing `LLM_FW_*` variables, HTTP headers, and stored identifiers remain valid for compatibility under the Soup Wall brand.
+The proxy executable still has the established name `llm-firewall`. Existing `LLM_FW_*` variables, HTTP headers, and stored identifiers remain valid for compatibility under the Soup Wall brand. For an existing installation, follow the [upgrade guide](UPGRADING.md) before replacing a binary or image.
 
 ## 2. Start the Gateway
 

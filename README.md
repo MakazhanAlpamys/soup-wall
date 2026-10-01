@@ -91,7 +91,7 @@ The customer workspace at `/customer` requires configured OIDC or SAML federatio
 Security reports, including Gateway and control-plane bypasses, belong in [SECURITY.md](SECURITY.md). Contributions are described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The [public roadmap](docs/ROADMAP.md) lists the remaining full-workspace release checks and field validation.
-The [architecture guide](docs/ARCHITECTURE.md) maps the three product surfaces to their crates and decision boundaries. The [production runbook](docs/operations/PRODUCTION_RUNBOOK.md) covers readiness, alerts, restore, and incident drills.
+The [architecture guide](docs/ARCHITECTURE.md) maps the three product surfaces to their crates and decision boundaries. The [upgrade guide](docs/UPGRADING.md) covers existing installations, and the [production runbook](docs/operations/PRODUCTION_RUNBOOK.md) covers readiness, alerts, restore, and incident drills.
 
 ## Provenance and license
 
