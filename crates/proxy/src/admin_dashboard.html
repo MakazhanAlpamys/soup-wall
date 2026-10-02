@@ -11,7 +11,7 @@
     :root{--bg:#101914;--surface:#1a2920;--surface2:#142119;--line:#344b3b;--text:#f5f3e9;--muted:#b0c2b1;--blue:#f3bc68;--green:#86d7a7;--amber:#ffd27b;--red:#ff978f}
     body{background:radial-gradient(circle at 7% 0%,#254c36 0,transparent 35rem),var(--bg)}
     .brand-lockup{display:flex;align-items:center;gap:12px}
-    .brand-mark{width:42px;height:42px;flex:none;padding:7px;border:1px solid #718b5f;border-radius:13px;background:#243a28;color:var(--blue)}
+    .brand-mark{width:50px;height:50px;flex:none}
     .brand h1{font-size:23px;font-weight:780;letter-spacing:-.035em}
     .card{box-shadow:0 16px 42px #020b074d}
     input,textarea,select{background:#101d16}
@@ -23,7 +23,7 @@
   </style>
 </head>
 <body>
-  <header><div class="brand"><div class="brand-lockup"><svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M9 21h22c-.8 8-4.6 12-11 12S9.8 29 9 21Z" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M7 21h26M14 7c-3 4 3 5 0 9m7-10c-3 4 3 5 0 9m7-8c-3 4 3 5 0 9" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><div><h1>Soup Wall</h1><p>Self-hosted control plane</p></div></div></div><div class="header-meta"><span id="current-admin" class="badge">No admin session</span><span id="connection" class="badge">Locked</span></div></header>
+  <header><div class="brand"><div class="brand-lockup"><svg class="brand-mark" viewBox="0 0 200 200" aria-hidden="true"><rect x="20" y="20" width="160" height="160" rx="28" ry="28" fill="#C0512D"/><line x1="55" y1="155" x2="145" y2="45" stroke="white" stroke-width="22" stroke-linecap="round"/></svg><div><h1>Soup Wall</h1><p>Self-hosted control plane</p></div></div></div><div class="header-meta"><span id="current-admin" class="badge">No admin session</span><span id="connection" class="badge">Locked</span></div></header>
   <main>
     <section id="unlock" class="card unlock"><h2>Connect to the control plane</h2><p class="note">The admin token remains in this tab’s memory only. It is never stored in a URL, browser storage, or this server’s audit records.</p><form id="unlock-form" class="inline"><label class="field">Admin token<input id="admin-token" type="password" autocomplete="off" required></label><button>Connect</button></form><p id="unlock-message" class="note" role="alert"></p></section>
     <section id="console" class="hidden">

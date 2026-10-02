@@ -1,23 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="title description">
   <title id="title">Soup Wall</title>
-  <desc id="description">Three rising lines above a protective bowl.</desc>
-  <defs>
-    <linearGradient id="shell" x1="0" x2="1" y1="0" y2="1">
-      <stop stop-color="#254633"/>
-      <stop offset="1" stop-color="#17271d"/>
-    </linearGradient>
-    <linearGradient id="bowl" x1="0" x2="1" y1="0" y2="1">
-      <stop stop-color="#ffd18a"/>
-      <stop offset="1" stop-color="#efa94f"/>
-    </linearGradient>
-  </defs>
-  <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#shell)" stroke="#54735b" stroke-width="2"/>
-  <g fill="none" stroke="#f7c576" stroke-linecap="round" stroke-width="7">
-    <path d="M42 29c-9 11 9 13 0 24"/>
-    <path d="M65 25c-9 11 9 13 0 24"/>
-    <path d="M88 29c-9 11 9 13 0 24"/>
-  </g>
-  <path d="M25 66h78" fill="none" stroke="#ffe0a8" stroke-linecap="round" stroke-width="7"/>
-  <path d="M31 67h66c-3 26-15 39-33 39S34 93 31 67Z" fill="url(#bowl)"/>
-  <path d="M31 67h66c-3 26-15 39-33 39S34 93 31 67Z" fill="none" stroke="#ffe4b4" stroke-linejoin="round" stroke-width="3"/>
+  <desc id="description">White diagonal line on a terracotta rounded square.</desc>
+  <rect x="20" y="20" width="160" height="160" rx="28" ry="28" fill="#C0512D"/>
+  <line x1="55" y1="155" x2="145" y2="45" stroke="white" stroke-width="22" stroke-linecap="round"/>
 </svg>
