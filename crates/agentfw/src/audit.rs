@@ -4,7 +4,9 @@
 //! Append-only JSONL audit sink. Also the phase-10 tuning corpus and the phase-12
 //! benign-session benchmark corpus, so completeness matters more than brevity.
 
-use std::fs::{File, OpenOptions};
+use std::fs::File;
+#[cfg(not(windows))]
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Mutex;
@@ -95,13 +97,16 @@ impl AuditSink {
             std::fs::create_dir_all(parent)?;
         }
         let file = open_private_append(path)?;
-        // Belt and suspenders, mirroring `token.rs::load_or_create`: `.mode()` on
+        // Belt and suspenders on Unix, mirroring `token.rs::load_or_create`: `.mode()` on
         // `OpenOptions` is only honoured when the file is actually CREATED by this
         // call. A pre-existing file at loose permissions (e.g. left over from a
         // build before this fix landed, or created by some other tool) is opened
         // as-is, so tighten it explicitly every time. This file holds prompts, file
         // paths, and tool arguments, so it must never sit at the process umask even
         // for the brief window between create and chmod.
+        // On Windows `open_private_append` has already secured this exact handle.
+        // Reopening by path here would introduce a path-replacement race.
+        #[cfg(not(windows))]
         crate::token::restrict(path)?;
         Ok(Self {
             file: Mutex::new(file),
@@ -138,7 +143,12 @@ fn open_private_append(path: &Path) -> anyhow::Result<File> {
     Ok(f)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn open_private_append(path: &Path) -> anyhow::Result<File> {
+    Ok(crate::private_file_windows::open_audit(path)?)
+}
+
+#[cfg(not(any(unix, windows)))]
 fn open_private_append(path: &Path) -> anyhow::Result<File> {
     let f = OpenOptions::new().create(true).append(true).open(path)?;
     Ok(f)

@@ -47,6 +47,18 @@ jobs:
       - run: cargo clippy --workspace --all-features --all-targets --locked -- -D warnings
       - run: cargo test --workspace --all-features --locked
 
+  agent-windows-security:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --locked -p agentfw --all-targets -- -D warnings
+      - run: cargo test --locked -p agentfw
+
   redis-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30

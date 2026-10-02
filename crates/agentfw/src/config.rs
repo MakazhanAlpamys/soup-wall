@@ -205,6 +205,9 @@ impl Config {
         let home = platform_home_dir()
             .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?;
         let dir = home.join(".agentfw");
+        #[cfg(windows)]
+        crate::private_file_windows::ensure_private_directory(&dir)?;
+        #[cfg(not(windows))]
         std::fs::create_dir_all(&dir)?;
         Ok(dir)
     }
