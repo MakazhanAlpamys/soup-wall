@@ -19,13 +19,13 @@ use windows_sys::Win32::Foundation::{
     CloseHandle, LocalFree, ERROR_ALREADY_EXISTS, ERROR_FILE_EXISTS, HANDLE, INVALID_HANDLE_VALUE,
 };
 use windows_sys::Win32::Security::Authorization::{
-    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SetSecurityInfo,
-    SDDL_REVISION_1, SE_FILE_OBJECT,
+    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo,
+    SetSecurityInfo, SDDL_REVISION_1, SE_FILE_OBJECT,
 };
 use windows_sys::Win32::Security::{
     GetSecurityDescriptorDacl, GetTokenInformation, TokenUser, ACL, DACL_SECURITY_INFORMATION,
-    PROTECTED_DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY,
-    TOKEN_USER,
+    OWNER_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
+    SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CreateDirectoryW, CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
@@ -64,7 +64,7 @@ struct PrivateAcl {
 impl PrivateAcl {
     fn new() -> io::Result<Self> {
         let sid = current_user_sid()?;
-        let sddl = format!("D:P(A;;GA;;;{sid})(A;;GA;;;SY)");
+        let sddl = format!("O:{sid}D:P(A;;GA;;;{sid})(A;;GA;;;SY)");
         Self::from_sddl(&sddl)
     }
 
@@ -72,7 +72,7 @@ impl PrivateAcl {
         let sid = current_user_sid()?;
         // OI and CI let files and subdirectories created beneath .agentfw
         // inherit the owner-only ACL too. The directory itself is protected.
-        let sddl = format!("D:P(A;OICI;GA;;;{sid})(A;OICI;GA;;;SY)");
+        let sddl = format!("O:{sid}D:P(A;OICI;GA;;;{sid})(A;OICI;GA;;;SY)");
         Self::from_sddl(&sddl)
     }
 
@@ -173,10 +173,17 @@ fn current_user_sid() -> io::Result<String> {
     }
     // SAFETY: GetTokenInformation(TokenUser) filled an aligned TOKEN_USER.
     let user = unsafe { &*(buffer.as_ptr().cast::<TOKEN_USER>()) };
+    sid_to_string(user.User.Sid)
+}
+
+fn sid_to_string(sid: PSID) -> io::Result<String> {
+    if sid.is_null() {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "missing SID"));
+    }
     let mut sid_wide = null_mut();
-    // SAFETY: The SID pointer is part of the live TOKEN_USER buffer; the API
+    // SAFETY: The caller keeps the SID memory alive for this call. The API
     // returns a NUL-terminated string allocated with LocalAlloc.
-    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut sid_wide) } == 0 {
+    if unsafe { ConvertSidToStringSidW(sid, &mut sid_wide) } == 0 {
         return Err(io::Error::last_os_error());
     }
     let _sid_memory = LocalMemory(sid_wide.cast());
@@ -187,6 +194,52 @@ fn current_user_sid() -> io::Result<String> {
     let sid = String::from_utf16(unsafe { std::slice::from_raw_parts(sid_wide, length) })
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     Ok(sid)
+}
+
+fn owner_sid(handle: HANDLE) -> io::Result<String> {
+    let mut owner: PSID = null_mut();
+    let mut descriptor: PSECURITY_DESCRIPTOR = null_mut();
+    // SAFETY: The handle was opened with READ_CONTROL. Windows returns the
+    // owner pointer within the LocalAlloc security descriptor held below.
+    let code = unsafe {
+        GetSecurityInfo(
+            handle,
+            SE_FILE_OBJECT,
+            OWNER_SECURITY_INFORMATION,
+            &mut owner,
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            &mut descriptor,
+        )
+    };
+    if code != 0 {
+        return Err(io::Error::from_raw_os_error(code as i32));
+    }
+    if descriptor.is_null() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "owner query returned no security descriptor",
+        ));
+    }
+    let _descriptor = LocalMemory(descriptor);
+    sid_to_string(owner)
+}
+
+fn owner_is_trusted(owner: &str, current_user: &str) -> bool {
+    owner == current_user || owner == "S-1-5-18" // LocalSystem
+}
+
+fn check_owner(handle: HANDLE) -> io::Result<()> {
+    let owner = owner_sid(handle)?;
+    let current_user = current_user_sid()?;
+    if !owner_is_trusted(&owner, &current_user) {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("private file or directory has an untrusted owner: {owner}"),
+        ));
+    }
+    Ok(())
 }
 
 fn wide_path(path: &Path) -> io::Result<Vec<u16>> {
@@ -279,9 +332,11 @@ fn open_private(path: &Path, access: u32, create: bool) -> io::Result<File> {
     // on all subsequent error and success paths.
     let file = unsafe { File::from_raw_handle(raw) };
     check_kind(raw, false)?;
+    check_owner(raw)?;
     // Even on a new file, verify that the filesystem accepts a protected DACL
     // before any data is written. A filesystem without ACL support fails closed.
     acl.apply(raw)?;
+    check_owner(raw)?;
     Ok(file)
 }
 
@@ -324,7 +379,9 @@ pub fn ensure_private_directory(path: &Path) -> io::Result<()> {
     // return path. Backup semantics permit opening directories as files.
     let _directory = unsafe { File::from_raw_handle(raw) };
     check_kind(raw, true)?;
+    check_owner(raw)?;
     acl.apply(raw)?;
+    check_owner(raw)?;
     Ok(())
 }
 
@@ -357,16 +414,22 @@ mod tests {
     use std::path::Path;
     use std::ptr::null_mut;
 
-    use windows_sys::Win32::Security::Authorization::{
-        ConvertSecurityDescriptorToStringSecurityDescriptorW, GetSecurityInfo, SDDL_REVISION_1,
-        SE_FILE_OBJECT,
+    use windows_sys::Win32::Foundation::{
+        ERROR_ACCESS_DENIED, ERROR_INVALID_OWNER, ERROR_PRIVILEGE_NOT_HELD,
     };
-    use windows_sys::Win32::Security::DACL_SECURITY_INFORMATION;
+    use windows_sys::Win32::Security::Authorization::{
+        ConvertSecurityDescriptorToStringSecurityDescriptorW, ConvertStringSidToSidW,
+        GetSecurityInfo, SetSecurityInfo, SDDL_REVISION_1, SE_FILE_OBJECT,
+    };
+    use windows_sys::Win32::Security::{
+        DACL_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION, PSID,
+    };
 
     use super::{
-        current_user_sid, open_directory_handle, wide_path, LocalMemory, PrivateAcl,
-        FILE_READ_DATA, FILE_WRITE_DATA, READ_CONTROL, WRITE_DAC,
+        current_user_sid, open_directory_handle, owner_is_trusted, owner_sid, wide_path,
+        LocalMemory, PrivateAcl, FILE_READ_DATA, FILE_WRITE_DATA, READ_CONTROL, WRITE_DAC,
     };
+    use windows_sys::Win32::Storage::FileSystem::WRITE_OWNER;
 
     fn security_sddl(path: &Path) -> String {
         let file = File::open(path).unwrap();
@@ -427,6 +490,11 @@ mod tests {
         let sddl = security_sddl(path);
         assert_private_sddl(&sddl);
         assert_eq!(sddl.matches("(A;").count(), 2, "unexpected ACE: {sddl}");
+        let file = File::open(path).unwrap();
+        assert_eq!(
+            owner_sid(file.as_raw_handle()).unwrap(),
+            current_user_sid().unwrap()
+        );
     }
 
     fn assert_private_directory(path: &Path) {
@@ -435,6 +503,14 @@ mod tests {
         assert!(
             sddl.matches(";OICI").count() >= 2,
             "directory inheritance missing: {sddl}"
+        );
+        let wide = wide_path(path).unwrap();
+        let raw = open_directory_handle(&wide).unwrap();
+        // SAFETY: The helper returns an owned directory handle.
+        let directory = unsafe { File::from_raw_handle(raw) };
+        assert_eq!(
+            owner_sid(directory.as_raw_handle()).unwrap(),
+            current_user_sid().unwrap()
         );
     }
 
@@ -592,5 +668,85 @@ mod tests {
         }
         assert!(super::ensure_private_directory(&link).is_err());
         assert!(target.is_dir());
+    }
+
+    #[test]
+    fn owner_policy_rejects_foreign_sids() {
+        let user = current_user_sid().unwrap();
+        assert!(owner_is_trusted(&user, &user));
+        assert!(owner_is_trusted("S-1-5-18", &user));
+        assert!(!owner_is_trusted("S-1-5-32-544", &user));
+        assert!(!owner_is_trusted("S-1-1-0", &user));
+    }
+
+    #[test]
+    fn foreign_owned_existing_token_is_rejected_when_fixture_is_available() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("token");
+        crate::token::load_or_create(&path).unwrap();
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .access_mode(FILE_READ_DATA | FILE_WRITE_DATA | READ_CONTROL | WRITE_DAC | WRITE_OWNER)
+            .open(&path)
+            .unwrap();
+        let administrator = wide_sid("S-1-5-32-544");
+        let mut administrator_sid: PSID = null_mut();
+        // SAFETY: The SDDL text is NUL-terminated and the SID output is writable.
+        assert_ne!(
+            unsafe { ConvertStringSidToSidW(administrator.as_ptr(), &mut administrator_sid) },
+            0
+        );
+        let _administrator_sid = LocalMemory(administrator_sid);
+        // SAFETY: This test handle has WRITE_OWNER; the SID buffer remains live.
+        let code = unsafe {
+            SetSecurityInfo(
+                file.as_raw_handle(),
+                SE_FILE_OBJECT,
+                OWNER_SECURITY_INFORMATION,
+                administrator_sid,
+                null_mut(),
+                std::ptr::null(),
+                std::ptr::null(),
+            )
+        };
+        if matches!(
+            code,
+            ERROR_ACCESS_DENIED | ERROR_INVALID_OWNER | ERROR_PRIVILEGE_NOT_HELD
+        ) {
+            eprintln!("foreign-owner fixture unavailable on this Windows account");
+            return;
+        }
+        assert_eq!(code, 0, "cannot set foreign owner: {code}");
+        assert_eq!(owner_sid(file.as_raw_handle()).unwrap(), "S-1-5-32-544");
+        let error = crate::token::load_or_create(&path).unwrap_err();
+        assert!(error.to_string().contains("untrusted owner"), "{error}");
+
+        // Restore the current owner through the already-open handle so the
+        // temporary directory can be cleaned up normally.
+        let user = wide_sid(&current_user_sid().unwrap());
+        let mut user_sid: PSID = null_mut();
+        // SAFETY: The SID text is NUL-terminated and output is writable.
+        assert_ne!(
+            unsafe { ConvertStringSidToSidW(user.as_ptr(), &mut user_sid) },
+            0
+        );
+        let _user_sid = LocalMemory(user_sid);
+        // SAFETY: This handle retained WRITE_OWNER from before the owner change.
+        let code = unsafe {
+            SetSecurityInfo(
+                file.as_raw_handle(),
+                SE_FILE_OBJECT,
+                OWNER_SECURITY_INFORMATION,
+                user_sid,
+                null_mut(),
+                std::ptr::null(),
+                std::ptr::null(),
+            )
+        };
+        assert_eq!(code, 0, "cannot restore owner: {code}");
+    }
+
+    fn wide_sid(sid: &str) -> Vec<u16> {
+        sid.encode_utf16().chain(Some(0)).collect()
     }
 }
