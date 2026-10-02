@@ -693,6 +693,103 @@ mod tests {
         );
     }
 
+    #[test]
+    fn signed_response_with_encrypted_assertion_is_rejected_without_a_decryption_key(
+    ) -> anyhow::Result<()> {
+        let runtime = fixture_runtime();
+        let sp = runtime.sp()?;
+
+        // Advertise an encryption certificate to the test IdP so it can send
+        // a valid encrypted response. The actual runtime SP still has no
+        // decryption key and must reject that response.
+        let advertised_sp = Saml::sp(
+            SpConfig::builder(EntityId::try_new(SP_ENTITY_ID)?)
+                .acs_endpoint(AcsEndpoint::post(SP_ACS_URL)?)
+                .credentials(Credentials {
+                    signing_key: Some(PrivateKeyPem::new(FIXTURE_KEY)),
+                    signing_certificate: Some(CertificatePem::new(FIXTURE_CERT)),
+                    encryption_certificate: Some(CertificatePem::new(FIXTURE_CERT)),
+                    ..Credentials::default()
+                })
+                .validation(SpValidationPolicy::strict())
+                .build()?,
+        )?;
+        let sp_descriptor = SpDescriptor::from_metadata_xml_for(
+            EntityId::try_new(SP_ENTITY_ID)?,
+            advertised_sp.metadata_xml(),
+            MetadataTrustPolicy::UnsignedForCompatibility,
+        )?;
+        let idp = Saml::idp(
+            IdpConfig::builder(EntityId::try_new(IDP_ENTITY_ID)?)
+                .sso_endpoint(SsoEndpoint::post(IDP_SSO_URL)?)
+                .credentials(Credentials {
+                    signing_key: Some(PrivateKeyPem::new(FIXTURE_KEY)),
+                    signing_certificate: Some(CertificatePem::new(FIXTURE_CERT)),
+                    ..Credentials::default()
+                })
+                .validation(IdpValidationPolicy::strict())
+                .xml(XmlPolicy {
+                    encryption: XmlEncryptionPolicy::encrypt_assertions(),
+                    ..XmlPolicy::default()
+                })
+                .build()?,
+        )?;
+        let idp_descriptor = IdpDescriptor::from_metadata_xml_for(
+            EntityId::try_new(IDP_ENTITY_ID)?,
+            idp.metadata_xml(),
+            MetadataTrustPolicy::UnsignedForCompatibility,
+        )?;
+
+        let started = sp.start_sso(&idp_descriptor, StartSso::post())?;
+        let request_fields = started
+            .outbound
+            .post_form()?
+            .fields()
+            .iter()
+            .map(|field| FormField::new(field.name(), field.value()))
+            .collect();
+        let received = idp.receive_sso(
+            &sp_descriptor,
+            BrowserInput::<saml_rs::AuthnRequest>::post(request_fields),
+            validation(),
+        )?;
+        let response = idp.respond_sso(
+            &sp_descriptor,
+            &received,
+            Subject::new(NameId::new("alice@example.test", None), Vec::new()),
+            RespondSso::post(),
+        )?;
+        let response_fields: Vec<_> = response
+            .post_form()?
+            .fields()
+            .iter()
+            .map(|field| FormField::new(field.name(), field.value()))
+            .collect();
+        let encoded = response_fields
+            .iter()
+            .find(|field| field.name() == "SAMLResponse")
+            .ok_or_else(|| anyhow::anyhow!("test IdP omitted SAMLResponse"))?;
+        let xml =
+            String::from_utf8(base64::engine::general_purpose::STANDARD.decode(encoded.value())?)?;
+        assert!(xml.contains("EncryptedAssertion"));
+        assert!(xml.contains("<ds:Signature"));
+
+        let error = sp
+            .finish_sso(
+                &idp_descriptor,
+                &started.pending,
+                BrowserInput::<SsoResponse>::post(response_fields),
+                validation(),
+            )
+            .err()
+            .ok_or_else(|| anyhow::anyhow!("encrypted assertion was accepted"))?;
+        assert!(
+            matches!(error, SamlError::AssertionSignatureRequired),
+            "expected a signed plaintext assertion, got {error:?}"
+        );
+        Ok(())
+    }
+
     #[tokio::test]
     async fn local_signed_customer_idp_completes_sp_initiated_flow() -> anyhow::Result<()> {
         let runtime = fixture_runtime();
