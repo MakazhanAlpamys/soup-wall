@@ -32,6 +32,12 @@ the acceptance gate. The scripts only probe endpoints; they never stop or
 restart services. They require HTTPS, except for loopback tests using
 `-AllowHttpForLocal`.
 
+Keep the baseline and recovered acceptance JSON alongside every dependency
+phase JSON in the private release record. Each record includes
+`observed_at_utc`; use these timestamps to preserve the sequence and duration
+of the drill. The acceptance record also includes `schema_version` so later
+changes to its evidence format can be distinguished.
+
 ## Encrypted PostgreSQL restore
 
 Install PowerShell, `pg_dump`, `pg_restore`, `psql`, and `age` on an
