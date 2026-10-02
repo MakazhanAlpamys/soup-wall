@@ -408,7 +408,6 @@ fn open_directory_handle(wide: &[u16]) -> io::Result<HANDLE> {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::c_void;
     use std::fs::{self, File};
     use std::io::Write;
     use std::os::windows::fs::OpenOptionsExt;
@@ -424,14 +423,12 @@ mod tests {
         GetSecurityInfo, SetSecurityInfo, SDDL_REVISION_1, SE_FILE_OBJECT,
     };
     use windows_sys::Win32::Security::{
-        GetAce, ACCESS_ALLOWED_ACE, ACE_HEADER, ACL, DACL_SECURITY_INFORMATION,
-        OWNER_SECURITY_INFORMATION, PSID,
+        DACL_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
     };
 
     use super::{
-        current_user_sid, open_directory_handle, owner_is_trusted, owner_sid, sid_to_string,
-        wide_path, LocalMemory, PrivateAcl, FILE_READ_DATA, FILE_WRITE_DATA, READ_CONTROL,
-        WRITE_DAC,
+        current_user_sid, open_directory_handle, owner_is_trusted, owner_sid, wide_path,
+        LocalMemory, PrivateAcl, FILE_READ_DATA, FILE_WRITE_DATA, READ_CONTROL, WRITE_DAC,
     };
     use windows_sys::Win32::Storage::FileSystem::WRITE_OWNER;
 
@@ -466,6 +463,10 @@ mod tests {
         };
         assert_eq!(code, 0, "GetSecurityInfo failed: {code}");
         let _descriptor = LocalMemory(descriptor);
+        security_sddl_descriptor(descriptor)
+    }
+
+    fn security_sddl_descriptor(descriptor: PSECURITY_DESCRIPTOR) -> String {
         let mut wide = null_mut();
         let mut length = 0;
         // SAFETY: The descriptor is live and output pointers are writable.
@@ -524,57 +525,50 @@ mod tests {
         assert!(sddl.starts_with("D:P"), "DACL must be protected: {sddl}");
     }
 
-    fn assert_only_trusted_aces(file: &File) {
-        let mut descriptor = null_mut();
-        let mut dacl: *mut ACL = null_mut();
-        // SAFETY: The handle is live, and Windows returns `dacl` inside the
-        // LocalAlloc descriptor kept alive until all ACEs have been inspected.
-        let code = unsafe {
-            GetSecurityInfo(
-                file.as_raw_handle(),
-                SE_FILE_OBJECT,
-                DACL_SECURITY_INFORMATION,
-                null_mut(),
-                null_mut(),
-                &mut dacl,
-                null_mut(),
-                &mut descriptor,
-            )
-        };
-        assert_eq!(code, 0, "GetSecurityInfo failed: {code}");
-        let _descriptor = LocalMemory(descriptor);
-        assert!(!dacl.is_null(), "file must have a DACL");
-        let user = current_user_sid().unwrap();
-        let system = "S-1-5-18";
-        let mut seen_user = false;
-        let mut seen_system = false;
-        // SAFETY: `dacl` points into the live descriptor returned above.
-        for index in 0..unsafe { (*dacl).AceCount } {
-            let mut raw_ace: *mut c_void = null_mut();
-            // SAFETY: The ACE index is below AceCount and `raw_ace` is writable.
-            assert_ne!(unsafe { GetAce(dacl, index as u32, &mut raw_ace) }, 0);
-            assert!(!raw_ace.is_null(), "GetAce returned a null ACE");
-            // SAFETY: Every ACE begins with an ACE_HEADER. Inspect its type
-            // and size before treating the remaining bytes as an allowed ACE.
-            let header = unsafe { &*raw_ace.cast::<ACE_HEADER>() };
-            assert_eq!(header.AceType, 0, "unexpected ACE type");
-            assert!(
-                usize::from(header.AceSize) >= std::mem::size_of::<ACCESS_ALLOWED_ACE>(),
-                "truncated access-allowed ACE"
-            );
-            // SAFETY: An access-allowed ACE contains a SidStart field and its
-            // memory remains valid while `_descriptor` is live.
-            let ace = unsafe { &*raw_ace.cast::<ACCESS_ALLOWED_ACE>() };
-            let sid = (&ace.SidStart as *const u32).cast_mut().cast::<c_void>() as PSID;
-            let trustee = sid_to_string(sid).unwrap();
-            assert!(
-                trustee == user || trustee == system,
-                "unexpected ACL trustee: {trustee}"
-            );
-            seen_user |= trustee == user;
-            seen_system |= trustee == system;
+    fn ace_trustees(sddl: &str) -> Vec<&str> {
+        let dacl = sddl.strip_prefix("D:").expect("missing DACL");
+        let first_ace = dacl.find('(').expect("DACL must contain ACEs");
+        assert!(
+            matches!(&dacl[..first_ace], "" | "P" | "AI" | "PAI"),
+            "unexpected DACL control flags: {sddl}"
+        );
+        let mut remaining = &dacl[first_ace..];
+        let mut trustees = Vec::new();
+        while !remaining.is_empty() {
+            let ace = remaining.strip_prefix('(').expect("invalid ACE opening");
+            let (fields, rest) = ace.split_once(')').expect("invalid ACE closing");
+            let fields: Vec<_> = fields.split(';').collect();
+            assert_eq!(fields.len(), 6, "unexpected ACE fields: {sddl}");
+            assert_eq!(fields[0], "A", "unexpected ACE type: {sddl}");
+            assert!(!fields[5].is_empty(), "ACE has no trustee: {sddl}");
+            trustees.push(fields[5]);
+            remaining = rest;
         }
-        assert!(seen_user && seen_system, "user and SYSTEM ACEs required");
+        trustees
+    }
+
+    fn assert_only_trusted_aces(file: &File) {
+        let user = current_user_sid().unwrap();
+        // Let Windows canonicalize SID aliases (notably LA for the built-in
+        // Administrator) before comparing trustees. Windows can also map GA
+        // to FA and split inheritable directory ACEs during file creation.
+        let expected = PrivateAcl::from_sddl(&format!("D:P(A;;GA;;;{user})(A;;GA;;;SY)")).unwrap();
+        let expected_sddl = security_sddl_descriptor(expected.descriptor.0);
+        let expected_trustees = ace_trustees(&expected_sddl);
+        let actual_sddl = security_sddl_handle(file);
+        let actual_trustees = ace_trustees(&actual_sddl);
+        for trustee in &actual_trustees {
+            assert!(
+                expected_trustees.contains(trustee),
+                "unexpected ACL trustee {trustee}: {actual_sddl}"
+            );
+        }
+        for trustee in &expected_trustees {
+            assert!(
+                actual_trustees.contains(trustee),
+                "missing ACL trustee {trustee}: {actual_sddl}"
+            );
+        }
     }
 
     fn make_world_readable(path: &Path, contents: &str) {
