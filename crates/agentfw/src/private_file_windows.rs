@@ -408,7 +408,9 @@ fn open_directory_handle(wide: &[u16]) -> io::Result<HANDLE> {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::c_void;
     use std::fs::{self, File};
+    use std::io::Write;
     use std::os::windows::fs::OpenOptionsExt;
     use std::os::windows::io::{AsRawHandle, FromRawHandle};
     use std::path::Path;
@@ -422,12 +424,14 @@ mod tests {
         GetSecurityInfo, SetSecurityInfo, SDDL_REVISION_1, SE_FILE_OBJECT,
     };
     use windows_sys::Win32::Security::{
-        DACL_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION, PSID,
+        GetAce, ACCESS_ALLOWED_ACE, ACE_HEADER, ACL, DACL_SECURITY_INFORMATION,
+        OWNER_SECURITY_INFORMATION, PSID,
     };
 
     use super::{
-        current_user_sid, open_directory_handle, owner_is_trusted, owner_sid, wide_path,
-        LocalMemory, PrivateAcl, FILE_READ_DATA, FILE_WRITE_DATA, READ_CONTROL, WRITE_DAC,
+        current_user_sid, open_directory_handle, owner_is_trusted, owner_sid, sid_to_string,
+        wide_path, LocalMemory, PrivateAcl, FILE_READ_DATA, FILE_WRITE_DATA, READ_CONTROL,
+        WRITE_DAC,
     };
     use windows_sys::Win32::Storage::FileSystem::WRITE_OWNER;
 
@@ -491,6 +495,7 @@ mod tests {
         assert_private_sddl(&sddl);
         assert_eq!(sddl.matches("(A;").count(), 2, "unexpected ACE: {sddl}");
         let file = File::open(path).unwrap();
+        assert_only_trusted_aces(&file);
         assert_eq!(
             owner_sid(file.as_raw_handle()).unwrap(),
             current_user_sid().unwrap()
@@ -508,6 +513,7 @@ mod tests {
         let raw = open_directory_handle(&wide).unwrap();
         // SAFETY: The helper returns an owned directory handle.
         let directory = unsafe { File::from_raw_handle(raw) };
+        assert_only_trusted_aces(&directory);
         assert_eq!(
             owner_sid(directory.as_raw_handle()).unwrap(),
             current_user_sid().unwrap()
@@ -515,28 +521,67 @@ mod tests {
     }
 
     fn assert_private_sddl(sddl: &str) {
-        let user = current_user_sid().unwrap();
         assert!(sddl.starts_with("D:P"), "DACL must be protected: {sddl}");
-        assert!(
-            sddl.contains(&format!(";;;{user})")),
-            "owner missing: {sddl}"
-        );
-        assert!(sddl.contains(";;;SY)"), "SYSTEM missing: {sddl}");
-        for ace in sddl.split('(').skip(1) {
-            let ace = ace.split(')').next().unwrap();
-            assert!(ace.starts_with("A;"), "unexpected ACE: {sddl}");
-            let trustee = ace.rsplit(';').next().unwrap();
-            assert!(trustee == user || trustee == "SY", "broad access in {sddl}");
+    }
+
+    fn assert_only_trusted_aces(file: &File) {
+        let mut descriptor = null_mut();
+        let mut dacl: *mut ACL = null_mut();
+        // SAFETY: The handle is live, and Windows returns `dacl` inside the
+        // LocalAlloc descriptor kept alive until all ACEs have been inspected.
+        let code = unsafe {
+            GetSecurityInfo(
+                file.as_raw_handle(),
+                SE_FILE_OBJECT,
+                DACL_SECURITY_INFORMATION,
+                null_mut(),
+                null_mut(),
+                &mut dacl,
+                null_mut(),
+                &mut descriptor,
+            )
+        };
+        assert_eq!(code, 0, "GetSecurityInfo failed: {code}");
+        let _descriptor = LocalMemory(descriptor);
+        assert!(!dacl.is_null(), "file must have a DACL");
+        let user = current_user_sid().unwrap();
+        let system = "S-1-5-18";
+        let mut seen_user = false;
+        let mut seen_system = false;
+        // SAFETY: `dacl` points into the live descriptor returned above.
+        for index in 0..unsafe { (*dacl).AceCount } {
+            let mut raw_ace: *mut c_void = null_mut();
+            // SAFETY: The ACE index is below AceCount and `raw_ace` is writable.
+            assert_ne!(unsafe { GetAce(dacl, index as u32, &mut raw_ace) }, 0);
+            assert!(!raw_ace.is_null(), "GetAce returned a null ACE");
+            // SAFETY: Every ACE begins with an ACE_HEADER. Inspect its type
+            // and size before treating the remaining bytes as an allowed ACE.
+            let header = unsafe { &*raw_ace.cast::<ACE_HEADER>() };
+            assert_eq!(header.AceType, 0, "unexpected ACE type");
+            assert!(
+                usize::from(header.AceSize) >= std::mem::size_of::<ACCESS_ALLOWED_ACE>(),
+                "truncated access-allowed ACE"
+            );
+            // SAFETY: An access-allowed ACE contains a SidStart field and its
+            // memory remains valid while `_descriptor` is live.
+            let ace = unsafe { &*raw_ace.cast::<ACCESS_ALLOWED_ACE>() };
+            let sid = (&ace.SidStart as *const u32).cast_mut().cast::<c_void>() as PSID;
+            let trustee = sid_to_string(sid).unwrap();
+            assert!(
+                trustee == user || trustee == system,
+                "unexpected ACL trustee: {trustee}"
+            );
+            seen_user |= trustee == user;
+            seen_system |= trustee == system;
         }
+        assert!(seen_user && seen_system, "user and SYSTEM ACEs required");
     }
 
     fn make_world_readable(path: &Path, contents: &str) {
-        fs::write(path, contents).unwrap();
-        let file = fs::OpenOptions::new()
-            .read(true)
-            .access_mode(FILE_READ_DATA | FILE_WRITE_DATA | READ_CONTROL | WRITE_DAC)
-            .open(path)
-            .unwrap();
+        // Create with the tested user's owner SID even when the runner's
+        // default owner is the Administrators group.
+        let mut file = super::open_token(path).unwrap();
+        file.write_all(contents.as_bytes()).unwrap();
         let loose = PrivateAcl::from_sddl("D:P(A;;GA;;;WD)").unwrap();
         loose.apply(file.as_raw_handle()).unwrap();
         assert!(security_sddl(path).contains(";;;WD)"));
@@ -592,12 +637,8 @@ mod tests {
     fn inaccessible_existing_token_fails_without_overwriting_it() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("token");
-        fs::write(&path, "keep-me").unwrap();
-        let file = fs::OpenOptions::new()
-            .read(true)
-            .access_mode(FILE_READ_DATA | FILE_WRITE_DATA | READ_CONTROL | WRITE_DAC)
-            .open(&path)
-            .unwrap();
+        let mut file = super::open_token(&path).unwrap();
+        file.write_all(b"keep-me").unwrap();
         let user = current_user_sid().unwrap();
         let narrow = PrivateAcl::from_sddl(&format!("D:P(A;;RCWD;;;{user})(A;;GA;;;SY)")).unwrap();
         narrow.apply(file.as_raw_handle()).unwrap();
@@ -623,18 +664,16 @@ mod tests {
         // Files created by other Agent stores inherit a private ACL too.
         let child = home.join("grant.json");
         fs::write(&child, "grant").unwrap();
-        let sddl = security_sddl(&child);
-        let user = current_user_sid().unwrap();
-        assert!(sddl.contains(&format!(";;;{user})")), "{sddl}");
-        assert!(sddl.contains(";;;SY)"), "{sddl}");
-        assert!(!sddl.contains(";;;WD)"), "{sddl}");
+        assert_only_trusted_aces(&File::open(&child).unwrap());
     }
 
     #[test]
     fn existing_loose_agent_home_is_tightened_before_use() {
         let root = tempfile::tempdir().unwrap();
         let home = root.path().join(".agentfw");
-        fs::create_dir(&home).unwrap();
+        // Windows may otherwise assign BUILTIN\Administrators as the owner
+        // when this test runs under an elevated account.
+        super::ensure_private_directory(&home).unwrap();
         fs::write(home.join("existing"), "keep").unwrap();
         let wide = wide_path(&home).unwrap();
         let raw = open_directory_handle(&wide).unwrap();

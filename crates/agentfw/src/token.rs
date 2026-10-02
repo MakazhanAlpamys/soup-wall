@@ -196,6 +196,15 @@ mod tests {
     fn a_whitespace_only_existing_file_is_regenerated_not_returned_empty() {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("token");
+        #[cfg(windows)]
+        {
+            use std::io::Write;
+            // An elevated runner can otherwise assign the Administrators
+            // group as owner, which the production code correctly rejects.
+            let mut file = crate::private_file_windows::open_token(&p).unwrap();
+            file.write_all(b"   \n\t  \n").unwrap();
+        }
+        #[cfg(not(windows))]
         std::fs::write(&p, "   \n\t  \n").unwrap();
         let t = load_or_create(&p).unwrap();
         assert!(
