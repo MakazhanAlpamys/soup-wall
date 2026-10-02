@@ -77,6 +77,8 @@ Use the [production runbook](operations/PRODUCTION_RUNBOOK.md) and [staging dril
 | Console | Uses the Gateway's tenant store. Optional OIDC/SAML sign-in contacts your IdP; optional webhooks contact destinations you configure. |
 | Shared operations | PostgreSQL and Redis are optional deployment services with distinct roles. `/healthz` tests liveness; `/readyz` reflects selected dependency and audit readiness. |
 
+On Windows, the Agent creates or tightens `%USERPROFILE%\.agentfw` and its token and audit files to an ACL for the current account and SYSTEM. Keep `%USERPROFILE%` private to that account; ACLs do not isolate processes running as the same account. If `audit:` points outside `.agentfw`, choose a parent directory where other accounts cannot add, delete, or replace entries. A file ACL alone cannot prevent replacement by someone who controls its parent directory. Rotate any token that may have been readable before upgrading.
+
 The Gateway records outcomes and privacy-safe usage evidence without intentionally storing prompt or response bodies in its normal audit path. Review your own edge, provider, database, Redis, and identity-provider logging policies as part of deployment.
 
 ## Enforcement and billing limits
