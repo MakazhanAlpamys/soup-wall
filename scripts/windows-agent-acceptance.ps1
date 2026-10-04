@@ -3,7 +3,9 @@
 [CmdletBinding()]
 param(
     [string]$AgentBinary,
-    [string]$EvidencePath
+    [string]$EvidencePath,
+    [ValidateSet('127.0.0.1', '::1', 'localhost')]
+    [string]$BindAddress = '127.0.0.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -30,6 +32,33 @@ $checks = New-Object 'System.Collections.Generic.List[string]'
 $modeEvidence = New-Object 'System.Collections.Generic.List[object]'
 $started = [DateTimeOffset]::UtcNow
 
+# An unavailable IPv6 stack is an explicit skipped result, not an IPv4 fallback.
+# Probe before creating the disposable profile; all Agent failures on a capable
+# host remain real acceptance failures below.
+if ($BindAddress -eq '::1') {
+    $ipv6Probe = $null
+    $ipv6Available = $false
+    try {
+        $ipv6Probe = New-Object Net.Sockets.TcpListener([Net.IPAddress]::IPv6Loopback, 0)
+        $ipv6Probe.Start()
+        $ipv6Available = $true
+    }
+    catch [Net.Sockets.SocketException] { $ipv6Available = $false }
+    finally { if ($null -ne $ipv6Probe) { $ipv6Probe.Stop() } }
+    if (-not $ipv6Available) {
+        $skipped = [pscustomobject]@{
+            schema_version = 1; acceptance = 'skipped'; bind_address = $BindAddress
+            observed_at_utc = [DateTimeOffset]::UtcNow.ToString('O')
+            reason = 'IPv6 loopback listener is unavailable on this Windows host.'
+            agent_binary_sha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant()
+            isolated_profile_created = $false; model_requests_sent = 0; proposed_shell_commands_executed = 0
+        } | ConvertTo-Json
+        if ($EvidencePath) { [IO.File]::WriteAllText($evidenceFile, $skipped + "`n", (New-Object Text.UTF8Encoding($false))) }
+        $skipped
+        return
+    }
+}
+
 function Assert-Check([bool]$Condition, [string]$Name) {
     if (-not $Condition) { throw "Acceptance failed: $Name" }
     $checks.Add($Name)
@@ -47,6 +76,12 @@ function Start-Agent([string[]]$Arguments) {
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
     $info.EnvironmentVariables['USERPROFILE'] = $profileDirectory
+    # A non-listening proxy proves local CLI probes do not inherit proxy routing.
+    # These overrides belong only to the disposable Agent children.
+    foreach ($name in @('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY')) {
+        $info.EnvironmentVariables[$name] = 'http://127.0.0.1:9'
+    }
+    $info.EnvironmentVariables['NO_PROXY'] = ''
     $process = New-Object Diagnostics.Process
     $process.StartInfo = $info
     if (-not $process.Start()) { throw 'Could not start the acceptance Agent child.' }
@@ -78,9 +113,10 @@ function Stop-AgentDaemon($Child) {
     if ($null -eq $Child) { return }
     if (-not $Child.Process.HasExited) { $Child.Process.Kill() }
     if (-not $Child.Process.WaitForExit(10000)) { throw 'Acceptance daemon did not stop.' }
-    $null = $Child.Stdout.GetAwaiter().GetResult()
+    $output = $Child.Stdout.GetAwaiter().GetResult()
     $null = $Child.Stderr.GetAwaiter().GetResult()
     $Child.Process.Dispose()
+    return $output
 }
 
 function Assert-PrivateAcl([string]$Path, [string]$Label) {
@@ -172,11 +208,15 @@ try {
     if ($null -eq $savedAgentToken) { Remove-Item Env:AGENTFW_TOKEN -ErrorAction SilentlyContinue }
     else { $env:AGENTFW_TOKEN = $savedAgentToken }
 
-    $listener = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 0)
+    $listenIp = [Net.IPAddress]::Loopback
+    if ($BindAddress -eq '::1') { $listenIp = [Net.IPAddress]::IPv6Loopback }
+    $listener = New-Object Net.Sockets.TcpListener($listenIp, 0)
     $listener.Start()
     $port = $listener.LocalEndpoint.Port
     $listener.Stop()
-    $baseUrl = "http://127.0.0.1:$port"
+    $authority = '{0}:{1}' -f $BindAddress, $port
+    if ($BindAddress -eq '::1') { $authority = '[::1]:{0}' -f $port }
+    $baseUrl = "http://$authority"
     $handler = New-Object Net.Http.HttpClientHandler
     $handler.UseProxy = $false
     $client = New-Object Net.Http.HttpClient($handler)
@@ -186,12 +226,12 @@ try {
         $mode = 'shadow'
         if ($enforce) { $mode = 'enforce' }
         # Omit enforce for shadow: verify the shipped default rather than setting false.
-        $configuration = "bind: 127.0.0.1`nport: $port`n"
+        $configuration = "bind: '$BindAddress'`nport: $port`n"
         if ($enforce) { $configuration += "enforce: true`n" }
         [IO.File]::WriteAllText((Join-Path $agentDirectory 'config.yaml'), $configuration, (New-Object Text.UTF8Encoding($false)))
         $install = Invoke-Agent @('install')
         Assert-Check ($install.ExitCode -eq 0 -and [IO.File]::ReadAllText($tokenPath).Trim() -eq $token) "$mode reinstall preserves token"
-        Assert-Check ((Read-HookBlock $install.Output).hooks.PreToolUse[0].hooks[0].url -eq "$baseUrl/hook") "$mode install respects configured port"
+        Assert-Check ((Read-HookBlock $install.Output).hooks.PreToolUse[0].hooks[0].url -eq "$baseUrl/hook") "$mode install respects configured bind and port"
         $daemon = Start-Agent @('serve')
         $deadline = [DateTime]::UtcNow.AddSeconds(15)
         $health = $null
@@ -205,7 +245,7 @@ try {
         $healthBody = $health.Body | ConvertFrom-Json
         Assert-Check ($healthBody.status -eq 'ok' -and $healthBody.enforce -eq $enforce) "$mode reported enforcement posture"
         $preflight = Invoke-Agent @('preflight', '--timeout-seconds', '2')
-        Assert-Check ($preflight.ExitCode -eq 0) "$mode ordinary preflight"
+        Assert-Check ($preflight.ExitCode -eq 0) "$mode ordinary preflight bypasses system proxy"
         $required = Invoke-Agent @('preflight', '--require-enforce', '--timeout-seconds', '2')
         $expectedExit = 4
         if ($enforce) { $expectedExit = 0 }
@@ -237,8 +277,11 @@ try {
         Assert-Check ($last.verdict -in @('deny', 'ask') -and $last.shadow -eq (-not $enforce)) "$mode dangerous verdict and shadow flag audited"
         Assert-Check (-not $auditBody.Contains($token)) "$mode audit omits token"
         $modeEvidence.Add([pscustomobject]@{ mode = $mode; preflight_exit = $preflight.ExitCode; require_enforce_exit = $required.ExitCode; authenticated_events = $events.Count; dangerous_hook_decision = $decision; dangerous_audit_verdict = $last.verdict; maximum_latency_us = ($events | Measure-Object -Property latency_us -Maximum).Maximum })
-        Stop-AgentDaemon $daemon
+        $daemonOutput = Stop-AgentDaemon $daemon
         $daemon = $null
+        $readyLog = @($daemonOutput -split "`r?`n" | Where-Object { $_.Trim() } |
+            ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.fields.PSObject.Properties['addr'] })
+        Assert-Check ($readyLog.Count -eq 1 -and $readyLog[0].fields.addr -eq $authority) "$mode startup reports configured socket address"
     }
 
     $replay = Invoke-Agent @('replay')
@@ -256,6 +299,8 @@ try {
         observed_at_utc = [DateTimeOffset]::UtcNow.ToString('O')
         os = [Environment]::OSVersion.VersionString
         powershell_version = $PSVersionTable.PSVersion.ToString()
+        bind_address = $BindAddress
+        local_preflight_proxy_bypass_verified = $true
         agent_binary_sha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant()
         isolated_profile_removed = $true
         checks_passed = $checks.Count
@@ -271,7 +316,7 @@ try {
     }
 }
 finally {
-    Stop-AgentDaemon $daemon
+    $null = Stop-AgentDaemon $daemon
     if ($null -ne $client) { $client.Dispose() }
     if ($null -eq $savedAgentToken) { Remove-Item Env:AGENTFW_TOKEN -ErrorAction SilentlyContinue }
     else { $env:AGENTFW_TOKEN = $savedAgentToken }

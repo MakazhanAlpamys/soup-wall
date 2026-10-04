@@ -41,6 +41,7 @@ Build from the repository root and run with Windows PowerShell 5.1 or PowerShell
 cargo build --locked -p agentfw --bin agentfw
 if ($LASTEXITCODE -ne 0) { throw 'Agent build failed.' }
 .\scripts\windows-agent-acceptance.ps1 -EvidencePath .\target\windows-agent-acceptance.json
+.\scripts\windows-agent-acceptance.ps1 -BindAddress ::1 -EvidencePath .\target\windows-agent-acceptance-ipv6.json
 ```
 
 To test an unpacked release archive instead of the development build:
@@ -55,6 +56,16 @@ unused loopback port, starts and stops its own daemon, and removes the generated
 profile on success or failure. It preserves the shell's prior `AGENTFW_TOKEN`.
 It does not touch the actual user's Agent files or Claude settings.
 
+`-BindAddress` accepts `127.0.0.1` (the default), `::1`, or `localhost`, matching
+the Agent's existing config allowlist. IPv6 uses `[::1]:port` in socket addresses
+and HTTP URLs; the printed hooks, health probe, and MCP relay use the configured
+address. If a bare IPv6 loopback listener is unavailable, the IPv6 run emits
+explicit `acceptance: skipped` evidence without creating a profile. On a host
+where that listener works, an Agent startup or probe failure fails acceptance.
+The script also installs a non-listening proxy only in child environments to
+verify that preflight reaches the local daemon directly; native preflight and
+MCP relay requests bypass system proxy settings.
+
 The run checks clean installation, the printed PowerShell token command, token
 reuse, default and configured hook settings, protected directory/token/audit
 DACLs, health posture and authenticated hook behavior, benign calls, and a synthetic
@@ -63,6 +74,7 @@ scenario in default shadow mode and enforcement mode. The proposed command is
 sent as JSON only; it is never executed. The `.invalid` URLs are never fetched.
 Missing and incorrect tokens must return HTTP 401. Audit decisions and flags,
 replay's evidence threshold, and offline preflight failure are checked too.
+Each daemon's startup log must report the configured socket address.
 
 Evidence is timestamped aggregate JSON containing checks, audit counts, mode
 decisions, observed latency, binary hash, and runtime versions. It contains no
@@ -74,6 +86,13 @@ A [recorded local run](evidence/windows-agent-acceptance-2026-10-04.json) passed
 debug build; its latency values are diagnostic observations, not release
 performance results. Caller token preservation and cleanup after an intentional
 failure were verified separately.
+
+A subsequent [loopback configuration run](evidence/windows-agent-loopback-acceptance-2026-10-04.json)
+passed 72 checks each for `127.0.0.1`, `::1`, and `localhost`, including real
+IPv6 daemon startup, configured hook URLs, startup log addresses, direct health
+probes despite inherited proxy settings, both enforcement postures, and offline
+failure. The host supported IPv6, so the unavailable-stack skip branch was not
+exercised in that run.
 
 ## What this check establishes
 

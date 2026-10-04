@@ -170,6 +170,21 @@ impl Config {
         Ok(c)
     }
 
+    /// Socket/URL authority for this validated loopback bind. IPv6 literals
+    /// require brackets so their colons cannot be mistaken for the port.
+    pub fn socket_address(&self) -> String {
+        if self.bind == "::1" {
+            format!("[{}]:{}", self.bind, self.port)
+        } else {
+            format!("{}:{}", self.bind, self.port)
+        }
+    }
+
+    /// Daemon HTTP endpoint, shared by preflight, installation, and MCP.
+    pub fn endpoint_url(&self, path: &str) -> String {
+        format!("http://{}{path}", self.socket_address())
+    }
+
     /// Reject anything that would expose the daemon beyond this machine.
     fn validate(&self) -> anyhow::Result<()> {
         let ok = self.bind == "127.0.0.1" || self.bind == "::1" || self.bind == "localhost";
@@ -275,6 +290,40 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("loopback"), "got: {err}");
+    }
+
+    #[test]
+    fn each_supported_bind_formats_a_valid_socket_and_endpoint_authority() {
+        for (bind, authority) in [
+            ("127.0.0.1", "127.0.0.1:9001"),
+            ("::1", "[::1]:9001"),
+            ("localhost", "localhost:9001"),
+        ] {
+            let cfg = Config::from_yaml(&format!("bind: '{bind}'\nport: 9001\n")).unwrap();
+            assert_eq!(cfg.socket_address(), authority);
+            for path in ["/health", "/hook", "/mcp"] {
+                let endpoint = cfg.endpoint_url(path);
+                let url = reqwest::Url::parse(&endpoint).unwrap();
+                assert_eq!(url.port(), Some(9001));
+                assert_eq!(url.path(), path);
+                assert_eq!(endpoint, format!("http://{authority}{path}"));
+            }
+            if bind != "localhost" {
+                assert!(cfg
+                    .socket_address()
+                    .parse::<std::net::SocketAddr>()
+                    .unwrap()
+                    .ip()
+                    .is_loopback());
+            }
+        }
+    }
+
+    #[test]
+    fn ipv6_formatting_does_not_expand_the_allowed_bind_list() {
+        for bind in ["::", "[::1]", "0.0.0.0", "localhost.example.invalid"] {
+            assert!(Config::from_yaml(&format!("bind: '{bind}'\n")).is_err());
+        }
     }
 
     // --- phase 10: judge configuration ---

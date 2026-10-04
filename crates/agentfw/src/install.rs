@@ -10,6 +10,8 @@ use std::path::Path;
 
 use serde_json::json;
 
+use crate::Config;
+
 /// The `settings.json` fragment wiring all five hook events to the daemon.
 ///
 /// The token is passed by environment variable, never written inline — settings
@@ -23,9 +25,17 @@ use serde_json::json;
 /// dropping lower because phase 10's local-model judge tier needs a 3s budget of
 /// its own; shortening this now would clip legitimate slow judgments later.
 pub fn hook_block(port: u16) -> serde_json::Value {
+    hook_block_for_config(&Config {
+        port,
+        ..Config::default()
+    })
+}
+
+/// Hook settings using the same validated bind and port as the daemon.
+pub fn hook_block_for_config(config: &Config) -> serde_json::Value {
     let entry = json!({
         "type": "http",
-        "url": format!("http://127.0.0.1:{port}/hook"),
+        "url": config.endpoint_url("/hook"),
         "headers": { "Authorization": "Bearer $AGENTFW_TOKEN" },
         "allowedEnvVars": ["AGENTFW_TOKEN"],
         "timeout": 5
@@ -51,6 +61,17 @@ pub fn hook_block(port: u16) -> serde_json::Value {
 /// to discover by debugging: a stopped daemon silently taxing every tool call,
 /// and shadow mode silently declining to block anything until told to.
 pub fn instructions(port: u16, token_path: &Path) -> String {
+    instructions_for_config(
+        &Config {
+            port,
+            ..Config::default()
+        },
+        token_path,
+    )
+}
+
+/// Installation instructions for the daemon's configured loopback endpoint.
+pub fn instructions_for_config(config: &Config, token_path: &Path) -> String {
     format!(
         "Add this to your Claude Code settings.json (merge into any existing \"hooks\" block \
          rather than overwriting it):\n\n\
@@ -91,7 +112,7 @@ pub fn instructions(port: u16, token_path: &Path) -> String {
          Route approved shell calls through the Linux-only guarded entry point so the exact command \
          is inspected before bubblewrap creates a process:\n\n  \
          agentfw guarded-shell --workspace ./checkout -- 'make test'\n",
-        block = serde_json::to_string_pretty(&hook_block(port)).unwrap_or_default(),
+        block = serde_json::to_string_pretty(&hook_block_for_config(config)).unwrap_or_default(),
         token_command = token_command(token_path),
     )
 }
@@ -171,6 +192,31 @@ mod tests {
             v["hooks"]["PreToolUse"][0]["hooks"][0]["url"],
             "http://127.0.0.1:9999/hook"
         );
+    }
+
+    #[test]
+    fn configured_installation_preserves_each_supported_bind_for_every_event() {
+        for (bind, endpoint) in [
+            ("127.0.0.1", "http://127.0.0.1:9001/hook"),
+            ("::1", "http://[::1]:9001/hook"),
+            ("localhost", "http://localhost:9001/hook"),
+        ] {
+            let config = Config::from_yaml(&format!("bind: '{bind}'\nport: 9001\n")).unwrap();
+            let block = hook_block_for_config(&config);
+            for event in [
+                "PreToolUse",
+                "PostToolUse",
+                "SubagentStop",
+                "SessionStart",
+                "SessionEnd",
+            ] {
+                let hook = &block["hooks"][event][0]["hooks"][0];
+                assert_eq!(hook["url"], endpoint);
+                assert_eq!(hook["headers"]["Authorization"], "Bearer $AGENTFW_TOKEN");
+            }
+            let instructions = instructions_for_config(&config, Path::new("/users/test/token"));
+            assert!(instructions.contains(endpoint));
+        }
     }
 
     #[test]

@@ -217,7 +217,7 @@ fn main() -> anyhow::Result<()> {
             agentfw::token::load_or_create(&home.join("token"))?;
             println!(
                 "{}",
-                agentfw::install::instructions(cfg.port, &home.join("token"))
+                agentfw::install::instructions_for_config(&cfg, &home.join("token"))
             );
             Ok(())
         }
@@ -233,7 +233,7 @@ fn main() -> anyhow::Result<()> {
             let probe = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?
-                .block_on(probe_health(&cfg.bind, cfg.port, timeout_seconds));
+                .block_on(probe_health(&cfg, timeout_seconds));
             let report = agentfw::preflight::evaluate(&probe);
             println!("{}", report.render(require_enforce));
             std::process::exit(report.exit_code(require_enforce));
@@ -290,7 +290,7 @@ fn main() -> anyhow::Result<()> {
             });
             let proxy_cfg = agentfw::mcp::proxy::ProxyCfg {
                 server_id,
-                daemon_url: format!("http://{}:{}/mcp", cfg.bind, cfg.port),
+                daemon_url: cfg.endpoint_url("/mcp"),
                 token,
                 command: cmd.clone(),
                 args: args.to_vec(),
@@ -553,9 +553,11 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-async fn probe_health(bind: &str, port: u16, timeout_seconds: u64) -> agentfw::preflight::Probe {
-    let url = format!("http://{bind}:{port}/health");
+async fn probe_health(config: &Config, timeout_seconds: u64) -> agentfw::preflight::Probe {
+    let url = config.endpoint_url("/health");
     let client = match reqwest::Client::builder()
+        // Local daemon probes must not leave the host through a system proxy.
+        .no_proxy()
         .timeout(Duration::from_secs(timeout_seconds.max(1)))
         .build()
     {
@@ -613,7 +615,7 @@ async fn serve() -> anyhow::Result<()> {
         token,
     });
 
-    let addr = format!("{}:{}", cfg.bind, cfg.port);
+    let addr = cfg.socket_address();
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!(
         addr = %addr,
