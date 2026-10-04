@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-04T17:18:42.447018+00:00",
+  "evidence_scope": "isolated-local-sqlite-and-loopback-provider",
+  "artifact_label": "v0.4.0",
+  "binary_sha256": "3818ba06b6a8191e3c5a5a1ca7c8f6044468e87484c9dfcbd00107b78ee8b85a",
+  "platform": "Windows",
+  "architecture": "AMD64",
+  "checks": [
+    {
+      "name": "preflight",
+      "status": "passed"
+    },
+    {
+      "name": "preflight-does-not-create-database",
+      "status": "passed"
+    },
+    {
+      "name": "readiness",
+      "status": "passed"
+    },
+    {
+      "name": "console-page",
+      "status": "passed"
+    },
+    {
+      "name": "console-api-requires-auth",
+      "status": "passed"
+    },
+    {
+      "name": "create-tenant",
+      "status": "passed"
+    },
+    {
+      "name": "issue-token",
+      "status": "passed"
+    },
+    {
+      "name": "proxy-requires-tenant-token",
+      "status": "passed"
+    },
+    {
+      "name": "unauthorized-request-not-forwarded",
+      "status": "passed"
+    },
+    {
+      "name": "benign-provider-response",
+      "status": "passed"
+    },
+    {
+      "name": "benign-request-forwarded-once",
+      "status": "passed"
+    },
+    {
+      "name": "injection-blocked",
+      "status": "passed"
+    },
+    {
+      "name": "blocked-request-not-forwarded",
+      "status": "passed"
+    },
+    {
+      "name": "sqlite-tenants-survive-restart",
+      "status": "passed"
+    },
+    {
+      "name": "sqlite-token-survives-restart",
+      "status": "passed"
+    }
+  ],
+  "status": "passed"
+}

@@ -26,10 +26,10 @@ remain visible; dependencies are never marked complete to make the plan green.
 1. [x] **Execution plan and inventory.** Commit this record and link it from the
    roadmap; inspect all open issues and PRs and establish explicit acceptance
    criteria for the remaining release gates.
-2. [ ] **Windows Agent acceptance.** Exercise isolated installation, token and
+2. [x] **Windows Agent acceptance.** Exercise isolated installation, token and
    audit permissions, daemon health, shadow/enforce decisions, and daemon outage
    behavior. Add a repeatable acceptance command and retain aggregate evidence.
-3. [ ] **Self-hosted local acceptance.** Exercise Gateway preflight, SQLite
+3. [x] **Self-hosted local acceptance.** Exercise Gateway preflight, SQLite
    Console, provider protocol handling against a disposable fixture, deployment
    configuration, PostgreSQL/Redis integration, dependency failure and restore
    where local tools permit. Record environment and actual results.
@@ -78,3 +78,27 @@ provider credentials, identity assertions, prompts, or customer data.
   benign sessions, no misses and no benign interruptions. An allow-all candidate
   exits 1 and retains all 19 missed attacks in its JSON evidence. This is still
   the synthetic regression baseline, not independent field effectiveness.
+- Windows checkpoints: `c764f3f` adds native setup and 70-check acceptance;
+  `35adf01` fixes configured loopback addresses and raises the acceptance to
+  72 checks for IPv4, IPv6 and localhost. Agent tests and Clippy passed; see
+  [native Windows evidence](WINDOWS_AGENT_ACCEPTANCE.md).
+- Local dependency/recovery checkpoint: PostgreSQL and Redis integration tests
+  passed. The verified v0.4.0 Gateway passed preflight, migrations and baseline
+  acceptance with disposable PostgreSQL 18.6 and Redis 8.0.5. Both failure
+  phases returned readiness 503 with liveness 200; recovery returned readiness
+  200. The encrypted restore passed into a separate database, retaining two
+  tenants and two security events, and rejected a source-database alias.
+  [Commands, limits and timestamped evidence](LOCAL_RELEASE_ACCEPTANCE.md).
+- Legacy maintenance checkpoint: `4898d49` is pushed in
+  [LLM-Firewall PR #31](https://github.com/MakazhanAlpamys/LLM-Firewall/pull/31).
+  All 695 default tests, Clippy, compatibility vectors, package-contract checks,
+  advisory gate with the existing RSA exception, and explicit Redis/PostgreSQL
+  integration checks passed. Hosted benchmark passed; other CI must finish
+  before final disposition of the six original proposals.
+- SAML provider checkpoint: `9174490` is pushed in
+  [Soup Wall PR #23](https://github.com/MakazhanAlpamys/soup-wall/pull/23).
+  Windows/Linux signed, tampered and encrypted-assertion fixtures, Gateway
+  library tests, Clippy and Microsoft's public signed-metadata probe passed.
+  The supported Linux/macOS graphs exclude RSA; Windows still includes it.
+  Issue #19 remains open, and macOS runtime and real-IdP assertion acceptance
+  still require their own evidence.

@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "evidence_scope": "isolated-local-release-postgresql-redis-and-restore",
+  "artifact_label": "v0.4.0",
+  "gateway_binary_sha256": "3818ba06b6a8191e3c5a5a1ca7c8f6044468e87484c9dfcbd00107b78ee8b85a",
+  "host": "Windows with Ubuntu WSL disposable services",
+  "postgres_version": "18.6",
+  "redis_version": "8.0.5",
+  "source_commit": "35adf015a38fc3cee6626e5ad8548c14f5009cc3",
+  "managed_staging_validated": false,
+  "external_model_requests_sent": 0,
+  "phases": [
+    {
+      "schema_version": 1,
+      "acceptance": "passed",
+      "observed_at_utc": "2026-10-04T22:34:54.111567+05:00",
+      "base_url_host": "127.0.0.1",
+      "healthz": 200,
+      "readyz": 200,
+      "control_plane_ready": 1,
+      "audit_queue_failed_events": 0,
+      "usage_ledger_failed_events": 0,
+      "redis_limits_enabled": 1,
+      "redis_limits_ready": 1,
+      "model_requests_sent": 0
+    },
+    {
+      "phase": "Baseline",
+      "observed_at_utc": "2026-10-04T22:34:54.1647992+05:00",
+      "health_http_status": 200,
+      "readiness_http_status": 200,
+      "control_plane_ready": 1,
+      "audit_queue_enabled": 1,
+      "redis_limits_enabled": 1,
+      "redis_limits_ready": 1
+    },
+    {
+      "phase": "PostgresDown",
+      "observed_at_utc": "2026-10-04T22:35:52.0280823+05:00",
+      "health_http_status": 200,
+      "readiness_http_status": 503,
+      "control_plane_ready": 0,
+      "audit_queue_enabled": 1,
+      "redis_limits_enabled": 1,
+      "redis_limits_ready": 1
+    },
+    {
+      "phase": "Baseline",
+      "observed_at_utc": "2026-10-04T22:36:14.431448+05:00",
+      "health_http_status": 200,
+      "readiness_http_status": 200,
+      "control_plane_ready": 1,
+      "audit_queue_enabled": 1,
+      "redis_limits_enabled": 1,
+      "redis_limits_ready": 1
+    },
+    {
+      "phase": "RedisDown",
+      "observed_at_utc": "2026-10-04T22:37:33.9969805+05:00",
+      "health_http_status": 200,
+      "readiness_http_status": 503,
+      "control_plane_ready": 1,
+      "audit_queue_enabled": 1,
+      "redis_limits_enabled": 1,
+      "redis_limits_ready": 0
+    },
+    {
+      "phase": "Recovered",
+      "observed_at_utc": "2026-10-04T22:37:34.491386+05:00",
+      "health_http_status": 200,
+      "readiness_http_status": 200,
+      "control_plane_ready": 1,
+      "audit_queue_enabled": 1,
+      "redis_limits_enabled": 1,
+      "redis_limits_ready": 1
+    },
+    {
+      "schema_version": 1,
+      "acceptance": "passed",
+      "observed_at_utc": "2026-10-04T22:37:34.5363397+05:00",
+      "base_url_host": "127.0.0.1",
+      "healthz": 200,
+      "readyz": 200,
+      "control_plane_ready": 1,
+      "audit_queue_failed_events": 0,
+      "usage_ledger_failed_events": 0,
+      "redis_limits_enabled": 1,
+      "redis_limits_ready": 1,
+      "model_requests_sent": 0
+    }
+  ],
+  "restore": {
+    "schema_version": 1,
+    "evidence_scope": "isolated-local-postgresql-encrypted-restore",
+    "started_at_utc": "2026-10-04T22:38:38.95904+05:00",
+    "observed_at_utc": "2026-10-04T22:38:40.6640821+05:00",
+    "status": "passed",
+    "postgres_version": "18.6",
+    "age_version": "1.2.1",
+    "schema_migration_version": 25,
+    "alias_same_database_restore_refused": true,
+    "source_fixture_tenants": 2,
+    "restored_fixture_tenants": 2,
+    "source_security_events": 2,
+    "restored_security_events": 2,
+    "retained_backup": "encrypted-local-private-fixture",
+    "managed_staging_validated": false
+  }
+}
