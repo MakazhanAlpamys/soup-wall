@@ -1,0 +1,339 @@
+{
+  "attack_candidate_count": 480,
+  "git_tree_sha1": "089ed468cf3ed0322acc66b0211f26d9d90dbf60",
+  "license": {
+    "git_blob_sha1": "006aed0b22a430c0f3c6a4fb46768d967b8c3dbc",
+    "retention": "Full original notice saved locally as UPSTREAM_LICENSE.txt; no dataset or upstream code redistributed.",
+    "sha256": "4285a071f2d382338e52b4fb0a186d952984a34d43a33d8872e1a1d8cb43401e",
+    "spdx": "MIT",
+    "url": "https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/LICENSE"
+  },
+  "model": "gpt-4o-2024-05-13",
+  "repository": "ethz-spylab/agentdojo",
+  "revision": "089ed468cf3ed0322acc66b0211f26d9d90dbf60",
+  "schema_version": 1,
+  "selection": "All 40 workspace benign runs; one minimum SHA-256(seed + newline + path) attack per matching user task from direct/tool_knowledge, without reading trace labels/results or changing policy.",
+  "selection_seed": "soup-wall-independent-history-v1",
+  "traces": [
+    {
+      "git_blob_sha1": "bd98b1405b5991d94a6e039dc721511b4acef6cf",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_0/none/none.json"
+    },
+    {
+      "git_blob_sha1": "3c1118704a2589b83c1634421c4ec832cb409752",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_0/tool_knowledge/injection_task_3.json"
+    },
+    {
+      "git_blob_sha1": "f4c71cb5d5034b93bcb1fbd9ac386f2b76ddae02",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_1/none/none.json"
+    },
+    {
+      "git_blob_sha1": "92873a14a6645d898309a5b2906601c6ddf0b59c",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_1/direct/injection_task_3.json"
+    },
+    {
+      "git_blob_sha1": "f0ab0c5a6dde3157737309598abfb7a9eec77d83",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_2/none/none.json"
+    },
+    {
+      "git_blob_sha1": "2dbf09b494acc2f11c0e182d47cb9167fd8e4aa5",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_2/tool_knowledge/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "792a738e4add039b0cb7b4fc51f827fd090a842f",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_3/none/none.json"
+    },
+    {
+      "git_blob_sha1": "c3a2421926ec5007e3f566dc7fe514e2f6d098e5",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_3/direct/injection_task_0.json"
+    },
+    {
+      "git_blob_sha1": "745a01423beab1e76eb25ac2dc1ff4830f7f222d",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_4/none/none.json"
+    },
+    {
+      "git_blob_sha1": "ba9414c7a5c54baa5f8be9a8dcf2c807255fd340",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_4/direct/injection_task_2.json"
+    },
+    {
+      "git_blob_sha1": "6a6397d5a236b9a13c80ae0d91a21506f4488224",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_5/none/none.json"
+    },
+    {
+      "git_blob_sha1": "59074b17317a477f61ee22fe5e68b123b5ad0eb1",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_5/direct/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "dc247ce7b938223d15df6bfd12dce908514bb0c2",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_6/none/none.json"
+    },
+    {
+      "git_blob_sha1": "fb8b43bef31102ecf6c4a48a5362a877ae4dfdf8",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_6/direct/injection_task_2.json"
+    },
+    {
+      "git_blob_sha1": "a4965da19f816e9f3b39887978f4a4740c0e523b",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_7/none/none.json"
+    },
+    {
+      "git_blob_sha1": "abfdefa1df281a6091d5cf0fd872cdcc274da994",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_7/direct/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "c88fff4948fa33703718a12bd158246c7a48f234",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_8/none/none.json"
+    },
+    {
+      "git_blob_sha1": "f2531ae062f704b2f3e895fa509b42ddd54299bd",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_8/direct/injection_task_1.json"
+    },
+    {
+      "git_blob_sha1": "dea52f2364a5c56db7ec1df247adb9945e1feefa",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_9/none/none.json"
+    },
+    {
+      "git_blob_sha1": "f8b106b1191614b4094f027633a4fea50b02e3fd",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_9/direct/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "b3a464c5ad1513eb432ff07a9aa3cfb4bf326f73",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_10/none/none.json"
+    },
+    {
+      "git_blob_sha1": "abd90a13e657d7f2b7cb244d22f9f5baa2f58675",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_10/direct/injection_task_0.json"
+    },
+    {
+      "git_blob_sha1": "64e9fc45d8bce55807acfbef85bfa7f6ba16526c",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_11/none/none.json"
+    },
+    {
+      "git_blob_sha1": "a5641446212ee8d7455aa62d8b187c3f196c73b0",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_11/direct/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "479d9c043c46723163243943657227535f925bf1",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_12/none/none.json"
+    },
+    {
+      "git_blob_sha1": "92a5dbc6846b5aa39e7f274b3318d8aa2c34c25d",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_12/tool_knowledge/injection_task_5.json"
+    },
+    {
+      "git_blob_sha1": "7f4d95914551d42024cc8a73991f53b9b3b4d2ba",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_13/none/none.json"
+    },
+    {
+      "git_blob_sha1": "86045e133f0fcafaf0b628c955118437264a6715",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_13/direct/injection_task_2.json"
+    },
+    {
+      "git_blob_sha1": "bcb53c5a6c11db904722a320b616d5871819ccbc",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_14/none/none.json"
+    },
+    {
+      "git_blob_sha1": "ad6ce22101a824900e306043d8831d10b1e203d1",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_14/direct/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "199dca82290d3c0b92f91ee502f7f57f7cc40681",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_15/none/none.json"
+    },
+    {
+      "git_blob_sha1": "34e5826e66cb582dac0d78e53037af5b44509917",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_15/tool_knowledge/injection_task_1.json"
+    },
+    {
+      "git_blob_sha1": "1bdb9e3fa12fb298e2a3665a6e553817a0bf70fc",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_16/none/none.json"
+    },
+    {
+      "git_blob_sha1": "3afbf60b7f984a46a2c02662d8a7f28027d8326d",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_16/tool_knowledge/injection_task_2.json"
+    },
+    {
+      "git_blob_sha1": "96f17899e43a6022805f4602680b405fa8911bce",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_17/none/none.json"
+    },
+    {
+      "git_blob_sha1": "1a155fd3fa85055aec972c024d9a030c25467267",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_17/direct/injection_task_3.json"
+    },
+    {
+      "git_blob_sha1": "1c3b601ca03c4fb99bb82b2cee30067c2a55aaa1",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_18/none/none.json"
+    },
+    {
+      "git_blob_sha1": "d1f2544b09a04a4987e26856c7a6c31c2b33c0f5",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_18/tool_knowledge/injection_task_5.json"
+    },
+    {
+      "git_blob_sha1": "074b1599aae9c43caff1de0d4f1235da18cc70a3",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_19/none/none.json"
+    },
+    {
+      "git_blob_sha1": "68422e50e043280a9fc34fecd2c3632f1ccf9d44",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_19/tool_knowledge/injection_task_1.json"
+    },
+    {
+      "git_blob_sha1": "7cb043fce7b0cbbb79d890167ec4810b069e3d32",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_20/none/none.json"
+    },
+    {
+      "git_blob_sha1": "77f1a123c7c26984d2579621f6a6deeb5951004c",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_20/tool_knowledge/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "cabc30d1043aeac3fffeb9893923df7ca6b9612f",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_21/none/none.json"
+    },
+    {
+      "git_blob_sha1": "0062f3445a33b47640ca91df1062da4618946804",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_21/direct/injection_task_2.json"
+    },
+    {
+      "git_blob_sha1": "8e26ac37e3c13813d8ce241fa530c4c2402c3fa5",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_22/none/none.json"
+    },
+    {
+      "git_blob_sha1": "d9e7b3164890a2ef370fd959877c6b176b8aafee",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_22/tool_knowledge/injection_task_0.json"
+    },
+    {
+      "git_blob_sha1": "25737a6b62d18792583f84e70dc45d3d8f92669d",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_23/none/none.json"
+    },
+    {
+      "git_blob_sha1": "322a80e1fa8a29f3971f41122a42ef9d61278816",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_23/direct/injection_task_5.json"
+    },
+    {
+      "git_blob_sha1": "aeff5e19e51d93a0078593508f8d59ad920b0919",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_24/none/none.json"
+    },
+    {
+      "git_blob_sha1": "a244232838802461fb64f715f90c7aad0b9b5309",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_24/tool_knowledge/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "50225bb8bc31cf9bcdce5bdbcb54abf65241b8ed",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_25/none/none.json"
+    },
+    {
+      "git_blob_sha1": "55c268196d890aa8945dd17c72404562505cdf85",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_25/tool_knowledge/injection_task_2.json"
+    },
+    {
+      "git_blob_sha1": "98cccfd17608b626c6b329b1a23d15e638727797",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_26/none/none.json"
+    },
+    {
+      "git_blob_sha1": "ee044b7bf7c56f73939bec84b148f52050a2f000",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_26/tool_knowledge/injection_task_5.json"
+    },
+    {
+      "git_blob_sha1": "e1ba73e7f1618b6d39913ac2f47dce8d919b2943",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_27/none/none.json"
+    },
+    {
+      "git_blob_sha1": "30066bba2a51c83909b8b155c346b49ff63e3603",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_27/tool_knowledge/injection_task_5.json"
+    },
+    {
+      "git_blob_sha1": "8c6ce2eab349634a91c7b51f92670cd29c59a8ce",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_28/none/none.json"
+    },
+    {
+      "git_blob_sha1": "82849c17e86d70ee73c41e76a3b4477aca325d84",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_28/tool_knowledge/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "4e6d75000528adc16a01b5d59b273304c11e9907",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_29/none/none.json"
+    },
+    {
+      "git_blob_sha1": "b40e034aaa77a4a5713d427843cea364f66219b4",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_29/direct/injection_task_1.json"
+    },
+    {
+      "git_blob_sha1": "bcc7fe707cfdecfa62795a4801c90a61fd036134",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_30/none/none.json"
+    },
+    {
+      "git_blob_sha1": "6fbb42eb1a877b09912d6a0848dfe714a31664d4",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_30/tool_knowledge/injection_task_0.json"
+    },
+    {
+      "git_blob_sha1": "881a0d06ac2d50bf9f1c266ddde271a2728f0f27",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_31/none/none.json"
+    },
+    {
+      "git_blob_sha1": "451ab89d4688b1caa73736a276558e3ec8694df5",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_31/tool_knowledge/injection_task_4.json"
+    },
+    {
+      "git_blob_sha1": "07f1a76f0e7e193bd9f456ede0e11a43f96ff32a",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_32/none/none.json"
+    },
+    {
+      "git_blob_sha1": "aa6514678820d0ff91b24708d28da82f1417d880",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_32/tool_knowledge/injection_task_0.json"
+    },
+    {
+      "git_blob_sha1": "a5203a7f767a48bb742f37d06b706b0fc2ababda",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_33/none/none.json"
+    },
+    {
+      "git_blob_sha1": "e47520c4c5ff0d311c5cf09e27522a41a18c8dab",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_33/direct/injection_task_5.json"
+    },
+    {
+      "git_blob_sha1": "2ac2f8792912b2ae7fe6f0d72648bc9ee4e0247d",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_34/none/none.json"
+    },
+    {
+      "git_blob_sha1": "c1acc36f7a0fed853a4a12c59e6bcd91ede87778",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_34/tool_knowledge/injection_task_3.json"
+    },
+    {
+      "git_blob_sha1": "1a30f8eb0394a59a7f15025a4b557e5ea858b36b",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_35/none/none.json"
+    },
+    {
+      "git_blob_sha1": "c1b222decded822f5e75491fc49aee243ac19ffd",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_35/tool_knowledge/injection_task_1.json"
+    },
+    {
+      "git_blob_sha1": "cee7c554c170b8edf23567535d9b6b6d63a7f708",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_36/none/none.json"
+    },
+    {
+      "git_blob_sha1": "81032d8ad4ffb0ce6ec11cab4a6d4da6fb07d055",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_36/tool_knowledge/injection_task_5.json"
+    },
+    {
+      "git_blob_sha1": "7734a00bf687984944331b5a95d9921ab849f9e6",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_37/none/none.json"
+    },
+    {
+      "git_blob_sha1": "3c401894f9b89f9a050557f5d3babe4fa73c6de2",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_37/tool_knowledge/injection_task_0.json"
+    },
+    {
+      "git_blob_sha1": "3fe4161838389cb9c99b2f29946b29e18feb2fc9",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_38/none/none.json"
+    },
+    {
+      "git_blob_sha1": "e766b76cf87ceca6becca8c0a250c5eb1db0bf86",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_38/tool_knowledge/injection_task_1.json"
+    },
+    {
+      "git_blob_sha1": "fe63d7930079df27fdb6b4b8171cda0254c1a24d",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_39/none/none.json"
+    },
+    {
+      "git_blob_sha1": "22958f8512b0f1e1cf878640ddf87b4a9c326bb9",
+      "path": "runs/gpt-4o-2024-05-13/workspace/user_task_39/direct/injection_task_3.json"
+    }
+  ]
+}

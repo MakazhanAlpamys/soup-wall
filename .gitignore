@@ -1,5 +1,6 @@
 /target
 **/*.rs.bk
+__pycache__/
 /.worktrees
 /audit
 /data
