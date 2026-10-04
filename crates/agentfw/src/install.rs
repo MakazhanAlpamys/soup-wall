@@ -55,9 +55,9 @@ pub fn instructions(port: u16, token_path: &Path) -> String {
         "Add this to your Claude Code settings.json (merge into any existing \"hooks\" block \
          rather than overwriting it):\n\n\
          {block}\n\n\
-         Then export the token before starting Claude Code — the token itself is never printed \
+         Then set the token in the shell that starts Claude Code — the token itself is never printed \
          here, only its path:\n\n  \
-         export AGENTFW_TOKEN=$(cat {token_path})\n\n\
+         {token_command}\n\n\
          THE HOOK IS NOT A SECURITY BOUNDARY. Each hook has a 5-second timeout. If agentfw is \
          not running, every tool call still proceeds — Claude Code fails open — after waiting out \
          the full 5 seconds. The host decides this and agentfw cannot override it, so a stopped \
@@ -66,8 +66,8 @@ pub fn instructions(port: u16, token_path: &Path) -> String {
          Check before a session, or from your shell profile or a wrapper script:\n\n  \
          agentfw preflight              # exits 2 if the daemon is down, 4 with --require-enforce in shadow mode\n\n\
          SHADOW MODE: the daemon starts with enforcement OFF. Verdicts are computed and written \
-         to the audit log on every tool call, but nothing is ever blocked — permissionDecision is \
-         always \"defer\", leaving your existing permission rules untouched. This is deliberate: it \
+         to the audit log on every tool call, but nothing is ever blocked — no permissionDecision \
+         is emitted, leaving your existing permission rules untouched. This is deliberate: it \
          lets you measure this firewall's real false-positive rate on your own normal work before \
          it can affect anything.\n\n  \
          PROMOTING TO ENFORCEMENT — the whole sequence:\n\n  \
@@ -92,8 +92,28 @@ pub fn instructions(port: u16, token_path: &Path) -> String {
          is inspected before bubblewrap creates a process:\n\n  \
          agentfw guarded-shell --workspace ./checkout -- 'make test'\n",
         block = serde_json::to_string_pretty(&hook_block(port)).unwrap_or_default(),
-        token_path = token_path.display(),
+        token_command = token_command(token_path),
     )
+}
+
+fn token_command(token_path: &Path) -> String {
+    let path = token_path.to_string_lossy();
+    #[cfg(windows)]
+    {
+        // PowerShell single-quoted literals keep spaces, $, and backticks inert.
+        // A literal quote inside one is represented by two quotes.
+        format!(
+            "$env:AGENTFW_TOKEN = (Get-Content -Raw -LiteralPath '{}').Trim()",
+            path.replace('\'', "''")
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        format!(
+            "export AGENTFW_TOKEN=\"$(cat -- '{}')\"",
+            path.replace('\'', "'\"'\"'")
+        )
+    }
 }
 
 #[cfg(test)]
@@ -162,7 +182,13 @@ mod tests {
         let path = Path::new("/home/u/.agentfw/token");
         let out = instructions(8787, path);
         assert!(out.contains(&path.display().to_string()));
-        assert!(out.contains("cat "), "must show how to read the token file");
+        #[cfg(windows)]
+        assert!(out.contains("Get-Content -Raw -LiteralPath"));
+        #[cfg(not(windows))]
+        assert!(
+            out.contains("cat -- "),
+            "must show how to read the token file"
+        );
 
         // Sanity-check the assertion style itself would catch a leak: a string
         // that DOES contain a bogus "real" token must fail this same check.
@@ -174,6 +200,22 @@ mod tests {
         assert!(
             !out.contains("Bearer sk-should-not-appear-abc123"),
             "the real instructions output must not contain any concrete bearer token"
+        );
+    }
+
+    #[test]
+    fn token_command_quotes_paths_instead_of_evaluating_them() {
+        let path = Path::new("/users/a b/o'brien/$literal`name/token");
+        let command = token_command(path);
+        #[cfg(windows)]
+        assert_eq!(
+            command,
+            "$env:AGENTFW_TOKEN = (Get-Content -Raw -LiteralPath '/users/a b/o''brien/$literal`name/token').Trim()"
+        );
+        #[cfg(not(windows))]
+        assert_eq!(
+            command,
+            "export AGENTFW_TOKEN=\"$(cat -- '/users/a b/o'\"'\"'brien/$literal`name/token')\""
         );
     }
 

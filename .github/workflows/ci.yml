@@ -69,6 +69,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --locked -p agentfw --all-targets -- -D warnings
       - run: cargo test --locked -p agentfw
+      - run: cargo build --locked -p agentfw --bin agentfw
+      - name: Disposable Windows Agent acceptance
+        run: ./scripts/windows-agent-acceptance.ps1 -EvidencePath target/windows-agent-acceptance.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-agent-acceptance
+          path: target/windows-agent-acceptance.json
+          if-no-files-found: error
 
   redis-integration:
     runs-on: ubuntu-latest

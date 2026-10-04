@@ -50,6 +50,8 @@ The default `~/.agentfw/config.yaml` posture is **shadow mode**: verdicts are wr
 
 Then set `enforce: true` in `~/.agentfw/config.yaml`, restart the daemon, and confirm with `agentfw preflight --require-enforce`. The replay command requires at least 500 events across 20 sessions before it recommends enforcement; a human still has to review interruptions. See [Agent enforcement and limitations](#agent-enforcement-and-limitations).
 
+On Windows, `install` prints a PowerShell token command and uses `%USERPROFILE%\.agentfw`. See [Windows Agent installation and acceptance](docs/operations/WINDOWS_AGENT_ACCEPTANCE.md) for native setup and a disposable check of installation, ACLs, shadow/enforcement decisions, audit, and offline preflight.
+
 ## Gateway: inspect provider traffic
 
 The checked-in `firewall.yaml` binds to `127.0.0.1:8080` by default. With its default settings, your application sends its existing provider authorization header through the Gateway, which forwards it upstream. From the repository root:
