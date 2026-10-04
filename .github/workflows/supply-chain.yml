@@ -33,11 +33,12 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit@0.22.2
-      # saml-rs 0.5.0 pulls rsa 0.9.10 for optional XML-Enc decryption.
+      # Windows saml-rs 0.5.3 pulls rsa 0.9.10; the lock includes every target.
+      # Linux/macOS use AWS-LC and their resolved graphs do not include rsa.
       # Soup Wall never configures a decryption key; encrypted assertions fail
       # closed and a regression test protects that invariant. See
       # docs/PROVENANCE.md. Only this advisory is excepted; any other
-      # advisory, including one affecting rustls, still fails this job.
+      # vulnerability, including one affecting rustls, still fails this job.
       - run: cargo audit --ignore RUSTSEC-2023-0071
 
   sbom:

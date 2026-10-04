@@ -12,6 +12,34 @@ the local OIDC, signed SAML, SCIM conformance, and loopback HTTP SCIM checks.
 The `identity-sandbox` workflow runs this local fixture on pull requests and
 pushes. It does not use a customer tenant.
 
+The SAML release-target CI matrix runs the signed local fixture and tampering
+checks on Linux x86_64, macOS arm64/x86_64, and Windows x86_64. Linux and macOS
+use the AWS-LC provider; Windows uses RustCrypto until kryptering supports
+Windows AWS-LC. AWS-LC non-FIPS builds need a C/C++ compiler, already required
+by the Gateway's JWT dependency; use the release workflow's runner images.
+The workflow verifies that `rsa` is absent from the Linux/macOS resolved graph
+and records its expected presence on Windows. To inspect a target locally:
+
+```powershell
+cargo tree --locked -p llm-firewall --target x86_64-unknown-linux-gnu -i rsa
+cargo tree --locked -p llm-firewall --target aarch64-apple-darwin -i rsa
+cargo tree --locked -p llm-firewall --target x86_64-apple-darwin -i rsa
+cargo tree --locked -p llm-firewall --target x86_64-pc-windows-msvc -i rsa
+```
+
+Empty output for a Unix target means no resolved `rsa` dependency for that
+target. The all-target lock still includes Windows' `rsa`, so audit's narrow
+exception remains necessary. See [provenance](../PROVENANCE.md) and
+[issue #19](https://github.com/MakazhanAlpamys/soup-wall/issues/19).
+
+Configure the IdP to send signed plaintext assertions. Encrypted assertions
+remain unsupported on every target: the SP neither advertises an encryption
+certificate nor loads a decryption key. Provider changes require preserving
+this boundary until a separate threat review approves an extension.
+
+The [2026-10-04 provider checkpoint](evidence/SAML_PROVIDER_2026-10-04.md)
+records Windows and Linux fixture results and the limited public metadata probe.
+
 ## Optional external discovery probes
 
 `crates/proxy/tests/external_identity.rs` includes ignored tests that exercise

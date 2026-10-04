@@ -59,6 +59,46 @@ jobs:
       - run: cargo clippy --locked -p agentfw --all-targets -- -D warnings
       - run: cargo test --locked -p agentfw
 
+  saml-release-targets:
+    name: SAML ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            rsa: absent
+          - os: macos-15
+            target: aarch64-apple-darwin
+            rsa: absent
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            rsa: absent
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            rsa: present
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify target's resolved RSA dependency boundary
+        shell: bash
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+          EXPECT_RSA: ${{ matrix.rsa }}
+        run: |
+          set -euo pipefail
+          graph="$(cargo tree --locked -p llm-firewall --target "$RELEASE_TARGET" --edges normal --prefix none)"
+          if grep -q '^rsa v' <<< "$graph"; then actual=present; else actual=absent; fi
+          echo "rsa in $RELEASE_TARGET dependency graph: $actual"
+          test "$actual" = "$EXPECT_RSA"
+      - name: Verify signed SAML, tamper rejection, and disabled decryption
+        run: cargo test --locked -p llm-firewall --lib --target ${{ matrix.target }} saml_auth::tests
+
   redis-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30

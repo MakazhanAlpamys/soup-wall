@@ -111,9 +111,9 @@ impl SamlRuntimeConfig {
 
     fn sp_config(&self) -> anyhow::Result<SpConfig> {
         // Do not configure a decryption key or encrypted assertions. This
-        // deliberately rejects encrypted inbound assertions: the RustCrypto
-        // RSA key-transport decryption path is not acceptable for this
-        // deployment until a timing-safe backend is portable to every target.
+        // deliberately rejects encrypted inbound assertions on every provider.
+        // Provider selection does not approve encrypted-assertion support;
+        // that requires a separate threat review and interoperability evidence.
         let xml = XmlPolicy {
             encryption: XmlEncryptionPolicy::default(),
             ..XmlPolicy::default()
@@ -687,10 +687,114 @@ mod tests {
         .unwrap();
         let config = runtime.sp_config().unwrap();
         assert!(config.credentials.decryption_key.is_none());
+        assert!(config.credentials.encryption_certificate.is_none());
         assert_eq!(
             config.xml.encryption.assertions,
             saml_rs::AssertionEncryptionPolicy::PlaintextAssertions
         );
+    }
+
+    #[test]
+    fn runtime_metadata_does_not_advertise_assertion_encryption() -> anyhow::Result<()> {
+        let sp = fixture_runtime().sp()?;
+        assert!(sp.metadata_xml().contains("use=\"signing\""));
+        assert!(!sp.metadata_xml().contains("use=\"encryption\""));
+        Ok(())
+    }
+
+    #[test]
+    fn pinned_metadata_rejects_a_tampered_sso_endpoint() -> anyhow::Result<()> {
+        let metadata_xml = signed_idp_metadata(&fixture_idp()?)?;
+        let mut connection = OrganizationSamlConnection {
+            organization_id: "org_signature_fixture".to_owned(),
+            entity_id: IDP_ENTITY_ID.to_owned(),
+            metadata_xml,
+            metadata_signing_cert_pem: FIXTURE_CERT.to_owned(),
+            active: true,
+            created_at_unix: now_unix()?,
+            updated_at_unix: now_unix()?,
+        };
+        // Establish that this exact signed metadata is trusted before changing
+        // an authenticated field while leaving the signature intact.
+        idp_descriptor(&connection)?;
+        connection.metadata_xml = connection
+            .metadata_xml
+            .replace(IDP_SSO_URL, "https://attacker.example.test/sso");
+        assert!(connection
+            .metadata_xml
+            .contains("https://attacker.example.test/sso"));
+        assert!(idp_descriptor(&connection).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn signed_response_rejects_a_tampered_name_id() -> anyhow::Result<()> {
+        let sp = fixture_runtime().sp()?;
+        let idp = fixture_idp()?;
+        let sp_descriptor = SpDescriptor::from_metadata_xml_for(
+            EntityId::try_new(SP_ENTITY_ID)?,
+            sp.metadata_xml(),
+            MetadataTrustPolicy::UnsignedForCompatibility,
+        )?;
+        let idp_descriptor = IdpDescriptor::from_metadata_xml_for(
+            EntityId::try_new(IDP_ENTITY_ID)?,
+            idp.metadata_xml(),
+            MetadataTrustPolicy::UnsignedForCompatibility,
+        )?;
+        let started = sp.start_sso(&idp_descriptor, StartSso::redirect())?;
+        let redirect = Url::parse(started.outbound.redirect_url()?)?;
+        let received = idp.receive_sso(
+            &sp_descriptor,
+            BrowserInput::<saml_rs::AuthnRequest>::redirect(redirect.query().expect("SSO query")),
+            validation(),
+        )?;
+        let response = idp.respond_sso(
+            &sp_descriptor,
+            &received,
+            Subject::new(NameId::new("alice@example.test", None), Vec::new()),
+            RespondSso::post(),
+        )?;
+        let form = response.post_form()?;
+        let fields = || {
+            form.fields()
+                .iter()
+                .map(|field| FormField::new(field.name(), field.value()))
+                .collect()
+        };
+        // A valid response and the modified response use identical request
+        // correlation, binding, timestamps, issuer and audience.
+        let valid = sp.finish_sso(
+            &idp_descriptor,
+            &started.pending,
+            BrowserInput::<SsoResponse>::post(fields()),
+            validation(),
+        )?;
+        assert_eq!(valid.name_id().value(), "alice@example.test");
+        let mut tampered = Vec::new();
+        for field in form.fields() {
+            if field.name() == "SAMLResponse" {
+                let xml = String::from_utf8(
+                    base64::engine::general_purpose::STANDARD.decode(field.value())?,
+                )?;
+                assert!(xml.contains("alice@example.test"));
+                let changed = xml.replace("alice@example.test", "mallory@example.test");
+                tampered.push(FormField::new(
+                    field.name(),
+                    base64::engine::general_purpose::STANDARD.encode(changed),
+                ));
+            } else {
+                tampered.push(FormField::new(field.name(), field.value()));
+            }
+        }
+        assert!(sp
+            .finish_sso(
+                &idp_descriptor,
+                &started.pending,
+                BrowserInput::<SsoResponse>::post(tampered),
+                validation(),
+            )
+            .is_err());
+        Ok(())
     }
 
     #[test]
