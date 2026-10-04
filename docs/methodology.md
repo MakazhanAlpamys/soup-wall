@@ -54,6 +54,12 @@ the generated hashes. This import path supports offline policy review; running
 AgentDojo or another live-agent benchmark still requires its separately
 reviewed runtime, permissions, models and dataset terms.
 
+The [independent historical replay](benchmarks/independent-history-replay.md)
+provides a pinned AgentDojo importer, source selection and fidelity checks, and
+an aggregate negative baseline. Its native tools expose a coverage gap in the
+current coding-tool adapter. Keep that outcome and the live evaluation plan
+separate from the synthetic regression scorecard.
+
 ## Text benchmark: available tool, historical results
 
 The text benchmark accepts labeled JSONL (`{"text":"...","label":true}`,

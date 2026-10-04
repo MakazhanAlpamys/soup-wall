@@ -29,6 +29,8 @@ remain visible; dependencies are never marked complete to make the plan green.
 2. [x] **Windows Agent acceptance.** Exercise isolated installation, token and
    audit permissions, daemon health, shadow/enforce decisions, and daemon outage
    behavior. Add a repeatable acceptance command and retain aggregate evidence.
+   Also verify actual Claude Code hook enforcement, shadow and connection
+   failure with deterministic local model responses.
 3. [x] **Self-hosted local acceptance.** Exercise Gateway preflight, SQLite
    Console, provider protocol handling against a disposable fixture, deployment
    configuration, PostgreSQL/Redis integration, dependency failure and restore
@@ -37,11 +39,15 @@ remain visible; dependencies are never marked complete to make the plan green.
    safe updates. Investigate #19 using current upstream evidence and retain
    encrypted-assertion rejection and portable release builds. Close it only when
    its stated acceptance criteria are satisfied.
+   Legacy PR maintenance is complete; four-platform SAML signature/provider
+   checks are complete. Removal of RSA on Windows and real-IdP acceptance remain.
 5. [ ] **Evaluation and field readiness.** Provide a reproducible evaluation
    path with pinned sources, policy, attack and benign outcomes, and latency.
    Run the checks possible in this environment, then run managed staging,
    restore and real-IdP acceptance if authorized infrastructure is available.
    Keep a precise record of any remaining external dependencies.
+   The pinned historical importer, fidelity checks, outcome JSON and negative
+   baseline are complete. Native live-runtime adaptation and the field run remain.
 6. [ ] **Integration and release review.** Review changes, run required checks,
    push focused PRs, record CI results, and reconcile roadmap, operator guidance,
    and changelog with the evidence. Do not publish a new release or claim field
@@ -104,6 +110,21 @@ provider credentials, identity assertions, prompts, or customer data.
   Windows/Linux signed, tampered and encrypted-assertion fixtures, Gateway
   library tests, Clippy and Microsoft's public signed-metadata probe passed.
   The supported Linux/macOS graphs exclude RSA; Windows still includes it.
-  macOS arm64, macOS Intel and Windows SAML CI passed. Issue #19 remains open:
+  All 18 hosted checks passed, including the four SAML release targets, full
+  source checks, identity sandbox, CodeQL, and Docker. Issue #19 remains open:
   the Windows provider and real-IdP assertion acceptance still require their own
-  evidence; Linux CI was still queued at this record's update.
+  evidence.
+- Independent replay checkpoints: `08f9157` freezes 80 public AgentDojo histories
+  and verifies selection, source hashes and native tool fidelity; `99c4e6c` records
+  354 events with 0/40 interrupted injection attempts and 0/40 interrupted benign
+  sessions under the unchanged default policy. The explicit policy gate fails
+  and retains JSON evidence. This exposes the native-tool adapter boundary,
+  not a count of successful attacks. Seven importer tests pass without network
+  access. [Source review, reproduction and live-run plan](../benchmarks/independent-history-replay.md).
+- Real host checkpoint: `e9679d1` runs native Claude Code 2.1.289 with the actual
+  Agent HTTP hooks, Read and a harmless disposable shell marker. All 41 checks
+  pass: enforce prevents the marker; shadow and offline permit it. Nine model
+  requests reach the authenticated loopback fixture, with zero outbound proxy
+  attempts. This establishes host integration and fail-open behavior for the
+  custom fixture policy, not shipped-policy effectiveness or field soaking.
+  [Command and evidence](CLAUDE_HOST_ACCEPTANCE.md).
