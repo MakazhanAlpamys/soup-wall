@@ -4106,6 +4106,7 @@ dependencies = [
  "clap",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "soup-wall-agent",
  "soup-wall-core",
  "tempfile",

@@ -72,3 +72,9 @@ provider credentials, identity assertions, prompts, or customer data.
   This establishes release binary, preflight, SQLite Console, tenant auth,
   loopback-provider forwarding/blocking, and restart persistence on Windows.
   It does not establish a managed staging deployment or real-provider behavior.
+- Offline evaluation checkpoint: `--agent-out` records exact input/binary hashes,
+  policy outcomes, misses, benign interruptions and cold policy-replay latency.
+  The shipped regression corpus reports 19 interrupted attacks, 21 uninterrupted
+  benign sessions, no misses and no benign interruptions. An allow-all candidate
+  exits 1 and retains all 19 missed attacks in its JSON evidence. This is still
+  the synthetic regression baseline, not independent field effectiveness.

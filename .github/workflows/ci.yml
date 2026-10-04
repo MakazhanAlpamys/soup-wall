@@ -37,7 +37,7 @@ jobs:
         run: python3 scripts/self-hosted-local-acceptance.py --gateway target/debug/llm-firewall --artifact-label "$GITHUB_SHA" --out target/local-gateway-evidence.json
       - name: Retain isolated Gateway acceptance evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: local-gateway-acceptance
           path: target/local-gateway-evidence.json

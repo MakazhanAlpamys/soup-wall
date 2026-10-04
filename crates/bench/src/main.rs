@@ -4,6 +4,7 @@
 mod agent_dataset;
 mod agent_eval;
 mod agent_guard;
+mod agent_report;
 mod dataset;
 mod evaluate;
 mod metrics;
@@ -36,6 +37,11 @@ struct Cli {
     /// session is interrupted. Requires --agent.
     #[arg(long, requires = "agent")]
     policy: Option<String>,
+    /// Write privacy-safe offline agent evaluation evidence with hashes,
+    /// per-session outcomes, missed attacks, benign interruptions and replay latency.
+    /// Does not measure task success or end-to-end agent execution.
+    #[arg(long, requires = "agent")]
+    agent_out: Option<String>,
     /// Risk-score threshold for CoreGuard.
     #[arg(long, default_value_t = 50)]
     threshold: u8,
@@ -232,7 +238,11 @@ fn parse_rival(spec: &str) -> anyhow::Result<SubprocessGuard> {
 /// non-zero if any reviewed attack is missed or any reviewed benign session is
 /// interrupted. That is the check an operator runs after narrowing a rule and
 /// before enforcing the edit against live work.
-fn run_agent_benchmark(corpus: &str, policy_path: Option<&str>) -> anyhow::Result<()> {
+fn run_agent_benchmark(
+    corpus: &str,
+    policy_path: Option<&str>,
+    output_path: Option<&str>,
+) -> anyhow::Result<()> {
     let sessions = agent_dataset::load_reviewed(corpus)?;
     let candidate = match policy_path {
         Some(path) => {
@@ -246,6 +256,11 @@ fn run_agent_benchmark(corpus: &str, policy_path: Option<&str>) -> anyhow::Resul
         None => None,
     };
     let eval = agent_eval::evaluate_with(&sessions, candidate.as_ref());
+    if let Some(path) = output_path {
+        // Write evidence before a failing candidate gate exits, so misses and
+        // interruptions are retained for review instead of losing the failure.
+        agent_report::write(corpus, policy_path, &eval, path)?;
+    }
     let n_attack = sessions.iter().filter(|s| s.is_attack).count();
     let n_benign = sessions.len() - n_attack;
 
@@ -320,7 +335,7 @@ fn main() -> anyhow::Result<()> {
 
     // Agent-attack benchmark: a separate corpus + scorecard from the text one.
     if let Some(corpus) = cli.agent.as_deref() {
-        return run_agent_benchmark(corpus, cli.policy.as_deref());
+        return run_agent_benchmark(corpus, cli.policy.as_deref(), cli.agent_out.as_deref());
     }
     anyhow::ensure!(
         !cli.dataset.is_empty(),
