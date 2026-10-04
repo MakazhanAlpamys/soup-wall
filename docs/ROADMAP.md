@@ -19,6 +19,10 @@ These are implementation statements. They do not mean every provider, IdP, or de
 
 ## Next release gates
 
+The active [execution checkpoints](operations/ROADMAP_EXECUTION.md) track the
+remaining work, reviewed issues and maintenance PRs, and the evidence for each
+completed step.
+
 1. [x] **Verify the full import.** Review code and Git history for secrets and customer material; preserve license and attribution; review every bundled dependency, model, dataset, and image. Confirm the source snapshot builds without access to the former private repository.
 2. [x] **Make the full workspace green.** PR #15 and the v0.4.0 release ran formatting, Clippy, default and all-feature tests, advisory review, SBOM generation, CodeQL, Docker, PostgreSQL, Redis, and identity fixtures. The one narrowly justified RSA advisory exception is documented in `docs/PROVENANCE.md`.
 3. [ ] **Verify a self-hosted deployment.** [v0.4.0](https://github.com/MakazhanAlpamys/soup-wall/releases/tag/v0.4.0) publishes four platform archives, checksums, six SBOMs, a public Gateway image, known limitations, and upgrade guidance. Managed staging evidence for installation, preflight, SQLite Console, provider proxy, PostgreSQL migrations, and container/deployment examples remains to be recorded.
