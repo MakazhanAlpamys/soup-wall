@@ -89,6 +89,7 @@ python scripts/import-agentdojo-history.py
 python scripts/import-agentdojo-history.py --output-dir datasets/agentdojo-history-v1
 cargo run --locked --release -p soup-wall-bench -- \
   --agent datasets/agentdojo-history-v1/agent_sessions.jsonl \
+  --policy crates/agent/policies/agent-default.yaml \
   --agent-out datasets/agentdojo-history-v1/replay-report.json
 ```
 
@@ -97,8 +98,11 @@ subdirectory under this checkout's ignored `datasets/`; an existing destination
 is rejected. HTTPS access to GitHub's public API and raw-file host is required.
 The license, original traces, JSONL projection, manifest, and full sanitized report
 stay local. Inspect only metadata and aggregate outputs before publishing evidence.
-The CLI writes `--agent-out` before exiting nonzero when the reviewed policy gate
-fails. That is a recorded evaluation failure; keep the report. The existing
+Passing the unmodified shipped YAML to `--policy` enables the process-exit gate
+without tuning the policy. The CLI writes `--agent-out` before exiting nonzero when
+that gate fails. Without `--policy`, the scorecard command can exit zero while the
+JSON's `passes_reviewed_policy_gate` is false; inspect that field. Keep the failed
+report. The existing
 hand-authored regression scorecard remains a separate gate.
 
 ## Live field gate remains open
