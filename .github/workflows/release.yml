@@ -62,8 +62,9 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - run: cargo test --workspace --locked
       - run: cargo test --workspace --all-features --locked
-      # The SAML XML-Enc decryption path is disabled and tested; see
-      # docs/PROVENANCE.md. All other advisories remain blocking.
+      # The all-target lock still includes Windows' RustCrypto RSA provider.
+      # XML-Enc decryption is disabled and tested on all release targets; see
+      # docs/PROVENANCE.md. Issue #19 remains open. Other vulnerabilities block.
       - run: cargo audit --ignore RUSTSEC-2023-0071
 
   build:
@@ -98,6 +99,9 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
+
+      - name: Verify SAML on the archive's target
+        run: cargo test --locked -p llm-firewall --lib --target ${{ matrix.target }} saml_auth::tests
 
       # The default feature set on purpose: the `ml` classifier needs model
       # assets the user fetches themselves, and shipping a binary that expects
