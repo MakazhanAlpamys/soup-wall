@@ -31,6 +31,17 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      - name: Build Gateway for isolated binary acceptance
+        run: cargo build --locked -p llm-firewall
+      - name: Isolated Gateway and SQLite Console acceptance
+        run: python3 scripts/self-hosted-local-acceptance.py --gateway target/debug/llm-firewall --artifact-label "$GITHUB_SHA" --out target/local-gateway-evidence.json
+      - name: Retain isolated Gateway acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: local-gateway-acceptance
+          path: target/local-gateway-evidence.json
+          if-no-files-found: ignore
 
   # The optional ML stack is not compiled by the default-feature job.
   all-features:

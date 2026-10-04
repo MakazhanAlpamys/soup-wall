@@ -23,7 +23,7 @@ remain visible; dependencies are never marked complete to make the plan green.
 
 ## Checkpoints
 
-1. [ ] **Execution plan and inventory.** Commit this record and link it from the
+1. [x] **Execution plan and inventory.** Commit this record and link it from the
    roadmap; inspect all open issues and PRs and establish explicit acceptance
    criteria for the remaining release gates.
 2. [ ] **Windows Agent acceptance.** Exercise isolated installation, token and
@@ -62,3 +62,13 @@ remain visible; dependencies are never marked complete to make the plan green.
 Entries below will name the source commit, command or CI run, result, and the
 scope that result establishes. Public records must contain no bearer tokens,
 provider credentials, identity assertions, prompts, or customer data.
+
+- Plan checkpoint: `53f35e8`, committed and pushed on 2026-10-04.
+- Gateway release acceptance: Windows archive `v0.4.0`, verified against the
+  release `SHA256SUMS` (`0502b8d6f8596d72c1168d8ccd4efc71c707f14b8cc3e36eb062a8169c9c75a7`).
+  `self-hosted-local-acceptance.py` passed all 15 checks at
+  `2026-10-04T17:18:42.447018+00:00`. Gateway binary SHA-256:
+  `3818ba06b6a8191e3c5a5a1ca7c8f6044468e87484c9dfcbd00107b78ee8b85a`.
+  This establishes release binary, preflight, SQLite Console, tenant auth,
+  loopback-provider forwarding/blocking, and restart persistence on Windows.
+  It does not establish a managed staging deployment or real-provider behavior.
