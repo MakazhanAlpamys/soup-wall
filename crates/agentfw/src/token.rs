@@ -48,7 +48,8 @@ pub fn verify(token: &str, header: &str) -> bool {
 }
 
 /// Read the token at `path`, or create one if absent. On Unix, existing and
-/// newly created token files are restricted to mode `0600` before return.
+/// newly created files are restricted to mode `0600` before return.
+#[cfg(not(windows))]
 pub fn load_or_create(path: &Path) -> anyhow::Result<String> {
     if let Ok(existing) = std::fs::read_to_string(path) {
         let t = existing.trim().to_string();
@@ -69,6 +70,28 @@ pub fn load_or_create(path: &Path) -> anyhow::Result<String> {
     Ok(t)
 }
 
+#[cfg(windows)]
+/// Read or create the token through a handle with a protected owner-only DACL.
+/// An existing token is secured before its contents are read.
+pub fn load_or_create(path: &Path) -> anyhow::Result<String> {
+    use std::io::{Read, Seek, Write};
+
+    // The handle is secured before any read, including a legacy token file
+    // that inherited a permissive DACL from its containing directory.
+    let mut file = crate::private_file_windows::open_token(path)?;
+    let mut existing = String::new();
+    file.read_to_string(&mut existing)?;
+    let existing = existing.trim();
+    if !existing.is_empty() {
+        return Ok(existing.to_string());
+    }
+    let token = generate();
+    file.set_len(0)?;
+    file.rewind()?;
+    file.write_all(token.as_bytes())?;
+    Ok(token)
+}
+
 /// Create the file with owner-only permissions from the outset. Writing first and
 /// chmod'ing after leaves a window — however brief — where the token is readable at
 /// the process umask, and this token grants full access to session data.
@@ -87,7 +110,7 @@ fn write_private(path: &Path, contents: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn write_private(path: &Path, contents: &str) -> anyhow::Result<()> {
     std::fs::write(path, contents)?;
     Ok(())
@@ -102,9 +125,15 @@ pub fn restrict(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(not(unix))]
-/// Non-Unix hosts currently rely on the containing directory's access controls.
-/// In particular, this does not tighten a Windows file ACL.
+#[cfg(windows)]
+/// Tighten the DACL of an existing Windows file through an open handle.
+pub fn restrict(path: &Path) -> anyhow::Result<()> {
+    crate::private_file_windows::restrict_existing(path)?;
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+/// Other hosts currently rely on the containing directory's access controls.
 pub fn restrict(_path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
@@ -167,6 +196,15 @@ mod tests {
     fn a_whitespace_only_existing_file_is_regenerated_not_returned_empty() {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("token");
+        #[cfg(windows)]
+        {
+            use std::io::Write;
+            // An elevated runner can otherwise assign the Administrators
+            // group as owner, which the production code correctly rejects.
+            let mut file = crate::private_file_windows::open_token(&p).unwrap();
+            file.write_all(b"   \n\t  \n").unwrap();
+        }
+        #[cfg(not(windows))]
         std::fs::write(&p, "   \n\t  \n").unwrap();
         let t = load_or_create(&p).unwrap();
         assert!(
