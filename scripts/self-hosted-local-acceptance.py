@@ -10,6 +10,7 @@ not a managed deployment or a real-provider interoperability claim.
 import argparse
 from contextlib import ExitStack
 import hashlib
+import http.client
 import http.server
 import json
 import os
@@ -103,8 +104,10 @@ def run(gateway, artifact_label):
             return error.code, error.read()
 
     def start(directory, log):
+        nonlocal process
         child = subprocess.Popen([str(gateway)], cwd=directory, env=environment,
                                  stdout=log, stderr=log)
+        process = child
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             if child.poll() is not None:
@@ -115,8 +118,7 @@ def run(gateway, artifact_label):
             except (OSError, urllib.error.URLError):
                 pass
             time.sleep(0.2)
-        child.terminate()
-        child.wait(timeout=10)
+        stop()
         raise RuntimeError("Gateway did not become healthy within 30 seconds")
 
     def stop():
@@ -183,7 +185,8 @@ def run(gateway, artifact_label):
                 process.terminate()
                 process.wait(timeout=10)
                 process = None
-    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
+    except (RuntimeError, OSError, ValueError, LookupError, TypeError,
+            http.client.HTTPException, subprocess.SubprocessError) as error:
         # Diagnostics identify a failed check, never include response bodies,
         # environment variables, subprocess logs, or generated bearer values.
         checks.append({"name": "execution", "status": "failed", "error_type": type(error).__name__})

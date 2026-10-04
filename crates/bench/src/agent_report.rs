@@ -2,6 +2,7 @@
 
 //! Reproducible evidence for offline policy replay. Raw events are never emitted.
 
+use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -9,6 +10,7 @@ use anyhow::{ensure, Context};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
+use crate::agent_dataset::ReviewedSnapshot;
 use crate::agent_eval::AgentEval;
 
 fn hash(bytes: &[u8]) -> String {
@@ -23,14 +25,12 @@ fn percentile(sorted: &[f64], percentile: usize) -> Option<f64> {
     sorted.get(rank - 1).copied()
 }
 
-pub fn build(corpus: &str, policy_path: Option<&str>, eval: &AgentEval) -> anyhow::Result<Value> {
-    let manifest = Path::new(corpus).with_extension("manifest.json");
-    let manifest_bytes = std::fs::read(&manifest)?;
-    let provenance: Value = serde_json::from_slice(&manifest_bytes)?;
-    let policy = match policy_path {
-        Some(path) => std::fs::read(path)?,
-        None => include_bytes!("../../agent/policies/agent-default.yaml").to_vec(),
-    };
+pub fn build(
+    snapshot: &ReviewedSnapshot,
+    policy_bytes: &[u8],
+    eval: &AgentEval,
+) -> anyhow::Result<Value> {
+    let provenance: Value = serde_json::from_slice(&snapshot.manifest_bytes)?;
     let mut latencies: Vec<_> = eval.sessions.iter().map(|s| s.policy_replay_ms).collect();
     latencies.sort_by(f64::total_cmp);
     Ok(json!({
@@ -38,9 +38,9 @@ pub fn build(corpus: &str, policy_path: Option<&str>, eval: &AgentEval) -> anyho
         "observed_at_unix": SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         "evidence_scope": "offline-policy-replay",
         "dataset_provenance": provenance,
-        "corpus_sha256": hash(&std::fs::read(corpus)?),
-        "manifest_sha256": hash(&manifest_bytes),
-        "policy_sha256": hash(&policy),
+        "corpus_sha256": hash(&snapshot.corpus_bytes),
+        "manifest_sha256": hash(&snapshot.manifest_bytes),
+        "policy_sha256": hash(policy_bytes),
         "binary_sha256": hash(&std::fs::read(std::env::current_exe()?)?),
         "build": { "package_version": env!("CARGO_PKG_VERSION"),
                    "os": std::env::consts::OS, "architecture": std::env::consts::ARCH,
@@ -69,6 +69,8 @@ pub fn build(corpus: &str, policy_path: Option<&str>, eval: &AgentEval) -> anyho
 pub fn write(
     corpus: &str,
     policy: Option<&str>,
+    snapshot: &ReviewedSnapshot,
+    policy_bytes: &[u8],
     eval: &AgentEval,
     output: &str,
 ) -> anyhow::Result<()> {
@@ -94,9 +96,19 @@ pub fn write(
             "agent output must not overwrite the running binary"
         );
     }
-    let report = build(corpus, policy, eval)?;
-    std::fs::write(destination, serde_json::to_string_pretty(&report)? + "\n")
-        .context("cannot write agent evaluation evidence")
+    let report = build(snapshot, policy_bytes, eval)?;
+    let parent = destination
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    // Replace the directory entry rather than truncating a potentially
+    // hardlinked input. Failed writes leave existing evidence intact.
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    temporary.write_all((serde_json::to_string_pretty(&report)? + "\n").as_bytes())?;
+    temporary
+        .persist(destination)
+        .context("cannot write agent evaluation evidence")?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -109,18 +121,21 @@ mod tests {
 
     #[test]
     fn a_failed_gate_retains_missed_attacks_and_pinned_inputs_without_raw_events() {
-        let sessions = crate::agent_dataset::load_reviewed(&corpus()).unwrap();
+        let snapshot = crate::agent_dataset::load_reviewed_snapshot(&corpus()).unwrap();
         let directory = tempfile::tempdir().unwrap();
         let policy = directory.path().join("allow.yaml");
         std::fs::write(&policy, "agent_policies: []\ndefault: allow\n").unwrap();
+        let policy_bytes = std::fs::read(&policy).unwrap();
         let parsed =
-            soup_wall_agent::AgentPolicySet::from_yaml(&std::fs::read_to_string(&policy).unwrap())
+            soup_wall_agent::AgentPolicySet::from_yaml(std::str::from_utf8(&policy_bytes).unwrap())
                 .unwrap();
-        let eval = crate::agent_eval::evaluate_with(&sessions, Some(&parsed));
+        let eval = crate::agent_eval::evaluate_with(&snapshot.sessions, Some(&parsed));
         let output = directory.path().join("report.json");
         write(
             &corpus(),
             Some(policy.to_str().unwrap()),
+            &snapshot,
+            &policy_bytes,
             &eval,
             output.to_str().unwrap(),
         )
@@ -144,13 +159,80 @@ mod tests {
 
     #[test]
     fn output_cannot_destroy_its_corpus_or_policy() {
-        let sessions = crate::agent_dataset::load_reviewed(&corpus()).unwrap();
-        let eval = crate::agent_eval::evaluate_with(&sessions, None);
+        let snapshot = crate::agent_dataset::load_reviewed_snapshot(&corpus()).unwrap();
+        let policy_bytes = include_bytes!("../../agent/policies/agent-default.yaml");
+        let eval = crate::agent_eval::evaluate_with(&snapshot.sessions, None);
         let before = std::fs::read(corpus()).unwrap();
-        assert!(write(&corpus(), None, &eval, &corpus()).is_err());
+        assert!(write(&corpus(), None, &snapshot, policy_bytes, &eval, &corpus()).is_err());
         assert_eq!(std::fs::read(corpus()).unwrap(), before);
         let manifest = Path::new(&corpus()).with_extension("manifest.json");
-        assert!(write(&corpus(), None, &eval, manifest.to_str().unwrap()).is_err());
+        assert!(write(
+            &corpus(),
+            None,
+            &snapshot,
+            policy_bytes,
+            &eval,
+            manifest.to_str().unwrap()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn changing_source_files_after_loading_cannot_change_evaluated_evidence() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("sessions.jsonl");
+        let manifest = path.with_extension("manifest.json");
+        std::fs::copy(corpus(), &path).unwrap();
+        std::fs::copy(
+            Path::new(&corpus()).with_extension("manifest.json"),
+            &manifest,
+        )
+        .unwrap();
+        let snapshot =
+            crate::agent_dataset::load_reviewed_snapshot(path.to_str().unwrap()).unwrap();
+        let policy = b"agent_policies: []\ndefault: allow\n";
+        let parsed =
+            soup_wall_agent::AgentPolicySet::from_yaml(std::str::from_utf8(policy).unwrap())
+                .unwrap();
+        let eval = crate::agent_eval::evaluate_with(&snapshot.sessions, Some(&parsed));
+        std::fs::write(path, "replacement corpus").unwrap();
+        std::fs::write(manifest, "replacement manifest").unwrap();
+        let report = build(&snapshot, policy, &eval).unwrap();
+        assert_eq!(report["corpus_sha256"], hash(&snapshot.corpus_bytes));
+        assert_eq!(report["manifest_sha256"], hash(&snapshot.manifest_bytes));
+        assert_eq!(report["policy_sha256"], hash(policy));
+        assert_eq!(report["counts"]["fn"], 19);
+    }
+
+    #[test]
+    fn a_hardlinked_output_does_not_truncate_the_input() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("sessions.jsonl");
+        let manifest = path.with_extension("manifest.json");
+        std::fs::copy(corpus(), &path).unwrap();
+        std::fs::copy(
+            Path::new(&corpus()).with_extension("manifest.json"),
+            &manifest,
+        )
+        .unwrap();
+        let original = std::fs::read(&path).unwrap();
+        let snapshot =
+            crate::agent_dataset::load_reviewed_snapshot(path.to_str().unwrap()).unwrap();
+        let eval = crate::agent_eval::evaluate_with(&snapshot.sessions, None);
+        let alias = directory.path().join("evidence.json");
+        std::fs::hard_link(&path, &alias).unwrap();
+        write(
+            path.to_str().unwrap(),
+            None,
+            &snapshot,
+            include_bytes!("../../agent/policies/agent-default.yaml"),
+            &eval,
+            alias.to_str().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        let report: Value = serde_json::from_slice(&std::fs::read(alias).unwrap()).unwrap();
+        assert_eq!(report["counts"]["tp"], 19);
     }
 
     #[test]

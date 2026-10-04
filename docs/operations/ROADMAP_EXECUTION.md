@@ -93,12 +93,17 @@ provider credentials, identity assertions, prompts, or customer data.
   [LLM-Firewall PR #31](https://github.com/MakazhanAlpamys/LLM-Firewall/pull/31).
   All 695 default tests, Clippy, compatibility vectors, package-contract checks,
   advisory gate with the existing RSA exception, and explicit Redis/PostgreSQL
-  integration checks passed. Hosted benchmark passed; other CI must finish
-  before final disposition of the six original proposals.
+  integration checks passed. All nine configured hosted jobs passed, including
+  PostgreSQL 16 and Redis 7 integration. Windows/all-features/actual CodeQL were
+  deliberately skipped in that private CI configuration; the green explanation
+  job is not a CodeQL scan. PR #31 merged as `ab3b34de923242bfc1b5ed45d5dc3e2a26a76e14`.
+  Original #22/#23/#25/#26/#27 are closed as superseded; #24 is closed as obsolete
+  because the legacy release workflow was deleted. No legacy PRs remain open.
 - SAML provider checkpoint: `9174490` is pushed in
   [Soup Wall PR #23](https://github.com/MakazhanAlpamys/soup-wall/pull/23).
   Windows/Linux signed, tampered and encrypted-assertion fixtures, Gateway
   library tests, Clippy and Microsoft's public signed-metadata probe passed.
   The supported Linux/macOS graphs exclude RSA; Windows still includes it.
-  Issue #19 remains open, and macOS runtime and real-IdP assertion acceptance
-  still require their own evidence.
+  macOS arm64, macOS Intel and Windows SAML CI passed. Issue #19 remains open:
+  the Windows provider and real-IdP assertion acceptance still require their own
+  evidence; Linux CI was still queued at this record's update.

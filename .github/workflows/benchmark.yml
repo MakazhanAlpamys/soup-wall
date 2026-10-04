@@ -33,10 +33,11 @@ jobs:
             > agent-security-scorecard.md
           diff -u docs/benchmarks/agent-security-scorecard.generated.md agent-security-scorecard.md
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: agent-security-scorecard
           path: |
             agent-security-scorecard.md
             agent-evaluation.json
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 90
