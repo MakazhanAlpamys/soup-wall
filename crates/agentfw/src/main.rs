@@ -37,8 +37,8 @@ enum Cmd {
     /// Check that the daemon is up, and report its enforcement posture.
     ///
     /// Exits non-zero when it is not. The Claude Code hook fails open, so a
-    /// stopped daemon is otherwise invisible: tool calls simply proceed after
-    /// the hook timeout. Run this before a session, or from a wrapper script.
+    /// stopped daemon does not prevent tools: calls may proceed after a
+    /// connection error or hook timeout. Run this before a session, or from a wrapper script.
     Preflight {
         /// Also fail when the daemon is running but still in shadow mode.
         #[arg(long)]

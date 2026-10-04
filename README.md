@@ -84,7 +84,7 @@ The customer workspace at `/customer` requires configured OIDC or SAML federatio
 
 ## Agent enforcement and limitations
 
-- **The Claude Code hook fails open if the daemon is unavailable.** The host waits for the hook and proceeds. Run `agentfw preflight` before a session. The guarded execution commands fail closed because they own process creation; guarded shell execution requires Linux and bubblewrap.
+- **The Claude Code hook fails open if the daemon is unavailable.** Connection errors or timeouts do not prevent tool execution; the host's own permissions still apply. Run `agentfw preflight` before a session. The guarded execution commands fail closed because they own process creation; guarded shell execution requires Linux and bubblewrap. A [Windows host acceptance](docs/operations/CLAUDE_HOST_ACCEPTANCE.md) exercises this boundary against local deterministic model fixtures.
 - **Shadow mode is the Agent default.** It audits would-be decisions until you explicitly enable enforcement. The Gateway's agent and capability controls are also off by default. Inspect each policy and mode before relying on a block.
 - **The reviewed agent corpus is hand-authored.** Its 19 attack and 21 benign sessions are a regression check, not a measure of protection against new attacks. No held-out third-party agent benchmark has been completed. Text classifier results and their limits are in [benchmark methodology](docs/methodology.md).
 - **A detector score is not a guarantee.** Adaptive attacks can evade text detectors; the action policy and the host's own permissions remain part of the security boundary. A Soup Wall approval for one `ask` call does not override the host's permissions or a `deny` rule.

@@ -3,7 +3,7 @@
 //! Turn a silently absent daemon into an explicit, scriptable failure.
 //!
 //! Claude Code's HTTP hook **fails open**: if the daemon is not listening, the
-//! host waits out the hook timeout and then runs the tool anyway. That is the
+//! host may run the tool after a connection error or hook timeout. That is the
 //! host's decision and this crate cannot override it, so the honest response is
 //! not to pretend the hook is a security boundary but to give the operator a
 //! check they can run *before* a session, and wire into a wrapper script or CI.
@@ -25,7 +25,7 @@ pub enum Probe {
 /// readability; callers must match explicitly rather than compare.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Posture {
-    /// Nothing is listening. Every tool call will pass after the hook timeout.
+    /// Nothing is listening. The hook cannot inspect or prevent tool calls.
     Unreachable,
     /// Something answered but is not a healthy agentfw daemon.
     Unhealthy,
@@ -89,7 +89,7 @@ pub fn evaluate(probe: &Probe) -> Report {
             enforce: None,
             detail: format!(
                 "agentfw is not reachable ({detail}). The Claude Code hook fails open, so \
-                 every tool call will proceed unchecked after the hook timeout. Start it with \
+                 tools may proceed unchecked after a connection error or hook timeout. Start it with \
                  `agentfw serve`."
             ),
         },

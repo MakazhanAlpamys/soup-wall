@@ -18,12 +18,9 @@ use crate::Config;
 /// files are routinely committed to version control, and a token embedded in
 /// JSON would ship straight into git history.
 ///
-/// The 5-second timeout is deliberate, not conservative padding: measured
-/// 2026-07-30, an unreachable HTTP hook fails open — Claude Code waits out the
-/// timeout, then lets the tool call proceed. So this number is exactly what a
-/// stopped daemon costs on every single tool call. It stays at 5s rather than
-/// dropping lower because phase 10's local-model judge tier needs a 3s budget of
-/// its own; shortening this now would clip legitimate slow judgments later.
+/// HTTP hooks fail open on a connection error or timeout. Five seconds bounds a
+/// stalled request; a refused connection can return much earlier. This budget
+/// also leaves room for the optional local-model judge's three-second deadline.
 pub fn hook_block(port: u16) -> serde_json::Value {
     hook_block_for_config(&Config {
         port,
@@ -58,7 +55,7 @@ pub fn hook_block_for_config(config: &Config) -> serde_json::Value {
 /// first experience of the tool, so it prints the token *path* (never the
 /// token itself — an operator pasting this into a bug report should not leak
 /// their secret), and spells out both costs an operator would otherwise have
-/// to discover by debugging: a stopped daemon silently taxing every tool call,
+/// to discover by debugging: a stopped daemon declining to inspect tool calls,
 /// and shadow mode silently declining to block anything until told to.
 pub fn instructions(port: u16, token_path: &Path) -> String {
     instructions_for_config(
@@ -80,9 +77,10 @@ pub fn instructions_for_config(config: &Config, token_path: &Path) -> String {
          here, only its path:\n\n  \
          {token_command}\n\n\
          THE HOOK IS NOT A SECURITY BOUNDARY. Each hook has a 5-second timeout. If agentfw is \
-         not running, every tool call still proceeds — Claude Code fails open — after waiting out \
-         the full 5 seconds. The host decides this and agentfw cannot override it, so a stopped \
-         daemon is silent: it shows up as \"Claude Code feels slow\", never as an error. Do not \
+         not running, tools may proceed unchecked by agentfw — Claude Code fails open on a \
+         connection error or timeout. A stalled hook can add up to 5 seconds; connection refusal \
+         can return sooner. The host's own permissions still apply. Hook errors may be shown, \
+         but they do not prevent the tool call. The host decides this and agentfw cannot override it. Do not \
          rely on the hook to prevent anything; treat it as a decision and audit layer.\n\n  \
          Check before a session, or from your shell profile or a wrapper script:\n\n  \
          agentfw preflight              # exits 2 if the daemon is down, 4 with --require-enforce in shadow mode\n\n\

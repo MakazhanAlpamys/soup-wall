@@ -104,3 +104,8 @@ exits 2 with a fail-open explanation. Claude Code's documented behavior of
 proceeding after an HTTP-hook timeout remains a host limitation, not a behavior
 measured by this daemon-only run. Keep the host's own permissions configured;
 use preflight to stop a wrapper before starting an unchecked session.
+
+The separate [Claude Code host acceptance](CLAUDE_HOST_ACCEPTANCE.md) launches
+the installed host against local model fixtures and observes enforcing,
+shadow, and connection-failure outcomes directly. It keeps the daemon-only
+checks above useful without requiring Claude Code on the Windows CI runner.
