@@ -21,6 +21,8 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
   live effectiveness.
 - Added a checkpointed roadmap execution record. Managed staging, real-IdP,
   live-model evaluation, and shadow soaking remain open acceptance gates.
+- Updated the SAML stack to `saml-rs 0.5.3`, `bergshamra 0.9.2`, and the `kryptering 0.6.0` security backport. Linux and macOS use AWS-LC; Windows retains RustCrypto because upstream's AWS-LC provider still rejects Windows. The `rsa` advisory remains in the complete release lock and [issue #19](https://github.com/MakazhanAlpamys/soup-wall/issues/19) stays open.
+- Added SAML signature and metadata tampering checks and CI verification on all four archive targets. Encrypted assertions remain rejected and the SP does not advertise assertion encryption. Real-IdP acceptance still requires operator evidence.
 
 ## v0.4.0 — full-source Soup Wall
 

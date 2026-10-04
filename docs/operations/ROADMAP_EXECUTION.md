@@ -107,6 +107,8 @@ provider credentials, identity assertions, prompts, or customer data.
   because the legacy release workflow was deleted. No legacy PRs remain open.
 - SAML provider checkpoint: `9174490` is pushed in
   [Soup Wall PR #23](https://github.com/MakazhanAlpamys/soup-wall/pull/23).
+  It merged as `65bee72917e34f260da34162094f1a21030f7005` after independent
+  provider/feature review and all hosted checks passed.
   Windows/Linux signed, tampered and encrypted-assertion fixtures, Gateway
   library tests, Clippy and Microsoft's public signed-metadata probe passed.
   The supported Linux/macOS graphs exclude RSA; Windows still includes it.
