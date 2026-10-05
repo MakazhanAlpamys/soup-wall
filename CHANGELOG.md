@@ -4,6 +4,13 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
 
 ## Unreleased
 
+- Added opt-in sequential stdio MCP admission with reviewed schema/argument
+  validation, pre-execution call gates and original text-result release to the
+  MCP host. The legacy manifest proxy and Claude hooks retain their behavior.
+  A scripted Claude Code check compares a real synthetic-secret send with its
+  prevention and independently verifies useful completion; it is not live
+  model or general MCP effectiveness evidence.
+
 - Added opt-in operator-installed native admission with immutable tool semantics,
   separate authentication, single-use invocation bindings, and result/context
   gates. The AgentDojo adapter preserves the original runtime and formatter;
