@@ -33,6 +33,17 @@ issuance returns the stored metadata and authenticating token; outsider issuance
 and revocation create no records/audit effects; authorized/repeated revocation
 preserves the expected audit behavior. These runs are local acceptance evidence.
 
+Subsequent [PR #29 CI](https://github.com/MakazhanAlpamys/soup-wall/pull/29)
+at `fa8304e` passed the PostgreSQL integration regression but failed the restore
+driver before fixture creation. Ubuntu's PostgreSQL client aliases dispatch
+through `pg_wrapper` using their invocation name, as described in the
+[Debian wrapper documentation](https://manpages.debian.org/bookworm/postgresql-client-common/pg_wrapper.1.en.html).
+Executable selection now preserves the selected alias instead of resolving its
+symlink. A Unix regression reproduces the earlier failure and passes with the
+fix; all 22 local Python checks pass. Private-artifact symlink and permission
+checks remain unchanged. This follow-up does not alter the frozen local evidence
+above; the corrected CI acceptance run must independently pass.
+
 Actual execution found a production issuance defect: an INSERT CTE returned only
 the ID, then its outer SELECT scanned the base table using the statement's earlier
 snapshot. The account and audit persisted while the API returned an error and

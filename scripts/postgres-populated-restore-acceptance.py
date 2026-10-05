@@ -364,7 +364,8 @@ def tool_path(value):
     path = shutil.which(value)
     if path is None:
         raise AcceptanceError("A required acceptance tool is unavailable.")
-    return str(Path(path).resolve())
+    # Debian/Ubuntu PostgreSQL aliases dispatch through pg_wrapper using argv[0].
+    return str(Path(path).absolute())
 
 
 def execute(args):

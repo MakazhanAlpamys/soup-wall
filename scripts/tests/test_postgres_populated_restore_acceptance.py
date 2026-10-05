@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Offline populated-restore orchestration checks; no PostgreSQL or tools launched."""
+"""Local orchestration checks; no PostgreSQL, providers or services launched."""
 import copy
 from contextlib import redirect_stdout
 import importlib.util
@@ -221,6 +221,24 @@ class RestoreRefusals(unittest.TestCase):
                 RESTORE.checked(["tool", "neutral-password"], env={}, cwd=Path.cwd())
         for value in ["neutral-password", "PRIVATE-STDOUT", "PRIVATE-STDERR"]:
             self.assertNotIn(value, str(error.exception))
+
+    @unittest.skipUnless(os.name == "posix", "Unix executable alias dispatch")
+    def test_selected_executable_alias_keeps_wrapper_invocation_name(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            wrapper = root / "pg_wrapper"
+            wrapper.write_text("#!/bin/sh\ncase \"${0##*/}\" in\n"
+                "  psql) printf 'fixture-alias-ok\\n' ;;\n"
+                "  *) printf 'wrong-invocation-name\\n' >&2; exit 17 ;;\nesac\n",
+                encoding="utf-8")
+            wrapper.chmod(0o700)
+            alias = root / "psql"
+            alias.symlink_to(wrapper)
+            chosen = RESTORE.tool_path(str(alias))
+            result = subprocess.run([chosen], env={}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "fixture-alias-ok\n")
+            self.assertEqual(Path(chosen), alias.absolute())
 
     def test_child_env_removes_provider_redis_pgoptions_and_dotenv_authority(self):
         with patch.dict(os.environ, {"OPENAI_API_KEY": "private-provider", "LLM_FW_WEBHOOK_SIGNING_KEY":
