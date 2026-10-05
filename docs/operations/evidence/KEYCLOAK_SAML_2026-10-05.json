@@ -186,5 +186,29 @@
     "Browser UI/MFA and vendor SAML single logout",
     "Linux/macOS vendor-runtime acceptance",
     "Timing-safe Windows SAML provider and complete rsa dependency removal for issue #19"
-  ]
+  ],
+  "root_verified_preparation": {
+    "observed_at_utc": "2026-10-05T09:01:42.477158+00:00",
+    "source_revision": "0f3f58829e2bf7cab3676612193e3d00b4801ecb",
+    "source_file_sha256": {
+      "scripts/keycloak-saml-acceptance.py": "857dfdb10dc1989c7bdf0b010c57d9be58d47c11c544bc198b163df9715ef5f8",
+      "scripts/tests/test_keycloak_saml_acceptance.py": "06c45699966e5e4217259ad8661c70ad3d690d4a0cda656ab44f9dd0752e8d02",
+      "crates/proxy/examples/keycloak-saml-bootstrap.rs": "e4542b11aa75c1b8fb3e3fd9b54ebbf1c1474e4005007b3769311f84cacc2689",
+      "crates/proxy/Cargo.toml": "be4611450dfdfad089a857a1c2d68f97c1aa390c4eec25cc3a1760e787fd4032"
+    },
+    "python_version": "3.12.10",
+    "driver_offline_tests_passed": 14,
+    "all_script_offline_tests_passed": 16,
+    "native_bootstrap_regressions_passed": 2,
+    "formatting_passed": true,
+    "library_and_example_clippy_passed": true,
+    "native_fresh_store_and_existing_file_refusal_observed": true,
+    "owned_synthetic_proof_store_cleaned": true,
+    "vendor_runtime_started": false,
+    "historical_vendor_record_unchanged": true,
+    "corrections": [
+      "Reject redirected ignored target/scratch before private writes",
+      "Verify stored SAML identities/memberships before IdP import instead of the OIDC connection authorization seam"
+    ]
+  }
 }
