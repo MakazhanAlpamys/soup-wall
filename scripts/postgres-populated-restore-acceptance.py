@@ -9,6 +9,7 @@ Windows secret artifacts fail closed. The default command launches no tools.
 
 import argparse
 from dataclasses import dataclass
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -123,6 +124,31 @@ def private_run_directory(workspace):
     return run
 
 
+def require_private_directory(path):
+    if os.name != "posix":
+        raise AcceptanceError("Secret artifacts require Unix owner-only permissions.")
+    try:
+        path = Path(path).absolute()
+        metadata = path.lstat()
+        if (not stat.S_ISDIR(metadata.st_mode) or path.resolve() != path
+                or metadata.st_uid != os.geteuid()
+                or stat.S_IMODE(metadata.st_mode) != 0o700):
+            raise ValueError
+    except (OSError, TypeError, ValueError, RuntimeError):
+        raise AcceptanceError("Private temporary directory permissions are unsafe.") from None
+    return path
+
+
+def private_temp_directory(run_directory):
+    parent = require_private_directory(run_directory)
+    temporary = parent / "tmp"
+    try:
+        temporary.mkdir(mode=0o700)
+    except OSError:
+        raise AcceptanceError("Could not reserve a fresh private temporary directory.") from None
+    return require_private_directory(temporary)
+
+
 def private_json(path, value):
     if os.name != "posix":
         raise AcceptanceError("Secret artifacts require Unix owner-only permissions.")
@@ -180,6 +206,23 @@ def canonical_state(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
+def observed_server_identity(fingerprint, database):
+    """Validate a database-observed server without confusing it with a NAT route."""
+    try:
+        if not isinstance(fingerprint, str):
+            raise ValueError
+        parts = fingerprint.split("|")
+        if len(parts) != 3 or parts[0] != database or "%" in parts[1]:
+            raise ValueError
+        address = ipaddress.ip_address(parts[1])
+        port = int(parts[2])
+        if str(port) != parts[2] or not 1 <= port <= 65535:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise AcceptanceError("Database fingerprint did not match the reserved endpoint.") from None
+    return str(address), port
+
+
 def acceptance_flow(backend):
     """Exercise only after equality and fresh identity checks; keep source immutable."""
     backend.prepare()
@@ -231,10 +274,20 @@ class PostgresBackend:
         self.admin = admin
         self.runner = runner
         self.run_directory = None
+        self.temp_directory = None
         self.databases = {}
+        self.server_identity = None
 
     def invoke(self, argv, overrides=None, input_text=None):
-        return self.runner(argv, env=child_environment(overrides or {}),
+        if self.run_directory is None or self.temp_directory is None:
+            raise AcceptanceError("Private temporary directory has not been prepared.")
+        parent = require_private_directory(self.run_directory)
+        temporary = require_private_directory(self.temp_directory)
+        if temporary != parent / "tmp":
+            raise AcceptanceError("Private temporary directory ancestry is unsafe.")
+        environment = dict(overrides or {})
+        environment.update({key: str(temporary) for key in ("TMPDIR", "TMP", "TEMP")})
+        return self.runner(argv, env=child_environment(environment),
                            cwd=self.run_directory, input_text=input_text)
 
     def sql(self, endpoint, query):
@@ -243,7 +296,14 @@ class PostgresBackend:
                            endpoint.environment(), query).strip()
 
     def prepare(self):
+        if self.server_identity is not None:
+            raise AcceptanceError("Database server identity is already bound.")
         self.run_directory = private_run_directory(self.workspace)
+        self.temp_directory = private_temp_directory(self.run_directory)
+        # Pin the selected admin server before any database mutation. A mapped
+        # loopback client route can have a different address and port.
+        self.server_identity = observed_server_identity(
+            self.sql(self.admin, IDENTITY_SQL), self.admin.database)
         nonce = secrets.token_hex(12)
         role, source, drill = ("fw_restore_" + nonce, "fw_restore_source_" + nonce,
                                 "fw_restore_drill_" + nonce)
@@ -281,10 +341,12 @@ class PostgresBackend:
         os.chmod(self.run_directory / "firewall.yaml", 0o600)
 
     def identities(self):
+        if self.server_identity is None:
+            raise AcceptanceError("Database server identity has not been bound.")
         result = tuple(self.sql(self.databases[name], IDENTITY_SQL) for name in ("source", "drill"))
         for name, fingerprint in zip(("source", "drill"), result):
             endpoint = self.databases[name]
-            if fingerprint != f"{endpoint.database}|{endpoint.host}|{endpoint.port}":
+            if observed_server_identity(fingerprint, endpoint.database) != self.server_identity:
                 raise AcceptanceError("Database fingerprint did not match the reserved endpoint.")
         return result
 

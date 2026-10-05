@@ -4,6 +4,7 @@ import copy
 from contextlib import redirect_stdout
 import importlib.util
 import io
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,14 @@ SPEC = importlib.util.spec_from_file_location("populated_restore_under_test", SC
 RESTORE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = RESTORE
 SPEC.loader.exec_module(RESTORE)
+
+
+def reserve_fixture_tmp(parent):
+    # Parsing/ordering cases are portable; Unix permission behavior is exercised
+    # separately against the real directory guard and an actual child process.
+    child = Path(parent) / "tmp"
+    child.mkdir(mode=0o700)
+    return child
 
 
 class FakeBackend:
@@ -160,6 +169,7 @@ class RestoreRefusals(unittest.TestCase):
         for host, prefix in [("127.0.0.1", 32), ("::1", 128)]:
             with self.subTest(host=host):
                 backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+                backend.server_identity = (host, 5432)
                 backend.databases = {name: RESTORE.Endpoint(host, 5432, "fixture", "neutral", name)
                                      for name in ("source", "drill")}
                 def postgres_identity(endpoint, query):
@@ -173,12 +183,110 @@ class RestoreRefusals(unittest.TestCase):
 
     def test_canonical_host_still_requires_reserved_database_and_port(self):
         backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+        backend.server_identity = ("127.0.0.1", 5432)
         backend.databases = {name: RESTORE.Endpoint("127.0.0.1", 5432, "fixture", "neutral", name)
                              for name in ("source", "drill")}
         for mismatched in ["other|127.0.0.1|5432", "source|127.0.0.1|5433"]:
             with self.subTest(identity=mismatched), patch.object(backend, "sql", return_value=mismatched):
                 with self.assertRaises(RESTORE.AcceptanceError):
                     backend.identities()
+
+    def test_admin_observed_docker_server_supports_mapped_loopback_client_route(self):
+        backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+        backend.server_identity = ("172.18.0.2", 5432)
+        backend.databases = {name: RESTORE.Endpoint("127.0.0.1", 6543, "fixture", "neutral", name)
+                             for name in ("source", "drill")}
+        observed = ("source|172.18.0.2|5432", "drill|172.18.0.2|5432")
+        with patch.object(backend, "sql", side_effect=observed):
+            try:
+                identities = backend.identities()
+            except RESTORE.AcceptanceError:
+                self.fail("The reserved databases must accept the admin-pinned server behind the client route.")
+            self.assertEqual(identities, observed)
+        self.assertEqual(backend.server_identity, ("172.18.0.2", 5432))
+        self.assertEqual(backend.databases["source"].host, "127.0.0.1")
+        self.assertEqual(backend.databases["source"].port, 6543)
+
+    def test_ipv4_mapped_ipv6_numeric_spellings_share_normalized_server_pin(self):
+        try:
+            dotted = RESTORE.observed_server_identity("postgres|::ffff:172.18.0.2|5432", "postgres")
+            hexadecimal = RESTORE.observed_server_identity("postgres|::ffff:ac12:2|5432", "postgres")
+        except RESTORE.AcceptanceError:
+            self.fail("Both valid numeric IPv4-mapped IPv6 spellings must be accepted.")
+        self.assertEqual(dotted, hexadecimal)
+        self.assertEqual(dotted[1], 5432)
+        self.assertEqual(ipaddress.ip_address(dotted[0]).ipv4_mapped, ipaddress.IPv4Address("172.18.0.2"))
+
+    def test_missing_admin_binding_refuses_before_database_probe(self):
+        backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+        backend.databases = {name: RESTORE.Endpoint("127.0.0.1", 5432, "fixture", "neutral", name)
+                             for name in ("source", "drill")}
+        with patch.object(backend, "sql", side_effect=("source|127.0.0.1|5432", "drill|127.0.0.1|5432")) as sql:
+            with self.assertRaises(RESTORE.AcceptanceError):
+                backend.identities()
+        sql.assert_not_called()
+
+    def test_reserved_databases_must_share_pinned_server_and_port(self):
+        backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+        backend.server_identity = ("172.18.0.2", 5432)
+        backend.databases = {name: RESTORE.Endpoint("127.0.0.1", 6543, "fixture", "neutral", name)
+                             for name in ("source", "drill")}
+        for changed in ["other|172.18.0.2|5432", "drill|172.18.0.3|5432", "drill|172.18.0.2|5433"]:
+            with self.subTest(fingerprint=changed), patch.object(backend, "sql",
+                    side_effect=("source|172.18.0.2|5432", changed)):
+                with self.assertRaises(RESTORE.AcceptanceError) as error:
+                    backend.identities()
+                self.assertNotIn(changed, str(error.exception))
+                self.assertEqual(backend.server_identity, ("172.18.0.2", 5432))
+
+    def test_later_address_or_port_drift_cannot_rebind_server(self):
+        for changed in ["source|172.18.0.3|5432", "source|172.18.0.2|5433"]:
+            backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+            backend.server_identity = ("172.18.0.2", 5432)
+            backend.databases = {name: RESTORE.Endpoint("127.0.0.1", 6543, "fixture", "neutral", name)
+                                 for name in ("source", "drill")}
+            baseline = ("source|172.18.0.2|5432", "drill|172.18.0.2|5432")
+            with self.subTest(fingerprint=changed), patch.object(backend, "sql",
+                    side_effect=baseline + (changed, baseline[1])):
+                self.assertEqual(backend.identities(), baseline)
+                with self.assertRaises(RESTORE.AcceptanceError):
+                    backend.identities()
+            self.assertEqual(backend.server_identity, ("172.18.0.2", 5432))
+
+    def test_malformed_admin_fingerprint_refuses_before_any_database_mutation(self):
+        malformed = ["other|172.18.0.2|5432", "postgres|172.18.0.2/32|5432",
+            "postgres|::1/128|5432", "postgres|local|5432", "postgres||5432",
+            "postgres|null|5432", "postgres|fe80::1%eth0|5432", "postgres|[::1]|5432",
+            "postgres|garbage|5432", "postgres|172.018.0.2|5432",
+            "postgres|172.18.0.2|0", "postgres|172.18.0.2|65536",
+            "postgres|172.18.0.2|05432", "postgres|172.18.0.2|+5432",
+            "postgres|172.18.0.2|null", "postgres|172.18.0.2|5432|extra"]
+        admin = RESTORE.parse_admin_url("postgresql://fixture:neutral@127.0.0.1:6543/postgres?sslmode=disable")
+        for fingerprint in malformed:
+            backend = RESTORE.PostgresBackend(Path.cwd(), {}, admin)
+            with self.subTest(fingerprint=fingerprint), tempfile.TemporaryDirectory() as temporary, \
+                    patch.object(RESTORE, "private_run_directory", return_value=Path(temporary)), \
+                    patch.object(RESTORE, "private_temp_directory", side_effect=reserve_fixture_tmp), \
+                    patch.object(RESTORE, "private_json") as private, \
+                    patch.object(backend, "sql", return_value=fingerprint) as sql, \
+                    patch.object(backend, "invoke") as invoke:
+                with self.assertRaises(RESTORE.AcceptanceError) as error:
+                    backend.prepare()
+                self.assertEqual(sql.call_count, 1)
+                self.assertEqual(sql.call_args.args, (admin, RESTORE.IDENTITY_SQL))
+                self.assertNotIn(fingerprint, str(error.exception))
+                self.assertIsNone(backend.server_identity)
+                private.assert_not_called()
+                invoke.assert_not_called()
+
+    def test_prepare_cannot_replace_an_existing_server_binding(self):
+        backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+        backend.server_identity = ("172.18.0.2", 5432)
+        with patch.object(RESTORE, "private_run_directory") as directory, patch.object(backend, "sql") as sql:
+            with self.assertRaises(RESTORE.AcceptanceError):
+                backend.prepare()
+        directory.assert_not_called()
+        sql.assert_not_called()
 
     def test_windows_fails_closed_before_artifact_or_process_creation(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -221,6 +329,76 @@ class RestoreRefusals(unittest.TestCase):
                 RESTORE.checked(["tool", "neutral-password"], env={}, cwd=Path.cwd())
         for value in ["neutral-password", "PRIVATE-STDOUT", "PRIVATE-STDERR"]:
             self.assertNotIn(value, str(error.exception))
+
+    def test_unprepared_subprocess_refuses_before_runner(self):
+        calls = []
+        backend = RESTORE.PostgresBackend(Path.cwd(), {}, None,
+            runner=lambda *args, **kwargs: calls.append((args, kwargs)))
+        with self.assertRaises(RESTORE.AcceptanceError):
+            backend.invoke(["neutral-tool"])
+        self.assertEqual(calls, [])
+
+    @unittest.skipUnless(os.name == "posix", "Unix owner-only temporary ancestry")
+    def test_owned_temp_overrides_ambient_and_caller_redirect_in_actual_child(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            owned = root / "tmp"
+            owned.mkdir(mode=0o700)
+            outside = root / "ambient"
+            outside.mkdir(mode=0o700)
+            backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+            backend.run_directory = root
+            backend.temp_directory = owned
+            script = ("import json,os,tempfile; from pathlib import Path; "
+                "fd,path=tempfile.mkstemp(); os.close(fd); "
+                "print(json.dumps({'parent':str(Path(path).parent),"
+                "'variables':{key:os.environ.get(key) for key in ['TMPDIR','TMP','TEMP']}}))")
+            redirected = {key: str(outside) for key in ("TMPDIR", "TMP", "TEMP")}
+            with patch.dict(os.environ, redirected):
+                result = json.loads(backend.invoke([sys.executable, "-I", "-c", script], redirected))
+            self.assertEqual(result["parent"], str(owned))
+            self.assertEqual(result["variables"], {key: str(owned) for key in redirected})
+            self.assertEqual(list(outside.iterdir()), [])
+
+    @unittest.skipUnless(os.name == "posix", "Unix owner-only temporary ancestry")
+    def test_unsafe_temporary_ancestry_refuses_before_runner(self):
+        for condition in ("missing", "public-parent", "public-child", "linked-child", "outside-child"):
+            with self.subTest(condition=condition), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                child = root / "tmp"
+                outside = root / "outside"
+                outside.mkdir(mode=0o700)
+                if condition == "linked-child":
+                    child.symlink_to(outside, target_is_directory=True)
+                elif condition != "missing":
+                    child.mkdir(mode=0o755 if condition == "public-child" else 0o700)
+                if condition == "public-parent":
+                    root.chmod(0o755)
+                calls = []
+                backend = RESTORE.PostgresBackend(Path.cwd(), {}, None,
+                    runner=lambda *args, **kwargs: calls.append((args, kwargs)))
+                backend.run_directory = root
+                backend.temp_directory = outside if condition == "outside-child" else child
+                with self.assertRaises(RESTORE.AcceptanceError):
+                    backend.invoke(["neutral-tool"])
+                self.assertEqual(calls, [])
+
+    @unittest.skipUnless(os.name == "posix", "Unix owner-only temporary ancestry")
+    def test_fresh_owned_tmp_precedes_first_admin_probe(self):
+        admin = RESTORE.parse_admin_url("postgresql://fixture:neutral@127.0.0.1:5432/postgres?sslmode=disable")
+        backend = RESTORE.PostgresBackend(Path.cwd(), {}, admin)
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.object(RESTORE, "private_run_directory", return_value=Path(temporary)), \
+                patch.object(backend, "sql", return_value="invalid") as sql:
+            with self.assertRaises(RESTORE.AcceptanceError):
+                backend.prepare()
+            owned = Path(temporary) / "tmp"
+            self.assertTrue(owned.is_dir())
+            self.assertEqual(owned.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(backend.temp_directory, owned)
+            self.assertEqual(sql.call_args.args, (admin, RESTORE.IDENTITY_SQL))
+            with self.assertRaises(RESTORE.AcceptanceError):
+                RESTORE.private_temp_directory(Path(temporary))
 
     @unittest.skipUnless(os.name == "posix", "Unix executable alias dispatch")
     def test_selected_executable_alias_keeps_wrapper_invocation_name(self):
@@ -272,12 +450,16 @@ class RestoreRefusals(unittest.TestCase):
             RESTORE.parse_admin_url("postgresql://fixture:neutral@127.0.0.1:5432/postgres?sslmode=disable"))
         with tempfile.TemporaryDirectory() as temporary, \
                 patch.object(RESTORE, "private_run_directory", return_value=Path(temporary)), \
-                patch.object(RESTORE, "private_json"), patch.object(backend, "sql", return_value="t") as sql, \
+                patch.object(RESTORE, "private_temp_directory", side_effect=reserve_fixture_tmp), \
+                patch.object(RESTORE, "private_json"), patch.object(backend, "sql", \
+                    side_effect=("postgres|172.18.0.2|5432", "t")) as sql, \
                 patch.object(backend, "invoke") as invoke:
             with self.assertRaises(RESTORE.AcceptanceError):
                 backend.prepare()
-        self.assertEqual(sql.call_count, 1)
-        self.assertNotIn("CREATE", sql.call_args.args[1])
+        self.assertEqual(sql.call_count, 2)
+        self.assertEqual(sql.call_args_list[0].args, (backend.admin, RESTORE.IDENTITY_SQL))
+        self.assertEqual(backend.server_identity, ("172.18.0.2", 5432))
+        self.assertTrue(all("CREATE" not in call.args[1] for call in sql.call_args_list))
         invoke.assert_not_called()
 
     def test_mutation_cannot_use_source_database_or_unbound_target(self):

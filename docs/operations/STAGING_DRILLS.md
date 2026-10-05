@@ -79,6 +79,19 @@ databases and a fresh fixture role; it never seeds an existing database or start
 an installed service. The admin credential must belong to that disposable
 instance and permit creation of the isolated databases and role.
 
+The client URL must use numeric loopback. Docker can expose that route while
+PostgreSQL reports a different server-side address or port. Before database
+mutations, the driver checks the selected admin database and pins its observed
+numeric server address/port. Every source/drill identity must match its reserved
+database name and that same frozen server identity. Changed or inconsistent
+identities are refused; loopback URL restrictions remain in force.
+
+The runner overrides subprocess `TMPDIR`, `TMP` and `TEMP` with a fresh
+owner-only directory inside its private run. The original PowerShell drill
+creates its own temporary subdirectory there and restricts permissions before
+writing plaintext. Ambient temporary-directory settings cannot redirect these
+fixture files elsewhere.
+
 Build the original migration command and the fixture helper:
 
 ```sh

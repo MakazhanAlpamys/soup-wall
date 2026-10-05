@@ -19,6 +19,7 @@ use llm_firewall::tenant_store::{
 };
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use serde_json::{json, Value};
 use tokio_postgres::{Client, NoTls};
 
@@ -61,33 +62,110 @@ struct Marker {
     source_fingerprint: String,
 }
 
-#[tokio::main]
-async fn main() {
-    match run().await {
-        Ok(aggregate) => println!("{aggregate}"),
-        Err(_) => {
-            // The driver retains tool output privately. Do not print database
-            // errors or manifest values when this helper is invoked directly.
-            eprintln!("populated restore fixture refused; private artifacts are retained");
-            std::process::exit(1);
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum Phase {
+    Seed,
+    Probe,
+    ExerciseRestored,
+}
+
+impl FromStr for Phase {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self> {
+        match value {
+            "seed" => Ok(Self::Seed),
+            "probe" => Ok(Self::Probe),
+            "exercise-restored" => Ok(Self::ExerciseRestored),
+            _ => bail!("unsupported fixture mode"),
         }
     }
 }
 
-async fn run() -> Result<Value> {
+// Public output has no manifest, database metadata, credential or arbitrary JSON
+// fields. Its fixed values describe the checks required by each validated phase.
+#[derive(Serialize)]
+struct PublicAggregate {
+    schema_version: u16,
+    mode: Phase,
+    status: &'static str,
+    tenants: u8,
+    service_accounts: u8,
+    webhook_destinations: u8,
+    pending_deliveries: u8,
+    security_events: u8,
+    retained_token_authenticated: bool,
+    revoked_token_rejected: bool,
+    tenant_isolation_verified: bool,
+    destination_active: bool,
+    model_requests_sent: u8,
+    webhook_requests_sent: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    restored_only_mutation: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    retained_token_revoked: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    new_delivery_enqueued: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deactivated_destination_suppressed_delivery: Option<bool>,
+}
+
+impl PublicAggregate {
+    const fn for_phase(mode: Phase) -> Self {
+        let exercise = matches!(mode, Phase::ExerciseRestored);
+        let exercise_passed = if exercise { Some(true) } else { None };
+        Self {
+            schema_version: 1,
+            mode,
+            status: "passed",
+            tenants: 2,
+            service_accounts: 2,
+            webhook_destinations: 1,
+            pending_deliveries: if exercise { 2 } else { 1 },
+            security_events: if exercise { 4 } else { 2 },
+            retained_token_authenticated: !exercise,
+            revoked_token_rejected: true,
+            tenant_isolation_verified: true,
+            destination_active: !exercise,
+            model_requests_sent: 0,
+            webhook_requests_sent: 0,
+            restored_only_mutation: exercise_passed,
+            retained_token_revoked: exercise_passed,
+            new_delivery_enqueued: exercise_passed,
+            deactivated_destination_suppressed_delivery: exercise_passed,
+        }
+    }
+}
+
+fn refuse() -> ! {
+    // Do not print database errors or manifest values, even for direct invocation.
+    eprintln!("populated restore fixture refused; private artifacts are retained");
+    std::process::exit(1);
+}
+
+#[tokio::main]
+async fn main() {
     let arguments: Vec<_> = std::env::args().skip(1).collect();
     let [mode, directory] = arguments.as_slice() else {
-        bail!("expected seed|probe|exercise-restored and a private run directory");
+        refuse();
     };
-    ensure!(
-        matches!(mode.as_str(), "seed" | "probe" | "exercise-restored"),
-        "unsupported fixture mode"
-    );
-    let directory = private_run_directory(Path::new(directory))?;
+    let phase = Phase::from_str(mode).unwrap_or_else(|_| refuse());
+    if run(phase, Path::new(directory)).await.is_err() {
+        refuse();
+    }
+    // Only the phase enum crosses the output boundary after all private checks.
+    let aggregate =
+        serde_json::to_string(&PublicAggregate::for_phase(phase)).unwrap_or_else(|_| refuse());
+    println!("{aggregate}");
+}
+
+async fn run(phase: Phase, directory: &Path) -> Result<()> {
+    let directory = private_run_directory(directory)?;
     let url = std::env::var(DATABASE_ENV).context("explicit fixture database is absent")?;
     validate_local_url(&url)?;
     let fingerprint = database_fingerprint(&url).await?;
-    let store_url = if mode == "probe" {
+    let store_url = if phase == Phase::Probe {
         readonly_url(&url)?
     } else {
         url.clone()
@@ -103,7 +181,7 @@ async fn run() -> Result<Value> {
         false,
     )
     .await?;
-    if mode == "seed" {
+    if phase == Phase::Seed {
         ensure!(
             !directory.join("manifest.json").exists(),
             "manifest already exists"
@@ -123,9 +201,9 @@ async fn run() -> Result<Value> {
         let key = random_text(32);
         let store = store.with_webhook_signing_key_base64url(&key)?;
         let manifest = seed_fixture(&store, &run_id, &fingerprint, &key).await?;
-        let aggregate = probe_fixture(&store, &manifest, "seed").await?;
+        probe_fixture(&store, &manifest).await?;
         write_private_new(&directory.join("manifest.json"), &manifest)?;
-        return Ok(aggregate);
+        return Ok(());
     }
     let manifest: Manifest = read_private(&directory.join("manifest.json"))?;
     let marker: Marker = read_private(&directory.join("seed-start.json"))?;
@@ -140,13 +218,13 @@ async fn run() -> Result<Value> {
         manifest.limits == fixture_limits() && manifest.model_policy == fixture_model_policy(),
         "fixture policy differs"
     );
-    if mode == "probe" {
-        return probe_fixture(&store, &manifest, "probe").await;
+    if phase == Phase::Probe {
+        return probe_fixture(&store, &manifest).await;
     }
     let expected = std::env::var(RESTORED_ENV).context("restored target binding is absent")?;
     ensure_restored_target(&manifest.source_fingerprint, &fingerprint, &expected)?;
     // Validate the complete baseline before marking any behavioral mutation.
-    probe_fixture(&store, &manifest, "probe").await?;
+    probe_fixture(&store, &manifest).await?;
     write_private_new(
         &directory.join("exercise-start.json"),
         &Marker {
@@ -398,7 +476,7 @@ async fn seed_fixture(
     })
 }
 
-async fn probe_fixture(store: &TenantStore, m: &Manifest, mode: &str) -> Result<Value> {
+async fn probe_fixture(store: &TenantStore, m: &Manifest) -> Result<()> {
     let tenants = store.list_tenants_async().await?;
     ensure!(
         tenants.len() == 2
@@ -524,7 +602,7 @@ async fn probe_fixture(store: &TenantStore, m: &Manifest, mode: &str) -> Result<
         );
     }
     verify_control_isolation(store, m).await?;
-    Ok(aggregate(mode, 1, 2, true, true))
+    Ok(())
 }
 
 async fn verify_control_isolation(store: &TenantStore, m: &Manifest) -> Result<()> {
@@ -558,9 +636,9 @@ async fn exercise_fixture(
     m: &Manifest,
     actual: &str,
     expected: &str,
-) -> Result<Value> {
+) -> Result<()> {
     ensure_restored_target(&m.source_fingerprint, actual, expected)?;
-    probe_fixture(store, m, "probe").await?;
+    probe_fixture(store, m).await?;
     ensure!(
         store
             .revoke_workspace_service_account_async(
@@ -639,26 +717,7 @@ async fn exercise_fixture(
         "restored account revocation metadata differs"
     );
     verify_control_isolation(store, m).await?;
-    let mut result = aggregate("exercise-restored", 2, 4, false, false);
-    result["restored_only_mutation"] = json!(true);
-    result["retained_token_revoked"] = json!(true);
-    result["new_delivery_enqueued"] = json!(true);
-    result["deactivated_destination_suppressed_delivery"] = json!(true);
-    Ok(result)
-}
-
-fn aggregate(
-    mode: &str,
-    pending: usize,
-    events: usize,
-    authenticated: bool,
-    active: bool,
-) -> Value {
-    json!({"schema_version": 1, "mode": mode, "status": "passed", "tenants": 2,
-        "service_accounts": 2, "webhook_destinations": 1, "pending_deliveries": pending,
-        "security_events": events, "retained_token_authenticated": authenticated,
-        "revoked_token_rejected": true, "tenant_isolation_verified": true,
-        "destination_active": active, "model_requests_sent": 0, "webhook_requests_sent": 0})
+    Ok(())
 }
 
 fn now_unix() -> Result<i64> {
@@ -801,10 +860,7 @@ mod tests {
     async fn seed_uses_genuine_accounts_policies_events_and_pending_delivery_without_dispatch() {
         let store = keyed_store(":memory:");
         let m = seed(&store).await;
-        let result = probe_fixture(&store, &m, "seed").await.unwrap();
-        assert_eq!(result["service_accounts"], 2);
-        assert_eq!(result["pending_deliveries"], 1);
-        assert_eq!(result["security_events"], 2);
+        probe_fixture(&store, &m).await.unwrap();
         let audit = store
             .list_workspace_admin_audit_async(&m.workspace_id, 20)
             .await
@@ -822,7 +878,7 @@ mod tests {
         let m = seed(&store).await;
         let before = inventory(&store, &m).await;
         for _ in 0..2 {
-            probe_fixture(&store, &m, "probe").await.unwrap();
+            probe_fixture(&store, &m).await.unwrap();
         }
         assert_eq!(inventory(&store, &m).await, before);
     }
@@ -855,9 +911,9 @@ mod tests {
         fs::copy(&source, &restored).unwrap();
         let source_store = TenantStore::open(source.to_str().unwrap()).unwrap();
         let restored_store = TenantStore::open(restored.to_str().unwrap()).unwrap();
-        probe_fixture(&restored_store, &m, "probe").await.unwrap();
+        probe_fixture(&restored_store, &m).await.unwrap();
         assert_eq!(inventory(&restored_store, &m).await, before);
-        let result = exercise_fixture(
+        exercise_fixture(
             &restored_store,
             &m,
             "restored|127.0.0.1|5432",
@@ -865,12 +921,8 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(result["pending_deliveries"], 2);
-        assert_eq!(result["security_events"], 4);
-        assert_eq!(result["retained_token_revoked"], true);
-        assert_eq!(result["destination_active"], false);
         assert_eq!(inventory(&source_store, &m).await, before);
-        probe_fixture(&source_store, &m, "probe").await.unwrap();
+        probe_fixture(&source_store, &m).await.unwrap();
     }
 
     #[tokio::test]
@@ -894,21 +946,89 @@ mod tests {
     async fn public_aggregate_never_contains_credentials_or_fixture_identity() {
         let store = keyed_store(":memory:");
         let m = seed(&store).await;
-        let public = probe_fixture(&store, &m, "probe")
-            .await
-            .unwrap()
-            .to_string();
-        for private in [
-            &m.active_account_token,
-            &m.revoked_account_token,
-            &m.webhook_signing_key,
-            &m.tenant_id,
-            &m.workspace_id,
-            &m.destination_id,
-        ] {
-            assert!(!public.contains(private));
+        probe_fixture(&store, &m).await.unwrap();
+        for phase in [Phase::Seed, Phase::Probe, Phase::ExerciseRestored] {
+            let public = serde_json::to_string(&PublicAggregate::for_phase(phase)).unwrap();
+            for private in [
+                &m.run_id,
+                &m.source_fingerprint,
+                &m.active_account_token,
+                &m.revoked_account_token,
+                &m.webhook_signing_key,
+                &m.tenant_id,
+                &m.control_tenant_id,
+                &m.workspace_id,
+                &m.owner_principal_id,
+                &m.active_account_id,
+                &m.revoked_account_id,
+                &m.destination_id,
+                &m.policy_version_id,
+                &m.control_policy_version_id,
+                &m.event_id,
+                &m.control_event_id,
+                &m.delivery_id,
+            ] {
+                assert!(!public.contains(private));
+            }
+            assert!(!public.contains(DESTINATION));
         }
-        assert!(!public.contains(DESTINATION));
+    }
+
+    #[test]
+    fn public_output_contract_is_exact_for_each_validated_phase() {
+        for (mode, expected) in [
+            (
+                "seed",
+                json!({"schema_version": 1, "mode": "seed", "status": "passed",
+                "tenants": 2, "service_accounts": 2, "webhook_destinations": 1,
+                "pending_deliveries": 1, "security_events": 2,
+                "retained_token_authenticated": true, "revoked_token_rejected": true,
+                "tenant_isolation_verified": true, "destination_active": true,
+                "model_requests_sent": 0, "webhook_requests_sent": 0}),
+            ),
+            (
+                "probe",
+                json!({"schema_version": 1, "mode": "probe", "status": "passed",
+                "tenants": 2, "service_accounts": 2, "webhook_destinations": 1,
+                "pending_deliveries": 1, "security_events": 2,
+                "retained_token_authenticated": true, "revoked_token_rejected": true,
+                "tenant_isolation_verified": true, "destination_active": true,
+                "model_requests_sent": 0, "webhook_requests_sent": 0}),
+            ),
+            (
+                "exercise-restored",
+                json!({"schema_version": 1,
+                "mode": "exercise-restored", "status": "passed", "tenants": 2,
+                "service_accounts": 2, "webhook_destinations": 1,
+                "pending_deliveries": 2, "security_events": 4,
+                "retained_token_authenticated": false, "revoked_token_rejected": true,
+                "tenant_isolation_verified": true, "destination_active": false,
+                "model_requests_sent": 0, "webhook_requests_sent": 0,
+                "restored_only_mutation": true, "retained_token_revoked": true,
+                "new_delivery_enqueued": true,
+                "deactivated_destination_suppressed_delivery": true}),
+            ),
+        ] {
+            let phase = Phase::from_str(mode).unwrap();
+            let public = serde_json::to_value(PublicAggregate::for_phase(phase)).unwrap();
+            assert_eq!(public, expected);
+        }
+    }
+
+    #[test]
+    fn invalid_phase_is_refused_without_echoing_input() {
+        for invalid in [
+            "",
+            "unsupported-private-value",
+            "probe\nprivate-value",
+            "SEED",
+        ] {
+            let error = Phase::from_str(invalid).unwrap_err();
+            assert_eq!(error.to_string(), "unsupported fixture mode");
+            if !invalid.is_empty() {
+                assert!(!error.to_string().contains(invalid));
+            }
+        }
     }
 
     #[test]

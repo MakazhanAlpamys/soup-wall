@@ -44,6 +44,35 @@ fix; all 22 local Python checks pass. Private-artifact symlink and permission
 checks remain unchanged. This follow-up does not alter the frozen local evidence
 above; the corrected CI acceptance run must independently pass.
 
+At `bbfc906`, the psql alias reached the server successfully, but CI rejected the database
+fingerprint before migration or seeding. The guard equated the loopback client
+route with the server-side address/port behind Docker's published port.
+[PostgreSQL documents these functions as the server's accepted endpoint](https://www.postgresql.org/docs/16/functions-info.html#FUNCTIONS-INFO-SESSION-TABLE).
+The driver now pins the numeric server address/port through the explicitly
+selected admin connection before database mutations. Both reserved database
+names must match that frozen server identity on every check; different servers,
+identity drift and malformed identities remain failures. Input URLs still require
+numeric loopback routing. The original PowerShell drill and Rust target binding
+are unchanged. This compatibility repair also requires a new passing CI run.
+
+Observed numeric addresses are normalized for comparison rather than requiring
+Python's formatting to equal PostgreSQL's formatting; IPv4-mapped IPv6 spelling
+differs across Python versions. Raw database fingerprints remain bound to the
+original restored-target checks. Child temporary-directory settings now point
+to an owner-only directory inside the fresh private run, instead of inheriting
+ambient redirection. The original drill still removes its temporary plaintext.
+
+CodeQL at `bbfc906` also flagged the helper's unrestricted `Result<Value>` output
+boundary as potentially carrying service-account/signing-key data to stdout
+([alert #41](https://github.com/MakazhanAlpamys/soup-wall/security/code-scanning/41)).
+The existing aggregate contained fixed counts/flags, so this is not evidence of
+an observed credential disclosure. Verification now returns `Result<()>`; the
+public report is separately constructed from a validated phase with explicitly
+typed counts/flags and fixed labels. No database metadata, arbitrary JSON or
+verification error enters the stdout report. The exact phase-specific output
+contract remains checked. The alert is not dismissed or suppressed; corrected
+CodeQL analysis must pass independently.
+
 Actual execution found a production issuance defect: an INSERT CTE returned only
 the ID, then its outer SELECT scanned the base table using the statement's earlier
 snapshot. The account and audit persisted while the API returned an error and
