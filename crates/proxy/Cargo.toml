@@ -66,3 +66,7 @@ tempfile = "3"
 [[example]]
 name = "keycloak-saml-bootstrap"
 test = true
+
+[[example]]
+name = "postgres-restore-fixture"
+test = true

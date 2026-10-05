@@ -246,3 +246,22 @@ provider credentials, identity assertions, prompts, or customer data.
   fixture nonce findings are corrected in source without suppressing queries.
   Full-project preview is selection evidence, not a completed autonomous scan.
   [Provenance, finding and boundaries](evidence/OPEN_CODE_REVIEW_2026-10-05.md).
+- Native source integration: [PR #28](https://github.com/MakazhanAlpamys/soup-wall/pull/28)
+  passed all 19 hosted checks on `99c234b`, including actual Rust/Python/actions
+  CodeQL and both storage integrations. It merged as
+  `6c6d3c8365b8f686d12b18d36b2ca9a03c981cc6`. Native semantic coverage and live
+  effectiveness remain explicitly separate from the passing contract fixtures.
+- Populated restore checkpoint: clean `75a0e76` passed the actual encrypted
+  PostgreSQL 18.6 restore with two service accounts, one webhook destination and
+  a pending delivery. Complete private rows/sequences matched; retained/revoked
+  authentication, restored-only revocation/deployment/deactivation and unchanged
+  source state passed. All 21 Linux Python tests, nine Rust helper tests and the
+  expanded actual PostgreSQL integration passed. Execution uncovered and fixed
+  a production service-account INSERT-return bug without changing RBAC/audit
+  atomicity. Own cluster stopped; zero model/provider or webhook requests ran.
+  [Bounded evidence and retained incomplete attempts](evidence/POPULATED_RESTORE_2026-10-05.md).
+  Managed/customer recovery and actual webhook delivery remain open.
+- Future scope record: [FUTURE_ROADMAP](../FUTURE_ROADMAP.md) records the requested
+  six priorities, acceptance gates and first Claude Code/MCP sham-secret proof.
+  It is planning only. The current execution stops after integrating the current
+  native, restore and review corrections; no future implementation is started.

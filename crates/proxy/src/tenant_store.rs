@@ -13354,6 +13354,159 @@ mod tests {
         assert_eq!(workspace_audit.len(), 1);
         assert_eq!(workspace_audit[0].action, "membership.upsert");
 
+        let outsider = store
+            .create_workspace_principal_async("PostgreSQL service-account outsider")
+            .await
+            .unwrap();
+        let expires_at_unix = super::now_unix() + 3_600;
+        assert!(store
+            .create_workspace_service_account_async(
+                &workspace.id,
+                &outsider.id,
+                "denied-machine",
+                expires_at_unix,
+            )
+            .await
+            .is_err());
+        assert!(store
+            .list_workspace_service_accounts_async(&workspace.id, &principal.id)
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            store
+                .list_workspace_admin_audit_async(&workspace.id, 10)
+                .await
+                .unwrap(),
+            workspace_audit,
+            "denied service-account issuance must not append an audit event"
+        );
+        let service_account = store
+            .create_workspace_service_account_async(
+                &workspace.id,
+                &principal.id,
+                "retained-machine",
+                expires_at_unix,
+            )
+            .await
+            .unwrap();
+        assert_eq!(service_account.account.workspace_id, workspace.id);
+        assert_eq!(service_account.account.name, "retained-machine");
+        assert_eq!(
+            service_account.account.created_by_principal_id,
+            principal.id
+        );
+        assert!(service_account.account.active);
+        assert_eq!(service_account.account.expires_at_unix, expires_at_unix);
+        assert!(service_account.account.revoked_at_unix.is_none());
+        assert_eq!(
+            store
+                .list_workspace_service_accounts_async(&workspace.id, &principal.id)
+                .await
+                .unwrap(),
+            vec![service_account.account.clone()],
+            "issuance must return the metadata actually inserted in PostgreSQL"
+        );
+        let service_header = format!("Bearer {}", service_account.token);
+        let service_access = store
+            .authenticate_access_async(Some(&service_header))
+            .await
+            .unwrap()
+            .expect("issued PostgreSQL service-account token authenticates");
+        assert_eq!(service_access.identity.tenant_id, tenant.id);
+        assert_eq!(service_access.limits, limits);
+        assert!(service_access
+            .model_policy
+            .as_ref()
+            .is_some_and(|policy| policy.permits("gpt-test")));
+        let issued_audit = store
+            .list_workspace_admin_audit_async(&workspace.id, 10)
+            .await
+            .unwrap();
+        assert_eq!(issued_audit.len(), 2);
+        let create_event = issued_audit
+            .iter()
+            .find(|event| event.action == "service_account.create")
+            .expect("issuance is audited once");
+        assert_eq!(
+            create_event.actor_principal_id.as_deref(),
+            Some(principal.id.as_str())
+        );
+        assert_eq!(
+            create_event.target_principal_id.as_deref(),
+            Some(principal.id.as_str())
+        );
+        assert!(!store
+            .revoke_workspace_service_account_async(
+                &workspace.id,
+                &service_account.account.id,
+                &outsider.id,
+            )
+            .await
+            .unwrap());
+        assert_eq!(
+            store
+                .list_workspace_admin_audit_async(&workspace.id, 10)
+                .await
+                .unwrap(),
+            issued_audit,
+            "denied revocation must not append an audit event"
+        );
+        assert!(store
+            .authenticate_access_async(Some(&service_header))
+            .await
+            .unwrap()
+            .is_some());
+        assert!(store
+            .revoke_workspace_service_account_async(
+                &workspace.id,
+                &service_account.account.id,
+                &principal.id,
+            )
+            .await
+            .unwrap());
+        assert!(store
+            .authenticate_access_async(Some(&service_header))
+            .await
+            .unwrap()
+            .is_none());
+        let revoked_accounts = store
+            .list_workspace_service_accounts_async(&workspace.id, &principal.id)
+            .await
+            .unwrap();
+        assert_eq!(revoked_accounts.len(), 1);
+        assert_eq!(revoked_accounts[0].id, service_account.account.id);
+        assert!(!revoked_accounts[0].active);
+        assert!(revoked_accounts[0].revoked_at_unix.is_some());
+        let revoked_audit = store
+            .list_workspace_admin_audit_async(&workspace.id, 10)
+            .await
+            .unwrap();
+        assert_eq!(revoked_audit.len(), 3);
+        assert_eq!(
+            revoked_audit
+                .iter()
+                .filter(|event| event.action == "service_account.revoke")
+                .count(),
+            1
+        );
+        assert!(!store
+            .revoke_workspace_service_account_async(
+                &workspace.id,
+                &service_account.account.id,
+                &principal.id,
+            )
+            .await
+            .unwrap());
+        assert_eq!(
+            store
+                .list_workspace_admin_audit_async(&workspace.id, 10)
+                .await
+                .unwrap(),
+            revoked_audit,
+            "repeated revocation must not append another audit event"
+        );
+
         let managed_member = store
             .create_workspace_principal_async("PostgreSQL managed member")
             .await
