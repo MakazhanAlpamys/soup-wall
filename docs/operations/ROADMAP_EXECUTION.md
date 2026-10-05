@@ -285,8 +285,10 @@ provider credentials, identity assertions, prompts, or customer data.
   MCP host. Actual Claude Code 2.1.289 completes the matched scripted pair: the
   control sends the synthetic secret; protected send execution and receiver
   counts are zero; the native audit records one secret-egress Deny; both
-  independent utility checks pass. All 791 default Rust tests, required Clippy/
-  formatting, 76 script tests and the unchanged 19-attack/21-benign corpus pass.
+  independent utility checks pass. The final measured source is `9530017`, after
+  CI follow-up corrections for protected Windows fixture bootstrap and encrypted
+  private artifact storage. All 792 default Rust tests, required Clippy/
+  formatting, 79 script tests and the unchanged 19-attack/21-benign corpus pass.
   The six loopback Messages requests are scripted, with no real model/provider
   traffic. Broad MCP authority, model-context attestation and live effectiveness
   remain open. [Exact source, retained failures and cleanup limits](../benchmarks/evidence/CLAUDE_MCP_STDIO_2026-10-05.md).

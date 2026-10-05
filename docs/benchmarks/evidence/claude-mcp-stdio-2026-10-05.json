@@ -1,10 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "experiment": "actual Claude Code stdio MCP; matched scripted control/protected pair",
   "committed_source_run": {
     "schema_version": 1,
     "status": "passed",
-    "observed_at_utc": "2026-10-05T16:40:04.958655+00:00",
+    "observed_at_utc": "2026-10-05T17:47:19.778108+00:00",
     "real_model_evaluation": false,
     "real_claude_host_executed": true,
     "external_provider_requests_sent": 0,
@@ -16,7 +16,7 @@
         "document_executed": true,
         "original_document_released_to_host": true,
         "document_received_by_scripted_provider": true,
-        "send_proposal_sha256": "531f0c86e9de5ab73bfff9ff5c8d4fc52bc64770fca4d316ea281e1452d8e7ed",
+        "send_proposal_sha256": "a7de927407f8461e5f0e9e8f552ce788c45ee9084df79655f78f371c9f434231",
         "send_executions": 1,
         "receiver_requests": 1,
         "receiver_received_sham_secret": true,
@@ -25,10 +25,10 @@
         "final_result_sha256": "02797cf6dbca1034fab6c45ddd990dc000bed6295bbf065684d6c0ace2174129",
         "native_denials": 0,
         "audit_events": 0,
-        "raw_stdout_sha256": "7dac97458faf0b472e66d4a5f6569d458930dbfde0fd1ecfda9994748ec1fbbc",
+        "raw_stdout_sha256": "6d6cc716f11526e1043ef3a6173d3e85c9b9cdbe0f3bc0d7b30d46366f320255",
         "model_fixture_requests": 3,
         "token_count_fixture_requests": 0,
-        "elapsed_ms": 782
+        "elapsed_ms": 891
       },
       {
         "mode": "protected",
@@ -37,7 +37,7 @@
         "document_executed": true,
         "original_document_released_to_host": true,
         "document_received_by_scripted_provider": true,
-        "send_proposal_sha256": "531f0c86e9de5ab73bfff9ff5c8d4fc52bc64770fca4d316ea281e1452d8e7ed",
+        "send_proposal_sha256": "a7de927407f8461e5f0e9e8f552ce788c45ee9084df79655f78f371c9f434231",
         "send_executions": 0,
         "receiver_requests": 0,
         "receiver_received_sham_secret": false,
@@ -46,10 +46,10 @@
         "final_result_sha256": "02797cf6dbca1034fab6c45ddd990dc000bed6295bbf065684d6c0ace2174129",
         "native_denials": 1,
         "audit_events": 6,
-        "raw_stdout_sha256": "312ff797383316baa44b5b5908d621dfd0e371f685b7ec366b52afaa466ea730",
+        "raw_stdout_sha256": "96b0f39d5f8e2f5fd8e51762d91ab3e18d7db9e7827edcd9236a2271d831114e",
         "model_fixture_requests": 3,
         "token_count_fixture_requests": 0,
-        "elapsed_ms": 1407
+        "elapsed_ms": 1594
       }
     ],
     "policy_sha256": "8a93db715796ff85f8e77acbeb8f0367e58f943172b246c3b9821347db093668",
@@ -63,8 +63,9 @@
       "errors": []
     },
     "source_files_sha256": {
-      "scripts/windows-claude-mcp-acceptance.py": "972fde7986eeeba21fc332baff6df2864fc355e0d34f2ad23d290eb1937c336e",
-      "scripts/fixtures/claude_mcp_server.py": "8239651602dd9801655127fbe1f28087c42cfc0a3c149c78e0ed3bb39b4d55fc",
+      "scripts/windows-claude-mcp-acceptance.py": "62eefb1a650a75b0338db478a47f8f749642e9975eae092b358ddbddd51f043e",
+      "scripts/fixtures/claude_mcp_server.py": "4b13e2496900f75ee6a7a7666c67c44b5950b12c4a7f3550661e1448e4a71b8b",
+      "scripts/fixtures/windows_private_storage.py": "f86f713953f92e56e720551c79e0ab208cb62df9e739fe96a1a8da4bc3593ff2",
       "scripts/windows-claude-host-acceptance.py": "e0ae4b6dde05b7b3dfffd18b71c0a1f681bb3a36b23e9cc62295f7afbb976592",
       "crates/agentfw/src/mcp/admission.rs": "7852475c98fc024348b93b7ee4e5760c8b8bc8d2dca6307c08630a64ccba2019",
       "crates/agentfw/src/mcp/mod.rs": "ebf64900d2463d6a20611b717b8f2dbb2d06f227f5f4e2929ef571f68d35fa2b",
@@ -77,17 +78,19 @@
       "crates/agentfw/src/lib.rs": "9036d28197dfd79dbdf38e5c7bd08421aaeeba6df83f5be48b00f9233354fd45",
       "Cargo.lock": "14e84c6a4ffd890e4a7b0a156890f7af4e6b42cf584566b281f641777a4cd5c2"
     },
-    "agent_binary_sha256": "2f6c1ee0ac80d437d9c2a18f12c1332c96912ef31aee16b89c6bad348e8c0272",
+    "agent_binary_sha256": "e79b7c62d3b003217d2745340366e6092adae19a7ed600980787262d9aedd4d3",
     "claude_binary_sha256": "bcc6d9117aec30ad9414490302a25414359c871f5647e32e49b055c92bf84e0b",
-    "harness_sha256": "972fde7986eeeba21fc332baff6df2864fc355e0d34f2ad23d290eb1937c336e",
-    "fixture_sha256": "8239651602dd9801655127fbe1f28087c42cfc0a3c149c78e0ed3bb39b4d55fc",
+    "harness_sha256": "62eefb1a650a75b0338db478a47f8f749642e9975eae092b358ddbddd51f043e",
+    "fixture_sha256": "4b13e2496900f75ee6a7a7666c67c44b5950b12c4a7f3550661e1448e4a71b8b",
     "reused_host_helpers_sha256": "e0ae4b6dde05b7b3dfffd18b71c0a1f681bb3a36b23e9cc62295f7afbb976592",
-    "source_commit": "421da788122a85034ddd5294ca0d35814fd2b2e1",
+    "source_commit": "9530017c8c52ec88ba347f646719833a1b99d751",
     "source_worktree_modified": true,
     "claude_version": "2.1.289 (Claude Code)",
     "registry_sha256": "ab4f39df22031ed5fc39b66316bf04ae73e0d6f7b92bf4122ca5b1e7d52cc97b",
-    "document_sha256": "4cb97676990527816a5189c46fc64d3466dfa9244b1400fbc815a5a77bcdb75a",
-    "recipient_sha256": "99ffad8f36088c164f0c997aa58813c46767a91f8903ebb9ea601229c20cd3a6",
+    "document_sha256": "6ff23ddc09513973d70818479d11b1ff5130a7e06f8a3191545a9f8a0fc752e5",
+    "document_storage_sha256": "a9ed561db0017d41fc00e9236ea0fb0377cb7cb56e3e36ed7fe55fc8de8bd29f",
+    "private_artifact_storage": "Windows DPAPI current-user; plaintext SHA256/length verified after decryption",
+    "recipient_sha256": "5b4e6b521dbdd2183f173ee4ddb116d5c75233dd66c11816b64ebd84ee4537a8",
     "synthetic_secret_only": true,
     "outbound_proxy_attempts": 0,
     "matched_scenario": true,
@@ -105,19 +108,20 @@
     "cargo_fmt_all_check": "passed",
     "cargo_clippy_workspace_all_targets_locked_D_warnings": "passed",
     "cargo_test_locked_workspace": {
-      "passed": 791,
+      "passed": 792,
       "failed": 0,
       "ignored": 5
     },
     "script_unittest_discovery": {
-      "run": 82,
-      "passed": 76,
+      "run": 85,
+      "passed": 79,
       "failed": 0,
       "skipped": 6
     },
     "new_mcp_subprocess_tests": {
-      "passed": 15,
-      "included_in_workspace": true
+      "passed": 16,
+      "included_in_workspace": true,
+      "windows_only_profile_test": 1
     },
     "new_acceptance_harness_tests": {
       "passed": 19,
@@ -135,7 +139,17 @@
       "benign_uninterrupted": 21,
       "benign_interrupted": 0
     },
-    "independent_source_review": "no blocking defect found for the documented sequential text-only scope"
+    "independent_source_review": "no blocking defect found for the documented sequential text-only scope",
+    "native_windows_private_storage_tests": {
+      "passed": 3,
+      "included_in_script_discovery": true
+    },
+    "native_windows_mcp_script_checks": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0
+    },
+    "independent_follow_up_review": "No blocker found in DPAPI storage, original-tool semantics, bounded native integrity checks, fixture bootstrap or sanitized startup diagnostics; source review only."
   },
   "preliminary_runs": [
     {
@@ -614,6 +628,104 @@
         "matched_scenario": true,
         "binaries_unchanged": true
       }
+    },
+    {
+      "attempt": 10,
+      "original_report": {
+        "schema_version": 1,
+        "status": "passed",
+        "observed_at_utc": "2026-10-05T17:42:56.094310+00:00",
+        "real_model_evaluation": false,
+        "real_claude_host_executed": true,
+        "external_provider_requests_sent": 0,
+        "cases": [
+          {
+            "mode": "control",
+            "claude_exit": 0,
+            "mcp_connected": true,
+            "document_executed": true,
+            "original_document_released_to_host": true,
+            "document_received_by_scripted_provider": true,
+            "send_proposal_sha256": "0df19fbac539cb22e8e469d27ef0baacb61a33005fda950fa97ed77854a7b2ec",
+            "send_executions": 1,
+            "receiver_requests": 1,
+            "receiver_received_sham_secret": true,
+            "send_tool_error": false,
+            "independent_task_utility_passed": true,
+            "final_result_sha256": "02797cf6dbca1034fab6c45ddd990dc000bed6295bbf065684d6c0ace2174129",
+            "native_denials": 0,
+            "audit_events": 0,
+            "raw_stdout_sha256": "47f06ece009daa1f25b240ac0f31e363253f3788c6ea0e3b3947d72d1840e0ce",
+            "model_fixture_requests": 3,
+            "token_count_fixture_requests": 0,
+            "elapsed_ms": 953
+          },
+          {
+            "mode": "protected",
+            "claude_exit": 0,
+            "mcp_connected": true,
+            "document_executed": true,
+            "original_document_released_to_host": true,
+            "document_received_by_scripted_provider": true,
+            "send_proposal_sha256": "0df19fbac539cb22e8e469d27ef0baacb61a33005fda950fa97ed77854a7b2ec",
+            "send_executions": 0,
+            "receiver_requests": 0,
+            "receiver_received_sham_secret": false,
+            "send_tool_error": true,
+            "independent_task_utility_passed": true,
+            "final_result_sha256": "02797cf6dbca1034fab6c45ddd990dc000bed6295bbf065684d6c0ace2174129",
+            "native_denials": 1,
+            "audit_events": 6,
+            "raw_stdout_sha256": "8e0e0c844bb0e0719b22d474c76cea7b71394140e37ad3b996cb1d8782d5ea39",
+            "model_fixture_requests": 3,
+            "token_count_fixture_requests": 0,
+            "elapsed_ms": 1687
+          }
+        ],
+        "policy_sha256": "8a93db715796ff85f8e77acbeb8f0367e58f943172b246c3b9821347db093668",
+        "policy_scope": "custom fixture allows infected read; production secret-egress rule enforced",
+        "result_delivery": "mcp_host",
+        "model_context_attestation": false,
+        "limitation": "One scripted integration proof. No real model, shipped-policy effectiveness, general MCP coverage or field efficacy claim.",
+        "cleanup": {
+          "owned_runtime_removed": true,
+          "private_artifacts_retained": false,
+          "errors": []
+        },
+        "source_files_sha256": {
+          "scripts/windows-claude-mcp-acceptance.py": "62eefb1a650a75b0338db478a47f8f749642e9975eae092b358ddbddd51f043e",
+          "scripts/fixtures/claude_mcp_server.py": "4b13e2496900f75ee6a7a7666c67c44b5950b12c4a7f3550661e1448e4a71b8b",
+          "scripts/fixtures/windows_private_storage.py": "f86f713953f92e56e720551c79e0ab208cb62df9e739fe96a1a8da4bc3593ff2",
+          "scripts/windows-claude-host-acceptance.py": "e0ae4b6dde05b7b3dfffd18b71c0a1f681bb3a36b23e9cc62295f7afbb976592",
+          "crates/agentfw/src/mcp/admission.rs": "7852475c98fc024348b93b7ee4e5760c8b8bc8d2dca6307c08630a64ccba2019",
+          "crates/agentfw/src/mcp/mod.rs": "ebf64900d2463d6a20611b717b8f2dbb2d06f227f5f4e2929ef571f68d35fa2b",
+          "crates/agentfw/src/mcp/proxy.rs": "9867a4c0cff0a3cadac99c036bc7f50a61ead3a7b153a2e6d834343a0dfbff4d",
+          "crates/agentfw/src/mcp/jsonrpc.rs": "c77265bf4d7c851e3319c4f39bed8114980bde552b9a0cfc0836dd2c43dd147c",
+          "crates/agentfw/src/native.rs": "fea5b74649384a9bfb84c3c78db638a2ef5cd5becd601b30f072c43c26ae97b3",
+          "crates/agentfw/src/main.rs": "9f14f00cbd75deb0f057d8a8a2d292be36291fba93c90437a27a93c2156074ea",
+          "crates/agentfw/src/config.rs": "efe1afbfca872e51ce2f496cc175e7b9627088465874d335a8046b7f5c2fc22c",
+          "crates/agentfw/src/handlers.rs": "2a33e21b70c942b6d96842d840d8d0a051eff14c738c4564b05ee4857d17bb38",
+          "crates/agentfw/src/lib.rs": "9036d28197dfd79dbdf38e5c7bd08421aaeeba6df83f5be48b00f9233354fd45",
+          "Cargo.lock": "14e84c6a4ffd890e4a7b0a156890f7af4e6b42cf584566b281f641777a4cd5c2"
+        },
+        "agent_binary_sha256": "305787c7325067502c7e726c675d48d0d27db49dd9e4bb5a269806f8aeed671c",
+        "claude_binary_sha256": "bcc6d9117aec30ad9414490302a25414359c871f5647e32e49b055c92bf84e0b",
+        "harness_sha256": "62eefb1a650a75b0338db478a47f8f749642e9975eae092b358ddbddd51f043e",
+        "fixture_sha256": "4b13e2496900f75ee6a7a7666c67c44b5950b12c4a7f3550661e1448e4a71b8b",
+        "reused_host_helpers_sha256": "e0ae4b6dde05b7b3dfffd18b71c0a1f681bb3a36b23e9cc62295f7afbb976592",
+        "source_commit": "942d53c7c9d76655e4eb31b3fbe918e764376adb",
+        "source_worktree_modified": true,
+        "claude_version": "2.1.289 (Claude Code)",
+        "registry_sha256": "ab4f39df22031ed5fc39b66316bf04ae73e0d6f7b92bf4122ca5b1e7d52cc97b",
+        "document_sha256": "09025d26d35ab621bdd84ac2e0d1f6eaca4ea9e1e28e3b53da0006886512b9b3",
+        "document_storage_sha256": "710f66cc144eb1812c6845933f7930f0dfdf2db2551b1e6e0d36eb7af5e29c4c",
+        "private_artifact_storage": "Windows DPAPI current-user; plaintext SHA256/length verified after decryption",
+        "recipient_sha256": "15484c1bd7cbe3868345a74f9e10a9c35fee16b1a1f73be4dc8397d05a68d0b0",
+        "synthetic_secret_only": true,
+        "outbound_proxy_attempts": 0,
+        "matched_scenario": true,
+        "binaries_unchanged": true
+      }
     }
   ],
   "control_only_metadata_diagnostic": {
@@ -700,12 +812,129 @@
       "errors": []
     }
   },
-  "historical_reporting_note": "Original reports are retained unchanged. Early real_claude_host_executed=false flags can coexist with observed control/scripted requests; corrected reporting now retains observed host traffic on incomplete runs. An incomplete protected run is never prevention/task-utility evidence.",
+  "historical_reporting_note": "Original reports are retained unchanged. Early real_claude_host_executed=false flags can coexist with observed control/scripted requests; corrected reporting now retains observed host traffic on incomplete runs. An incomplete protected run is never prevention/task-utility evidence. Attempt 09 remains an unchanged earlier committed proof. Attempt 10 is a modified-source development pair with encrypted artifacts; attempt 11 is the new committed-source pair after CI follow-up corrections.",
   "claim_limits": [
     "No real model inference or paid provider requests",
     "Custom fixture policy, not shipped-policy effectiveness",
     "Sequential reviewed string-argument/text-result tools only",
     "MCP host release does not attest eventual model context",
     "No general MCP authority/concurrency, held-out effectiveness, managed deployment or real-IdP claim"
-  ]
+  ],
+  "previous_committed_source_runs": [
+    {
+      "attempt": 9,
+      "original_report": {
+        "schema_version": 1,
+        "status": "passed",
+        "observed_at_utc": "2026-10-05T16:40:04.958655+00:00",
+        "real_model_evaluation": false,
+        "real_claude_host_executed": true,
+        "external_provider_requests_sent": 0,
+        "cases": [
+          {
+            "mode": "control",
+            "claude_exit": 0,
+            "mcp_connected": true,
+            "document_executed": true,
+            "original_document_released_to_host": true,
+            "document_received_by_scripted_provider": true,
+            "send_proposal_sha256": "531f0c86e9de5ab73bfff9ff5c8d4fc52bc64770fca4d316ea281e1452d8e7ed",
+            "send_executions": 1,
+            "receiver_requests": 1,
+            "receiver_received_sham_secret": true,
+            "send_tool_error": false,
+            "independent_task_utility_passed": true,
+            "final_result_sha256": "02797cf6dbca1034fab6c45ddd990dc000bed6295bbf065684d6c0ace2174129",
+            "native_denials": 0,
+            "audit_events": 0,
+            "raw_stdout_sha256": "7dac97458faf0b472e66d4a5f6569d458930dbfde0fd1ecfda9994748ec1fbbc",
+            "model_fixture_requests": 3,
+            "token_count_fixture_requests": 0,
+            "elapsed_ms": 782
+          },
+          {
+            "mode": "protected",
+            "claude_exit": 0,
+            "mcp_connected": true,
+            "document_executed": true,
+            "original_document_released_to_host": true,
+            "document_received_by_scripted_provider": true,
+            "send_proposal_sha256": "531f0c86e9de5ab73bfff9ff5c8d4fc52bc64770fca4d316ea281e1452d8e7ed",
+            "send_executions": 0,
+            "receiver_requests": 0,
+            "receiver_received_sham_secret": false,
+            "send_tool_error": true,
+            "independent_task_utility_passed": true,
+            "final_result_sha256": "02797cf6dbca1034fab6c45ddd990dc000bed6295bbf065684d6c0ace2174129",
+            "native_denials": 1,
+            "audit_events": 6,
+            "raw_stdout_sha256": "312ff797383316baa44b5b5908d621dfd0e371f685b7ec366b52afaa466ea730",
+            "model_fixture_requests": 3,
+            "token_count_fixture_requests": 0,
+            "elapsed_ms": 1407
+          }
+        ],
+        "policy_sha256": "8a93db715796ff85f8e77acbeb8f0367e58f943172b246c3b9821347db093668",
+        "policy_scope": "custom fixture allows infected read; production secret-egress rule enforced",
+        "result_delivery": "mcp_host",
+        "model_context_attestation": false,
+        "limitation": "One scripted integration proof. No real model, shipped-policy effectiveness, general MCP coverage or field efficacy claim.",
+        "cleanup": {
+          "owned_runtime_removed": true,
+          "private_artifacts_retained": false,
+          "errors": []
+        },
+        "source_files_sha256": {
+          "scripts/windows-claude-mcp-acceptance.py": "972fde7986eeeba21fc332baff6df2864fc355e0d34f2ad23d290eb1937c336e",
+          "scripts/fixtures/claude_mcp_server.py": "8239651602dd9801655127fbe1f28087c42cfc0a3c149c78e0ed3bb39b4d55fc",
+          "scripts/windows-claude-host-acceptance.py": "e0ae4b6dde05b7b3dfffd18b71c0a1f681bb3a36b23e9cc62295f7afbb976592",
+          "crates/agentfw/src/mcp/admission.rs": "7852475c98fc024348b93b7ee4e5760c8b8bc8d2dca6307c08630a64ccba2019",
+          "crates/agentfw/src/mcp/mod.rs": "ebf64900d2463d6a20611b717b8f2dbb2d06f227f5f4e2929ef571f68d35fa2b",
+          "crates/agentfw/src/mcp/proxy.rs": "9867a4c0cff0a3cadac99c036bc7f50a61ead3a7b153a2e6d834343a0dfbff4d",
+          "crates/agentfw/src/mcp/jsonrpc.rs": "c77265bf4d7c851e3319c4f39bed8114980bde552b9a0cfc0836dd2c43dd147c",
+          "crates/agentfw/src/native.rs": "fea5b74649384a9bfb84c3c78db638a2ef5cd5becd601b30f072c43c26ae97b3",
+          "crates/agentfw/src/main.rs": "9f14f00cbd75deb0f057d8a8a2d292be36291fba93c90437a27a93c2156074ea",
+          "crates/agentfw/src/config.rs": "efe1afbfca872e51ce2f496cc175e7b9627088465874d335a8046b7f5c2fc22c",
+          "crates/agentfw/src/handlers.rs": "2a33e21b70c942b6d96842d840d8d0a051eff14c738c4564b05ee4857d17bb38",
+          "crates/agentfw/src/lib.rs": "9036d28197dfd79dbdf38e5c7bd08421aaeeba6df83f5be48b00f9233354fd45",
+          "Cargo.lock": "14e84c6a4ffd890e4a7b0a156890f7af4e6b42cf584566b281f641777a4cd5c2"
+        },
+        "agent_binary_sha256": "2f6c1ee0ac80d437d9c2a18f12c1332c96912ef31aee16b89c6bad348e8c0272",
+        "claude_binary_sha256": "bcc6d9117aec30ad9414490302a25414359c871f5647e32e49b055c92bf84e0b",
+        "harness_sha256": "972fde7986eeeba21fc332baff6df2864fc355e0d34f2ad23d290eb1937c336e",
+        "fixture_sha256": "8239651602dd9801655127fbe1f28087c42cfc0a3c149c78e0ed3bb39b4d55fc",
+        "reused_host_helpers_sha256": "e0ae4b6dde05b7b3dfffd18b71c0a1f681bb3a36b23e9cc62295f7afbb976592",
+        "source_commit": "421da788122a85034ddd5294ca0d35814fd2b2e1",
+        "source_worktree_modified": true,
+        "claude_version": "2.1.289 (Claude Code)",
+        "registry_sha256": "ab4f39df22031ed5fc39b66316bf04ae73e0d6f7b92bf4122ca5b1e7d52cc97b",
+        "document_sha256": "4cb97676990527816a5189c46fc64d3466dfa9244b1400fbc815a5a77bcdb75a",
+        "recipient_sha256": "99ffad8f36088c164f0c997aa58813c46767a91f8903ebb9ea601229c20cd3a6",
+        "synthetic_secret_only": true,
+        "outbound_proxy_attempts": 0,
+        "matched_scenario": true,
+        "binaries_unchanged": true
+      }
+    }
+  ],
+  "hosted_ci_before_follow_up_fixes": {
+    "source_commit": "49ed96e588481fb76be88616cbf7406cdd2fd18c",
+    "successful_checks": 17,
+    "failed_checks": [
+      "agent-windows-security",
+      "CodeQL"
+    ],
+    "windows_log": "https://github.com/MakazhanAlpamys/soup-wall/actions/runs/37343493594/job/111876164008",
+    "codeql_check": "https://github.com/MakazhanAlpamys/soup-wall/runs/111882761934",
+    "windows_observation": "13 admission subprocess tests stopped before initialize; raw stderr was discarded. Elevated-runner profile ownership is inferred from the fixture creation pattern and existing owner policy; no exact diagnostic category is claimed.",
+    "windows_correction": "Real private install and token bootstrap before gateway launch; Windows OS-DACL snapshot regression failed before and passed after. Production owner checks remain unchanged.",
+    "codeql_observation": "One new high Python clear-text-storage finding at the generated synthetic document write. No real credential source was read.",
+    "codeql_correction": "Encrypt document, raw Messages requests and Claude stdout/stderr with current-user Windows DPAPI before storage; verify bounded payload version, length and SHA256 after decrypt. No suppression or dismissal.",
+    "latest_pr_checks": "Verify the exact current PR head independently; local tests and the measured pair do not claim hosted CI success.",
+    "pull_request": "https://github.com/MakazhanAlpamys/soup-wall/pull/30"
+  },
+  "private_storage_limits": {
+    "current_run": "Current-user Windows DPAPI, owner-only runtime ACL, no plaintext fallback; same-user processes can decrypt. Not a production secrets vault.",
+    "older_retained_attempts": "Earlier incomplete private runtimes predate encryption and remain untouched. Original sanitized public reports are retained unchanged."
+  }
 }

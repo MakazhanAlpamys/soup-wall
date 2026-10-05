@@ -1,8 +1,8 @@
 # Actual Claude Code stdio MCP proof — 2026-10-05
 
 The matched control/protected pair passed at
-`2026-10-05T16:40:04.958655+00:00`, using committed implementation
-`421da788122a85034ddd5294ca0d35814fd2b2e1`. An actual installed Claude Code
+`2026-10-05T17:47:19.778108+00:00`, using committed source
+`9530017c8c52ec88ba347f646719833a1b99d751`. An actual installed Claude Code
 2.1.289 executed two original local MCP tools against a deterministic loopback
 Messages fixture. **No real model inference or paid provider ran.**
 
@@ -47,7 +47,7 @@ executable, policy, registry, document, destination and result hashes; typed
 counts and outcomes; and the original preliminary reports. No token, actual
 secret, recipient URL, prompt, arguments or private transcript is published.
 Agent executable SHA-256:
-`2f6c1ee0ac80d437d9c2a18f12c1332c96912ef31aee16b89c6bad348e8c0272`.
+`e79b7c62d3b003217d2745340366e6092adae19a7ed600980787262d9aedd4d3`.
 Source snapshots and both executable hashes remained unchanged during the
 committed-source run. `git diff HEAD --exit-code` passed before and after it.
 
@@ -62,13 +62,24 @@ previously prohibited Keycloak/AgentDojo profiles were not touched.
 
 The committed run removed its own new private runtime successfully. Incomplete
 attempts retain their private diagnostics under the ignored `target` directory.
+New private documents, raw Messages requests and Claude stdout/stderr are encrypted
+before storage with current-user Windows DPAPI; the original tool decrypts its
+document only when reading it. The aggregate records original plaintext and
+encrypted-storage hashes separately. The bounded decrypted payload checks its
+version, length and SHA-256, including when Windows reports successful decryption.
+There is no plaintext fallback. Other processes under the same Windows account
+can decrypt; this is fixture storage, not a production secrets vault. Earlier
+retained attempts predate this correction and remain untouched.
 
 ## Verification and preserved attempts
 
 Fresh Windows checks passed: formatting, workspace Clippy with warnings denied,
-**791 Rust tests** with five explicitly ignored checks, and **76 Python script
-tests** with six gated skips. The new suites contribute 15 actual subprocess/
-daemon admission tests and 19 harness tests. Benchmark Python discovery passes
+**792 Rust tests** with five explicitly ignored checks, and **79 Python script
+tests** with six gated skips. The new suites contribute 16 actual subprocess/
+daemon admission tests, 19 harness tests and three private-storage tests. The
+22 Windows harness/storage checks all execute, including native DPAPI and
+original MCP subprocess I/O; Linux explicitly skips the Windows storage cases.
+Benchmark Python discovery passes
 26 tests with 18 pinned-runtime/environment gates skipped. The unchanged
 hand-authored policy corpus interrupts its 19 reviewed attacks and preserves
 21 benign sessions. These counts remain regression/contract evidence.
@@ -82,12 +93,40 @@ hand-authored policy corpus interrupts its 19 reviewed attacks and preserves
 | 07 | Protected admission denied the send, ledger/receiver recorded zero sends, but useful completion failed. Claude serializes an error-result budget reminder as an exact string suffix; validate that suffix while still requiring the exact policy refusal. |
 | 08 | Development-tree matched pair passed with original reports and modified-source flag retained. |
 | 09 | Committed-source matched pair passed; immutable hashes and tracked-source check passed; its owned runtime was removed. |
+| 10 | Development-tree pair with encrypted private storage passed; its original modified-source flag is retained. |
+| 11 | Committed-source pair after fixture storage/bootstrap corrections passed; both useful results match, the protected send is prevented, 14 source snapshots and executable hashes stay fixed, and its owned runtime is removed. |
 
 Early reports are retained unchanged, including their conservative, incomplete
 host-executed flag. Later reporting preserves observed task traffic and passing
 cases even after a late failure. Neither missing transport nor an arbitrary
 tool error can count as prevention or useful completion. The late wire-format
 corrections each have a failing regression observed before the repair.
+
+## Hosted CI follow-up
+
+The first PR head, `49ed96e`, passed 17 checks but failed Windows Agent security
+and the aggregate CodeQL check. These failures remain in the evidence history.
+The [Windows job](https://github.com/MakazhanAlpamys/soup-wall/actions/runs/37343493594/job/111876164008)
+stopped 13 MCP tests before initialization; the original fixture discarded
+startup stderr. Safe fixed-category diagnostics now retain it privately. Profile
+ownership on the elevated runner is an inference from the fixture's plain
+filesystem creation and the existing owner rejection, not a captured error
+category. [GitHub documents](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+that Windows runners use administrator accounts with UAC disabled.
+
+The corrected fixture uses actual `agentfw install` and protected token creation
+before gateway launch. A native OS-DACL snapshot regression failed before this
+change and passes afterward; production owner checks remain intact. Hosted CI
+must still be assessed on the exact current [PR head](https://github.com/MakazhanAlpamys/soup-wall/pull/30).
+
+The [CodeQL check](https://github.com/MakazhanAlpamys/soup-wall/runs/111882761934)
+reported one high clear-text-storage finding at the generated synthetic document
+write. The document and raw diagnostic writers now encrypt before storing,
+following the [CodeQL storage guidance](https://codeql.github.com/codeql-query-help/python/py-clear-text-storage-sensitive-data/).
+The post-decrypt integrity check follows Microsoft's
+[CryptUnprotectData guidance](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptunprotectdata).
+No finding was suppressed or dismissed. Local checks and the measured pair do
+not substitute for the hosted CI results.
 
 ## Reproduction and remaining gates
 
