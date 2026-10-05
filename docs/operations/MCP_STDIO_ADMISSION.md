@@ -106,3 +106,7 @@ can reach the scripted provider and the send boundary can be exercised. It
 establishes these concrete execution and continuation behaviors, not shipped
 policy effectiveness, held-out attack success or live defended task utility.
 Those require an operator-selected model, access and spend budget.
+
+The [2026-10-05 committed-source proof](../benchmarks/evidence/CLAUDE_MCP_STDIO_2026-10-05.md)
+records the actual matched control/protected pair, successful useful completion,
+preserved incomplete attempts and cleanup limits.
