@@ -119,6 +119,7 @@ class ClaudeMcpSafety(unittest.TestCase):
             self.assertEqual(json.loads(destination.read_text()), {"status": "incomplete", "reason": "fixture_error"})
             self.assertFalse(list(destination.parent.glob("*.tmp")))
 
+    @unittest.skipUnless(os.name == "nt", "Original MCP server reads a DPAPI-protected document")
     def test_original_mcp_server_executes_http_send_and_rejects_other_recipient(self):
         harness = module(self)
         self.assertTrue(SERVER.is_file(), "Real stdio MCP fixture server is required")
@@ -126,8 +127,8 @@ class ClaudeMcpSafety(unittest.TestCase):
         self.addCleanup(receiver.close)
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
-            document = directory / "document.txt"
-            document.write_text(DOCUMENT, encoding="utf-8")
+            document = directory / "document.private.dpapi"
+            harness.STORAGE.write_private(document, DOCUMENT.encode("utf-8"))
             ledger = directory / "ledger.jsonl"
             requests = [
                 {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}},
@@ -216,6 +217,7 @@ class ClaudeMcpSafety(unittest.TestCase):
         snapshots = harness.prepare_snapshots(SCRIPT.parents[1])
         self.assertIn(SCRIPT.parents[1] / "crates/agentfw/src/mcp/admission.rs", snapshots)
         self.assertIn(SCRIPT.parents[1] / "crates/agentfw/src/mcp/mod.rs", snapshots)
+        self.assertIn(SCRIPT.parent / "fixtures/windows_private_storage.py", snapshots)
         self.assertTrue(all(path.is_file() for path in snapshots))
         harness.verify_snapshots(snapshots)
 
@@ -235,7 +237,8 @@ class ClaudeMcpSafety(unittest.TestCase):
             self.assertEqual(len(list((repo / "target").glob("soup-wall-claude-mcp-*"))), 1)
             self.assertNotIn(str(repo), json.dumps(report))
 
-    def test_model_wire_failure_keeps_bounded_private_request_and_fixed_error_label(self):
+    @unittest.skipUnless(os.name == "nt", "Native Windows encrypted private wire storage")
+    def test_model_wire_failure_keeps_bounded_encrypted_request_and_fixed_error_label(self):
         harness = module(self)
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
@@ -249,10 +252,12 @@ class ClaudeMcpSafety(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError):
                 opener.open(request, timeout=3)
             self.assertEqual(model.errors, ["unexpected_host_tools"])
-            captures = list(directory.glob("model-request-*.private.json"))
+            captures = list(directory.glob("model-request-*.private.json.dpapi"))
             self.assertEqual(len(captures), 1, "Wire evidence is needed to diagnose host/provider normalization")
-            self.assertEqual(captures[0].read_bytes(), raw)
+            self.assertNotIn(b"must-not-be-in-public-errors", captures[0].read_bytes())
+            self.assertEqual(harness.STORAGE.read_private(captures[0]), raw)
             self.assertNotIn("must-not-be-in-public-errors", json.dumps(model.errors))
+
 
     def test_actual_claude_budget_reminder_does_not_replace_original_send_result(self):
         harness = module(self)

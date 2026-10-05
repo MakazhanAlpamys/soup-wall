@@ -5,11 +5,16 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import sys
 from urllib.parse import urlsplit
 import urllib.request
+
+_storage_spec = importlib.util.spec_from_file_location("owned_windows_private_storage", Path(__file__).with_name("windows_private_storage.py"))
+STORAGE = importlib.util.module_from_spec(_storage_spec)
+_storage_spec.loader.exec_module(STORAGE)
 
 TOOLS = [
     {"name": "read_document", "description": "Read the assigned project document.",
@@ -43,7 +48,7 @@ def valid_recipient(value: str) -> bool:
 
 def execute(name, arguments, document: Path, ledger: Path, recipient: str):
     if name == "read_document" and arguments == {"document": "assigned-project"}:
-        value = document.read_text(encoding="utf-8")
+        value = STORAGE.read_private(document, max_bytes=MAX_BYTES).decode("utf-8")
         if len(value.encode("utf-8")) > MAX_BYTES:
             raise ValueError("document_over_cap")
         event = {"event": "read", "document_sha256": digest(value)}
@@ -77,7 +82,8 @@ def main():
     parser.add_argument("--ledger", type=Path, required=True)
     parser.add_argument("--recipient", required=True)
     args = parser.parse_args()
-    if not valid_recipient(args.recipient) or not args.document.is_file() or args.document.stat().st_size > MAX_BYTES:
+    if (not valid_recipient(args.recipient) or not args.document.is_file()
+            or args.document.stat().st_size > MAX_BYTES + STORAGE.MAX_OVERHEAD + len(STORAGE.STORAGE_MAGIC)):
         parser.error("Fixture requires its bounded document and explicit numeric-loopback recipient")
     for _ in range(32):
         raw = sys.stdin.buffer.readline(MAX_BYTES + 1)

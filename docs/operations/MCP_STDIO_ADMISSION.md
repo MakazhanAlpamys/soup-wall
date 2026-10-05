@@ -88,6 +88,16 @@ MCP tools and a deterministic loopback Messages provider. It copies only OS
 runtime variables, uses disposable Claude/Agent profiles and fixture-only keys,
 and refuses outbound proxy requests. It does not use a real model or provider.
 
+The private document, raw Messages requests and Claude stdout/stderr are encrypted
+before storage with current-user Windows DPAPI. The original `read_document`
+tool decrypts the same document for both cases; the reviewed MCP schemas and
+plaintext result remain identical. Evidence distinguishes the plaintext document
+hash from the encrypted file hash. Decryption checks the bounded payload version,
+length and digest and has no plaintext fallback. The owner-only runtime ACL still
+applies. Other processes running as the same Windows user can decrypt these files;
+this fixture storage is not a production secrets vault. Incomplete attempts retain
+encrypted diagnostics; earlier retained attempts predate this storage correction.
+
 ```powershell
 cargo build --locked -p agentfw --bin agentfw
 python scripts/windows-claude-mcp-acceptance.py --run --evidence target/claude-mcp-new.json
