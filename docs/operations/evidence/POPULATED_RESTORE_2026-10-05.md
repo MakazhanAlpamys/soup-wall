@@ -73,6 +73,20 @@ verification error enters the stdout report. The exact phase-specific output
 contract remains checked. The alert is not dismissed or suppressed; corrected
 CodeQL analysis must pass independently.
 
+A fresh isolated local run after these repairs passed on clean
+`7ff3a0c6123616ba08fe38f160637a5c2ae61612` at
+`2026-10-05T13:06:29.004977+00:00`. It rebuilt the helper and Gateway from the
+exported source, allocated a fresh cluster/databases/role, completed the encrypted
+restore and restored-only behavior checks, and stopped its owned cluster. All 33
+Linux Python tests, 11 Rust helper tests and the separate actual PostgreSQL
+regression passed. Private full-state equality and an unchanged source were
+confirmed; both executables stayed unchanged during the run. Zero model/provider
+or webhook requests ran. The [follow-up aggregate](POPULATED_RESTORE_AFTER_CI_FIXES_2026-10-05.json)
+records the new source/archive/executable hashes without changing the initial
+checkpoint above. Windows Python 3.12 separately passed 27 tests with six
+Unix-only skips; Linux Python 3.14 passed all 33. Hosted Docker acceptance and
+fresh CodeQL analysis still require their own passing results.
+
 Actual execution found a production issuance defect: an INSERT CTE returned only
 the ID, then its outer SELECT scanned the base table using the statement's earlier
 snapshot. The account and audit persisted while the API returned an error and

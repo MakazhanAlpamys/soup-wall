@@ -1,0 +1,30 @@
+{
+  "diagnostic_helper": false,
+  "exact_private_state_equal": true,
+  "executables_unchanged_during_run": true,
+  "gateway_sha256": "7291e6854a6923a9ed8993e8e3cc7d839e3b6deae93b5c358f583be83a64a59f",
+  "helper_sha256": "9bd1cc474fc8ad72459080da01fe78cbd29d5381dbeab14e61f44f4e6b631792",
+  "model_requests_sent": 0,
+  "observed_at_utc": "2026-10-05T13:06:29.004977+00:00",
+  "owned_cluster_stopped": true,
+  "pending_deliveries_before": 1,
+  "postgres_integration_checks_passed": 1,
+  "python_checks_passed": 33,
+  "restored_only_exercise": true,
+  "runtime": {
+    "age": "1.2.1",
+    "postgres": "18.6",
+    "pwsh": "7.6.6",
+    "rust": "1.98.1"
+  },
+  "rust_helper_checks_passed": 11,
+  "schema_version": 1,
+  "service_accounts": 2,
+  "source_archive_sha256": "03fe246e6eb596dc82faf6853c0c9489958b099b395c72cb7838f3421ee6de23",
+  "source_commit": "7ff3a0c6123616ba08fe38f160637a5c2ae61612",
+  "source_unchanged": true,
+  "status": "passed",
+  "tenants": 2,
+  "webhook_destinations": 1,
+  "webhook_requests_sent": 0
+}
