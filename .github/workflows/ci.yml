@@ -167,6 +167,36 @@ jobs:
       - run: cargo test --locked -p llm-firewall tenant_store::tests::postgres_control_plane_persists_tenants_tokens_policies_and_audit -- --ignored
         env:
           LLM_FW_TEST_POSTGRES_URL: postgresql://firewall:firewall@127.0.0.1:5432/firewall?sslmode=disable
+      - name: Build populated restore helper and migration command
+        run: cargo build --locked -p llm-firewall --bin llm-firewall --example postgres-restore-fixture
+      - name: Install encrypted restore tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y age postgresql-client
+          command -v pwsh
+      - name: Verify populated encrypted restore on fresh disposable databases
+        shell: bash
+        env:
+          LLM_FW_RESTORE_FIXTURE_ADMIN_URL: postgresql://firewall:firewall@127.0.0.1:5432/firewall?sslmode=disable
+        run: |
+          set -euo pipefail
+          python3 scripts/postgres-populated-restore-acceptance.py --run \
+            --helper "$PWD/target/debug/examples/postgres-restore-fixture" \
+            --gateway "$PWD/target/debug/llm-firewall" \
+            --psql "$(command -v psql)" \
+            --pg-dump "$(command -v pg_dump)" \
+            --pg-restore "$(command -v pg_restore)" \
+            --age "$(command -v age)" \
+            --age-keygen "$(command -v age-keygen)" \
+            --pwsh "$(command -v pwsh)" \
+            > target/populated-restore-evidence.json
+      - name: Retain aggregate populated restore evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-populated-postgres-restore
+          path: target/populated-restore-evidence.json
+          if-no-files-found: ignore
 
   docker-build:
     runs-on: ubuntu-latest
