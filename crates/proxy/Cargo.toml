@@ -61,3 +61,8 @@ saml-rs = { version = "0.5.3", default-features = false, features = ["crypto-rus
 
 [dev-dependencies]
 wiremock = "0.6"
+tempfile = "3"
+
+[[example]]
+name = "keycloak-saml-bootstrap"
+test = true

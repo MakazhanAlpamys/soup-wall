@@ -176,3 +176,21 @@ provider credentials, identity assertions, prompts, or customer data.
   tests passed locally (two external integrations ignored), and all 18 hosted
   checks passed on `bcf66a0`. It merged as `934653821f73dd702dfe5b8977c6c5ea751ad28a`.
   Interactive login remains an independent acceptance gate.
+- Live adapter integration: [PR #25](https://github.com/MakazhanAlpamys/soup-wall/pull/25)
+  passed all 18 hosted checks on `a5cb115`, including the automatically discovered
+  free adapter checks, full source suites, four SAML platforms, CodeQL, storage,
+  Docker, advisory review and SBOM. It merged as
+  `e30b0deb7cca3b9443d7911ec7b56ab7886454b3`. The final independent Windows fixture
+  has 29 passing checks and exact source-byte hashes at `38de3fd`, with a clean
+  measured source tree. [Aggregate evidence](../benchmarks/evidence/agentdojo-live-fixture-2026-10-05.json)
+  retains the actual runtime, executable, dependency and policy versions. No
+  independent model effectiveness or managed deployment gate is closed.
+- Vendor identity preparation: the portable Keycloak driver and bootstrap
+  helper preserve actual vendor signatures and production ACS behavior. The
+  initial run recorded 22 functional observations but failed cleanup and has
+  documented isolation/negative-check confounds. The reviewed driver has 14
+  offline checks, two mandatory native bootstrap regressions, fresh atomic
+  evidence and a real ignored-directory boundary. No corrected full vendor
+  rerun occurred. The automatic cleanup rejection and required operator action
+  remain explicit; no identity/crypto field gate is marked complete.
+  [Historical result and prepared-source evidence](evidence/KEYCLOAK_SAML_2026-10-05.md).

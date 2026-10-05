@@ -8,6 +8,10 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
   contract checks, explicit provider budgets and atomic aggregate evidence.
   The shipped policy is unchanged; independent live-model effectiveness and
   native semantic coverage remain separate acceptance gates.
+- Added a manual portable Keycloak SAML login/ACS driver and offline isolation
+  regressions. The first local vendor checkpoint is explicitly incomplete:
+  functional observations preceded a cleanup failure, and the reviewed driver
+  awaits a fresh full run. Managed IdP acceptance and issue #19 remain open.
 - Fixed OIDC discovery for issuers with paths, including Keycloak realms.
   The well-known configuration path now follows the issuer path as required
   by OpenID Connect Discovery 1.0 section 4.1; exact issuer validation remains
