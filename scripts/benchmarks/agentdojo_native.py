@@ -83,6 +83,11 @@ class Registry:
             raise adapter.AdapterError("Native function is absent from the installed schema registry")
         return schema
 
+    def client(self, url, token):
+        # Keep registry, transport and exception identities in this frozen module
+        # snapshot even when another CLI instance loads its own helper snapshot.
+        return NativeClient(url, token, self)
+
 
 class NativeClient(adapter.HookClient):
     def __init__(self, url, token, registry, session=None):

@@ -2,7 +2,9 @@
 """Native admission invariants; pinned runtime and disposable daemon checks are explicit."""
 from datetime import datetime, timezone
 import http.server
+import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
@@ -19,6 +21,7 @@ UPSTREAM = None
 AGENT_BINARY = None
 TEMP_PARENT = None
 EXPECTED_BINARY = None
+LOCAL_PROVIDER_REQUESTS = 0
 
 
 def registry(functions=()):
@@ -90,6 +93,46 @@ class NativeHandler(http.server.BaseHTTPRequestHandler):
 
 
 class NativeSafety(unittest.TestCase):
+    def test_lifecycle_failure_cannot_skip_cleanup_and_failed_teardown_retains_profile(self):
+        class Child:
+            def __init__(self, fail):
+                self.fail, self.live, self.waited = fail, True, False
+
+            def poll(self):
+                return None if self.live else 0
+
+            def kill(self):
+                if self.fail:
+                    raise RuntimeError("synthetic owned-child teardown failure")
+                self.live = False
+
+            def wait(self, timeout):
+                self.waited = True
+                return 0
+
+        def failed_lifecycle(event):
+            raise RuntimeError("synthetic notification failure from another module")
+
+        for fail in (False, True):
+            with self.subTest(teardown_fails=fail), tempfile.TemporaryDirectory() as directory:
+                parent = Path(directory).resolve()
+                profile = parent / "agentdojo-live-owned-fixture"
+                profile.mkdir()
+                owner = adapter.DisposableAgent.__new__(adapter.DisposableAgent)
+                owner.process, owner.directory, owner.temporary_parent = Child(fail), profile, parent
+                owner.client = SimpleNamespace(event=failed_lifecycle)
+                if fail:
+                    with self.assertRaisesRegex(RuntimeError, "teardown failure"):
+                        owner.__exit__()
+                    self.assertTrue(profile.exists())
+                    self.assertTrue(owner.process.live)
+                    self.assertFalse(owner.process.waited)
+                else:
+                    owner.__exit__()
+                    self.assertFalse(profile.exists())
+                    self.assertFalse(owner.process.live)
+                    self.assertTrue(owner.process.waited)
+
     def test_redirected_profile_parent_is_refused_before_private_writes(self):
         with tempfile.TemporaryDirectory() as directory:
             parent = Path(directory) / "target"
@@ -365,9 +408,101 @@ class NativeDaemonTests(unittest.TestCase):
                 self.assertEqual(sum(item["event"] == "call" for item in daemon.client.receipts), 72)
                 self.assertFalse(daemon.client.failed)
 
+    def test_native_live_orchestration_freezes_inputs_and_suppresses_withheld_evaluators(self):
+        from agentdojo.base_tasks import BaseUserTask
+        from test_agentdojo_live import FixtureServer
+
+        Environment, definitions = self.Environment, self.functions
+
+        class Task(BaseUserTask):
+            ID = "neutral_fixture_task"
+            PROMPT = "Run a neutral in-memory fixture."
+
+            def ground_truth(self, env):
+                return []
+
+            def utility(self, model_output, pre_environment, post_environment):
+                return pre_environment.writes == 0 and post_environment.writes == 1 and model_output == "neutral-complete"
+
+        class Suite(UPSTREAM.suite.TaskSuite):
+            def load_and_inject_default_environment(self, injections):
+                return Environment()
+
+            def get_user_task_by_id(self, task_id):
+                return Task()
+
+        suite = Suite("neutral_fixture", Environment, definitions)
+        source = Path(__file__).resolve().parents[1] / "agentdojo-live.py"
+        spec = importlib.util.spec_from_file_location("soup_wall_native_live_cli_fixture", source)
+        cli = importlib.util.module_from_spec(spec)
+        exec(compile(source.read_bytes(), str(source), "exec", dont_inherit=True), cli.__dict__)
+        with FixtureServer("native-pipeline") as server, tempfile.TemporaryDirectory(dir=TEMP_PARENT) as directory:
+            root = Path(directory)
+            policy = root / "crates/agent/policies/agent-default.yaml"
+            policy.parent.mkdir(parents=True)
+            policy.write_bytes(b"agent_policies: []\ndefault: allow\n")
+            registry_path, plan_path = root / "registry.json", root / "plan.json"
+            registry_path.write_bytes(self.registry.raw)
+            plan_path.write_bytes(adapter.encoded({
+                "schema_version": 1, "upstream_revision": adapter.REVISION,
+                "benchmark_version": "v1", "suite": "neutral_fixture", "cases": [{
+                    "user_task_id": Task.ID, "injection_task_id": None, "injections": {}}]}))
+            initial_plan, initial_policy = plan_path.read_bytes(), policy.read_bytes()
+
+            def observe_provider_request(payload):
+                global LOCAL_PROVIDER_REQUESTS
+                LOCAL_PROVIDER_REQUESTS += 1
+
+            def mutate_inputs(payload):
+                observe_provider_request(payload)
+                registry_path.write_bytes(b"invalid changed registry")
+                plan_path.write_bytes(b"invalid changed plan")
+                policy.write_bytes(b"default: deny\n")
+
+            server.on_request = mutate_inputs
+            args = SimpleNamespace(plan=plan_path, native_registry=registry_path,
+                credential_env="SOUP_WALL_NATIVE_NEUTRAL_FIXTURE_KEY",
+                upstream_checkout=Path(UPSTREAM.runtime.__file__).resolve().parents[2],
+                base_url=server.url + "/v1", model="neutral-fixture", provider="openai-compatible",
+                max_calls=4, max_total_request_bytes=200000, max_output_tokens=16, max_reserved_usd=0,
+                input_usd_per_million=0, output_usd_per_million=0, agent_binary=AGENT_BINARY)
+            with patch.dict(os.environ, {args.credential_env: "neutral-key"}), patch(
+                    "agentdojo.task_suite.load_suites.get_suite", return_value=suite):
+                report = cli.run_live(args, root)
+            self.assertEqual(report["status"], "completed")
+            self.assertEqual(report["mode"], "live-native")
+            self.assertEqual(report["native_contract"], native.CONTRACT)
+            self.assertEqual(report["native_semantics_registry_sha256"], self.registry.sha256)
+            self.assertEqual(report["plan_sha256"], adapter.digest(initial_plan))
+            self.assertEqual(report["policy_sha256"], adapter.digest(initial_policy))
+            self.assertEqual([row["utility"] for row in report["cases"]], [True, True])
+            self.assertEqual(report["cases"][1]["pre_calls"], 1)
+            self.assertEqual(report["cases"][1]["post_results_observed"], 1)
+            self.assertEqual(report["cases"][1]["contexts_admitted"], 1)
+            self.assertEqual(report["provider_attempts"], 4)
+            self.assertEqual(len(server.payloads), 4)
+            self.assertFalse(list((root / "target").glob("agentdojo-*")))
+
+            server.on_request = observe_provider_request
+            server.payloads.clear()
+            registry_path.write_bytes(self.registry.raw)
+            plan_path.write_bytes(initial_plan)
+            policy.write_bytes(b"agent_policies:\n  - name: deny-fixture-write\n"
+                               b"    when: {action_class: side_effecting}\n    action: deny\ndefault: allow\n")
+            with patch.dict(os.environ, {args.credential_env: "neutral-key"}), patch(
+                    "agentdojo.task_suite.load_suites.get_suite", return_value=suite):
+                withheld = cli.run_live(args, root)
+            self.assertEqual(withheld["status"], "incomplete")
+            self.assertEqual(len(withheld["cases"]), 1)
+            self.assertFalse(withheld["incomplete_case"]["evaluators_reported"])
+            self.assertTrue(withheld["incomplete_case"]["native_policy_withheld"])
+            self.assertFalse(withheld["incomplete_case"]["inspection_failed"])
+            self.assertFalse(list((root / "target").glob("agentdojo-*")))
+
 
 def run_fixture_checks(checkout, binary, temporary_parent, source_snapshots=None):
-    global UPSTREAM, AGENT_BINARY, TEMP_PARENT, EXPECTED_BINARY
+    global UPSTREAM, AGENT_BINARY, TEMP_PARENT, EXPECTED_BINARY, LOCAL_PROVIDER_REQUESTS
+    LOCAL_PROVIDER_REQUESTS = 0
     required = {"cli", "agentdojo_live", "agentdojo_native", "test_agentdojo_live", "test_agentdojo_native"}
     if (not isinstance(source_snapshots, dict) or set(source_snapshots) != required
             or not all(native.is_hash(value) for value in source_snapshots.values())):
@@ -390,6 +525,8 @@ def run_fixture_checks(checkout, binary, temporary_parent, source_snapshots=None
             "failures": len(result.failures), "errors": len(result.errors), "skipped": len(result.skipped),
             "upstream": UPSTREAM.verified, "agent_binary_sha256": EXPECTED_BINARY,
             "agent_binary_unchanged": binary_unchanged, "compiled_source_sha256": snapshots,
-            "model_requests_sent": 0, "field_gate_complete": False,
-            "limits": ["Original pinned runtime with harmless fixture functions and custom policies",
-                       "No provider/model, held-out effectiveness, managed deployment or shadow-soak evidence"]}
+            "model_requests_sent": 0, "paid_provider_calls": 0,
+            "local_provider_fixture_requests": LOCAL_PROVIDER_REQUESTS,
+            "local_provider_fixture_only": True, "field_gate_complete": False,
+            "limits": ["Original pinned runtime, harmless fixture functions, custom policies and scripted numeric-loopback provider",
+                       "No real provider/model, held-out effectiveness, managed deployment or shadow-soak evidence"]}

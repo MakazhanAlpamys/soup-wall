@@ -358,9 +358,8 @@ class DisposableAgent:
             if preflight.returncode != 0:
                 raise AdapterError("Disposable Agent did not pass enforcing preflight")
             if self.native_registry is not None:
-                from agentdojo_native import NativeClient
                 native_token = (agent_dir / "native-token").read_text().strip()
-                self.client = NativeClient(f"http://127.0.0.1:{port}", native_token, self.native_registry)
+                self.client = self.native_registry.client(f"http://127.0.0.1:{port}", native_token)
             self.client.event("SessionStart")
             return self
         except BaseException:
@@ -369,18 +368,27 @@ class DisposableAgent:
 
     def __exit__(self, *_):
         import shutil
-        if self.process is not None:
-            if self.process.poll() is None:
+        stopped = self.process is None
+        try:
+            if self.process is not None:
                 try:
-                    self.client.event("SessionEnd")
-                except AdapterError:
-                    pass
-                self.process.kill()
-            self.process.wait(timeout=10)
-        if self.directory is not None and self.directory.exists():
-            if self.directory.parent != self.temporary_parent or not self.directory.name.startswith("agentdojo-live-"):
-                raise AdapterError("Refusing cleanup outside the generated Agent profile")
-            shutil.rmtree(self.directory)
+                    if self.process.poll() is None:
+                        try:
+                            self.client.event("SessionEnd")
+                        except Exception:
+                            # Lifecycle notification is best effort after a
+                            # trajectory stops; owned process cleanup still runs.
+                            pass
+                finally:
+                    if self.process.poll() is None:
+                        self.process.kill()
+                    self.process.wait(timeout=10)
+                    stopped = True
+        finally:
+            if stopped and self.directory is not None and self.directory.exists():
+                if self.directory.parent != self.temporary_parent or not self.directory.name.startswith("agentdojo-live-"):
+                    raise AdapterError("Refusing cleanup outside the generated Agent profile")
+                shutil.rmtree(self.directory)
 
 
 class BudgetProvider:
