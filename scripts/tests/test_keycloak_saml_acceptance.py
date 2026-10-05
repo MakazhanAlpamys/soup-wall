@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import ssl
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -20,6 +21,45 @@ REQUESTS_AVAILABLE = importlib.util.find_spec("requests") is not None
 
 
 class DriverSafetyTests(unittest.TestCase):
+    def test_edge_rejects_header_injection_before_sending_status_or_headers(self):
+        invalid = [("X-Name\r\nInjected", "value"), ("X-Name\n", "value"),
+                   ("Bad Name", "value"), ("Bad:Name", "value"), ("", "value"),
+                   ("X-Name", "value\r\nInjected: yes"), ("X-Name", "value\n"),
+                   ("X-Name", "value\x00"), ("X-Name", "value\x7f"),
+                   ("X-Name", "non-Latin-1 \u2603"), ("Connection", "close\r\nInjected")]
+        for name, value in invalid:
+            with self.subTest(name=name, value=value):
+                handler = Mock(wfile=io.BytesIO())
+                response = Mock(headers={"X-Valid-First": "preserved", name: value},
+                                status_code=200, content=b"private upstream content")
+                with self.assertRaises(RuntimeError):
+                    DRIVER.write_gateway_response(handler, response)
+                handler.send_response.assert_not_called()
+                handler.send_header.assert_not_called()
+                handler.end_headers.assert_not_called()
+                self.assertEqual(handler.wfile.getvalue(), b"")
+
+    def test_edge_preserves_valid_headers_and_body_with_safe_content_length(self):
+        handler = Mock(wfile=io.BytesIO())
+        headers = {"Content-Type": "text/plain; charset=iso-8859-1",
+                   "Set-Cookie": "__Host-session=opaque; Path=/; Secure; HttpOnly; SameSite=Lax",
+                   "X-Token!#$%&'*+-.^_`|~": "caf\xe9; exact=value",
+                   "Location": "https://127.0.0.1:12345/exact?next=%2F",
+                   "Connection": "close", "Content-Length": "999999",
+                   "Transfer-Encoding": "chunked", "Content-Encoding": "gzip"}
+        content = b"exact decoded body"
+        DRIVER.write_gateway_response(handler, Mock(headers=headers, status_code=303, content=content))
+        handler.send_response.assert_called_once_with(303)
+        self.assertEqual([call.args for call in handler.send_header.call_args_list],
+                         list(headers.items())[:4] + [("Content-Length", str(len(content)))])
+        handler.end_headers.assert_called_once_with()
+        self.assertEqual(handler.wfile.getvalue(), content)
+
+    def test_edge_tls_context_requires_tls_12_or_later(self):
+        context = DRIVER.edge_tls_context()
+        self.assertEqual(context.protocol, ssl.PROTOCOL_TLS_SERVER)
+        self.assertEqual(context.minimum_version, ssl.TLSVersion.TLSv1_2)
+
     def test_redirected_ignored_target_is_rejected_before_private_writes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()

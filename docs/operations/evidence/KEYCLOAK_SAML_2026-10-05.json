@@ -210,5 +210,25 @@
       "Reject redirected ignored target/scratch before private writes",
       "Verify stored SAML identities/memberships before IdP import instead of the OIDC connection authorization seam"
     ]
+  },
+  "codeql_preparation": {
+    "observed_at_utc": "2026-10-05T09:11:34.965638+00:00",
+    "parent_source_revision": "875d27cccde0a361518df20791678e812f243aaf",
+    "source_file_sha256": {
+      "scripts/keycloak-saml-acceptance.py": "b624d0fce1ee453cb442022cac07bb30ad7fb579b79b1db242e1cb60848dbb6c",
+      "scripts/tests/test_keycloak_saml_acceptance.py": "bc963f62c6b1089db36a3d02a3e16ac3eb407aefceb7167232113ed94cb0bccf"
+    },
+    "python_version": "3.12.10",
+    "driver_offline_tests_passed": 17,
+    "all_script_offline_tests_passed": 19,
+    "vendor_runtime_started": false,
+    "cleanup_rerun": false,
+    "historical_vendor_record_unchanged": true,
+    "root_verified_preparation_unchanged": true,
+    "corrections": [
+      "Validate all upstream header names and values before sending a status line; reject CR/LF/control and invalid token names, then explicitly strip CR/LF at HTTP header sinks.",
+      "Preserve valid forwarded headers and body while regenerating Content-Length and omitting hop/decoded-content headers.",
+      "Set the local HTTPS edge server minimum TLS version explicitly to TLS1.2."
+    ]
   }
 }

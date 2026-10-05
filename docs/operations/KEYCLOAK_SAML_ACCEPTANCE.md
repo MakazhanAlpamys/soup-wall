@@ -36,7 +36,10 @@ Both Keycloak and the Gateway bind to `127.0.0.1`. A local HTTPS edge forwards
 to the unchanged Gateway's loopback HTTP listener. Fresh one-day certificates
 use an ephemeral CA trusted only by the Python driver's explicit CA file;
 certificate verification stays enabled. There is no OS trust installation or
-Gateway CA extension. Both outbound driver and internal edge HTTP sessions set
+Gateway CA extension. The edge server explicitly requires TLS 1.2 or later.
+Upstream response headers are validated as a complete set before sending a
+status line: invalid field names and CR/LF/control values are rejected; valid
+forwarded values are preserved. Both outbound driver and internal edge HTTP sessions set
 `trust_env=False`, disable automatic redirects, and bound destinations to the
 new local services. The edge rejects absolute/authority request targets.
 
@@ -164,7 +167,7 @@ retained only `PermissionError`, not its filename or OS error number.
 The existing CI script test discovery includes this suite. Driver imports are
 stdlib-only until a transport/runtime path is entered; only the actual requests
 adapter regression skips if requests is unavailable. The `identity-sandbox`
-workflow runs all thirteen driver checks with pinned `requests==2.34.2`, including
+workflow runs all seventeen driver checks with pinned `requests==2.34.2`, including
 that transport regression. Cryptography and psutil are not installed for the
 offline job. No vendor archive, server, token or paid provider is used:
 

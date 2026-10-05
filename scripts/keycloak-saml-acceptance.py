@@ -184,6 +184,41 @@ def forward_gateway(port, path, method, headers, data):
                                timeout=10, allow_redirects=False)
 
 
+def validated_response_headers(headers):
+    # Validate the complete response before committing a status line. Restrict
+    # this fixture edge to HTTP token names and Latin-1 values without controls.
+    validated = []
+    for name, value in headers:
+        if (not isinstance(name, str) or not isinstance(value, str)
+                or re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", name) is None
+                or any(ord(character) < 32 or ord(character) == 127
+                       or ord(character) > 255 for character in value)):
+            raise RuntimeError("edge refused an invalid upstream response header")
+        if name.lower() not in {"connection", "transfer-encoding", "content-length", "content-encoding"}:
+            validated.append((name, value))
+    return validated
+
+
+def write_gateway_response(handler, response):
+    headers = validated_response_headers(response.headers.items())
+    content = response.content
+    handler.send_response(response.status_code)
+    for name, value in headers:
+        # Validation above rejects injection. Explicit stripping also keeps the
+        # HTTP sink's CR/LF boundary visible to static data-flow analysis.
+        handler.send_header(name.replace("\r", "").replace("\n", ""),
+                            value.replace("\r", "").replace("\n", ""))
+    handler.send_header("Content-Length", str(len(content)))
+    handler.end_headers()
+    handler.wfile.write(content)
+
+
+def edge_tls_context():
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    return context
+
+
 def tamper_nameid(assertion, subject, provisioned_alias):
     # Both identities are pre-linked to authorized local workspace owners.
     # An unknown NameID would confound a signature-negative check with an
@@ -413,18 +448,14 @@ def run(args):
                     except RuntimeError:
                         self.send_error(400)
                         return
-                    self.send_response(response.status_code)
-                    for key, value in response.headers.items():
-                        if key.lower() not in {"connection", "transfer-encoding", "content-length",
-                                               "content-encoding"}:
-                            self.send_header(key, value)
-                    self.send_header("Content-Length", str(len(response.content)))
-                    self.end_headers()
-                    self.wfile.write(response.content)
+                    try:
+                        write_gateway_response(self, response)
+                    except RuntimeError:
+                        self.send_error(502)
 
             edge = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Edge)
             resources.callback(edge.server_close)
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context = edge_tls_context()
             context.load_cert_chain(tls_cert, tls_key)
             edge.socket = context.wrap_socket(edge.socket, server_side=True)
             threading.Thread(target=edge.serve_forever, daemon=True).start()

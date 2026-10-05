@@ -50,6 +50,14 @@ rerun against Keycloak, and their hashes are separate preparation evidence.
 File hashes describe the measured checkout bytes; newline conversion can alter
 them across checkouts. Root verification is recorded separately in the JSON.
 
+A subsequent CodeQL preparation checkpoint validates the complete upstream
+response-header set before sending a status line, rejects invalid names and
+CR/LF/control values, and explicitly requires TLS 1.2 on the HTTPS edge. Three
+new inert regressions cover header injection before emission, preservation of
+valid headers/body, and the TLS context bound. All seventeen driver and nineteen
+script tests pass for this source phase, recorded separately from root's earlier
+fourteen-check snapshot. This adds no vendor-runtime or cleanup evidence.
+
 No filename, numeric errno or specific cause was preserved for the initial
 `PermissionError`. Subsequent native removal attempts were rejected before
 execution by automatic approval review, whose entire stated reason was
