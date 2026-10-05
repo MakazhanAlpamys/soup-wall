@@ -150,9 +150,7 @@ pub fn touches_sensitive_path(args: &serde_json::Value) -> bool {
 
 /// Classify a tool call. Always returns the most severe class that matches.
 pub fn classify(tool: &str, args: &serde_json::Value) -> ActionClass {
-    let p = patterns();
-    let text = args_text(args);
-    let mut class = if READ_ONLY_TOOLS.contains(&tool) || RETRIEVAL_TOOLS.contains(&tool) {
+    let baseline = if READ_ONLY_TOOLS.contains(&tool) || RETRIEVAL_TOOLS.contains(&tool) {
         ActionClass::ReadOnly
     } else if tool == "Bash" {
         // A bare Bash call is only as dangerous as its command.
@@ -161,6 +159,15 @@ pub fn classify(tool: &str, args: &serde_json::Value) -> ActionClass {
         // Write, Edit, MCP tools, anything unknown: assume it changes something.
         ActionClass::SideEffecting
     };
+    classify_with_baseline(args, baseline)
+}
+
+/// Apply existing argument-pattern upgrades to a trusted host's native baseline.
+/// This is a library boundary; generic hook payloads cannot supply the baseline.
+pub fn classify_with_baseline(args: &serde_json::Value, baseline: ActionClass) -> ActionClass {
+    let p = patterns();
+    let text = args_text(args);
+    let mut class = baseline;
 
     fn bump(class: &mut ActionClass, c: ActionClass) {
         if c > *class {

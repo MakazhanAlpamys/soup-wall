@@ -144,6 +144,16 @@ pub struct Config {
     /// Optional local-model escalation tier. Off by default.
     #[serde(default)]
     pub judge: JudgeCfg,
+    /// Optional operator-installed native registry. Never provided by hook callers.
+    #[serde(default)]
+    pub native: Option<NativeCfg>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativeCfg {
+    pub registry_path: PathBuf,
+    pub registry_sha256: String,
 }
 
 impl Default for Config {
@@ -159,6 +169,7 @@ impl Default for Config {
             deterministic_timeout_ms: default_timeout_ms(),
             max_body_bytes: default_max_body_bytes(),
             judge: JudgeCfg::default(),
+            native: None,
         }
     }
 }
@@ -187,6 +198,17 @@ impl Config {
 
     /// Reject anything that would expose the daemon beyond this machine.
     fn validate(&self) -> anyhow::Result<()> {
+        if let Some(native) = &self.native {
+            anyhow::ensure!(
+                self.enforce && !self.judge.enabled,
+                "native admission requires enforce: true and the optional judge disabled"
+            );
+            anyhow::ensure!(
+                native.registry_path.is_absolute()
+                    && crate::native::is_digest(&native.registry_sha256),
+                "native registry requires an absolute operator path and lowercase SHA-256"
+            );
+        }
         let ok = self.bind == "127.0.0.1" || self.bind == "::1" || self.bind == "localhost";
         anyhow::ensure!(
             ok,

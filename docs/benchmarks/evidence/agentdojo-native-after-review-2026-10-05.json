@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "mode": "native-fixture",
+  "contract": "sw-native/1",
+  "observed_at_utc": "2026-10-05T10:59:36.549758+00:00",
+  "status": "passed",
+  "tests_run": 26,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "upstream": {
+    "revision": "089ed468cf3ed0322acc66b0211f26d9d90dbf60",
+    "source_inventory_sha256": "01b0e693841bd26fcb6f699832ff0ec1159a7ee181613adb37a415724ccec088",
+    "source_files": 112,
+    "license_sha256": "a090c871ff2aa6abb58a0eda1b6262dca39a7610de3df3411497fba7aa6fad09"
+  },
+  "agent_binary_sha256": "000fe4309e3961360bc6b964598416fd4f2183f640a37c9b57f6fe540564cc99",
+  "agent_binary_unchanged": true,
+  "compiled_source_sha256": {
+    "cli": "41be88ad791c259e31135470cd1ae40e785a615a47364c63f4b5957c20482d76",
+    "agentdojo_live": "533084dd9baf24213843db9f4c9736f0c6493e48d2f27b75b0d61a08bd4f4564",
+    "agentdojo_native": "ad930d5d29268ee711a6472240cbdc3df8185e8dc49f6e99f2134a09ed77976f",
+    "test_agentdojo_live": "0f4f40f90b2e7d1edc588e4cdfcd08d8028c8ab4270d8cc8642aac8ffb0a135a",
+    "test_agentdojo_native": "8b5d1b055605e960f9e720ef2e5c2b02dc2f686643ba38dc261743f69728d47c"
+  },
+  "model_requests_sent": 0,
+  "paid_provider_calls": 0,
+  "local_provider_fixture_requests": 7,
+  "local_provider_fixture_only": true,
+  "field_gate_complete": false,
+  "limits": [
+    "Original pinned runtime, harmless fixture functions, custom policies and scripted numeric-loopback provider",
+    "No real provider/model, held-out effectiveness, managed deployment or shadow-soak evidence"
+  ],
+  "cli_source_sha256": "41be88ad791c259e31135470cd1ae40e785a615a47364c63f4b5957c20482d76",
+  "source_revision": "0c333cd881b9393b2509cd4eb8867103a7b32b3e",
+  "source_worktree_modified": false,
+  "raw_evidence_sha256": "d1d5107d4ed990937cd856c2498f4e93ba3c72fdbc223886cb6e373047cd9480",
+  "new_run_cleanup_succeeded": true
+}

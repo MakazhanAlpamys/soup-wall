@@ -14,6 +14,7 @@ pub mod install;
 pub mod judge;
 pub mod map;
 pub mod mcp;
+pub mod native;
 pub mod preflight;
 #[cfg(windows)]
 mod private_file_windows;
@@ -34,6 +35,10 @@ pub fn app(state: Shared) -> Router {
     Router::new()
         .route("/hook", post(handlers::hook))
         .route("/mcp", post(handlers::mcp))
+        .route(
+            "/native/v1",
+            post(native::handler).layer(axum::extract::DefaultBodyLimit::max(native::MAX_BODY)),
+        )
         .route("/health", get(handlers::health))
         .with_state(state)
 }

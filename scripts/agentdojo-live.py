@@ -23,16 +23,24 @@ sys.path.insert(0, str(MODULE_PATH.parent))
 adapter = types.ModuleType("agentdojo_live")
 adapter.__file__ = str(MODULE_PATH)
 sys.modules["agentdojo_live"] = adapter
-exec(compile(MODULE_BYTES, str(MODULE_PATH), "exec"), adapter.__dict__)
+exec(compile(MODULE_BYTES, str(MODULE_PATH), "exec", dont_inherit=True), adapter.__dict__)
+NATIVE_PATH = MODULE_PATH.with_name("agentdojo_native.py")
+NATIVE_BYTES = NATIVE_PATH.read_bytes()
+native = types.ModuleType("agentdojo_native")
+native.__file__ = str(NATIVE_PATH)
+sys.modules["agentdojo_native"] = native
+exec(compile(NATIVE_BYTES, str(NATIVE_PATH), "exec", dont_inherit=True), native.__dict__)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=["manifest", "validate", "fixture", "live"], default="manifest")
+    parser.add_argument("--mode", choices=["manifest", "validate", "fixture", "native-fixture", "live"], default="manifest")
     parser.add_argument("--upstream-checkout", type=Path)
     parser.add_argument("--agent-binary", type=Path)
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--plan", type=Path, help="Explicit frozen native task/injection selection JSON")
+    parser.add_argument("--native-registry", type=Path,
+                        help="Explicit operator-installed sw-native/1 semantics registry; fallback remains default")
     parser.add_argument("--provider", choices=["openai-compatible"])
     parser.add_argument("--model")
     parser.add_argument("--base-url")
@@ -48,9 +56,9 @@ def main():
     repo = Path(__file__).resolve().parents[1]
     if args.mode == "manifest":
         print(json.dumps({"schema_version": 1, "upstream_revision": adapter.REVISION,
-                          "adapter": "existing-hook-native-name-fallback-v1", "model_calls": 0,
+                          "adapter": native.CONTRACT if args.native_registry else "existing-hook-native-name-fallback-v1", "model_calls": 0,
                           "policy": "unchanged shipped agent-default.yaml; judge disabled",
-                          "post_result_behavior": "observe only; no result gating",
+                          "post_result_behavior": "explicit native result/context admission" if args.native_registry else "observe only; no result gating",
                           "live_requires": ["pinned upstream checkout", "Agent binary", "frozen task plan",
                                             "explicit provider/model/base URL/credential variable", "call/byte/output/cost limits"]}, indent=2))
         return
@@ -61,10 +69,42 @@ def main():
         return
     if args.agent_binary is None or not args.agent_binary.is_file():
         parser.error("Select --agent-binary explicitly")
-    if args.mode == "fixture":
+    if args.mode in {"fixture", "native-fixture"}:
+        fixture_output = None
+        if args.mode == "native-fixture":
+            if args.evidence is None:
+                parser.error("Native fixture requires a fresh explicit --evidence destination")
+            fixture_output = adapter.EvidenceOutput(args.evidence)
         sanitize_environment()
-        from test_agentdojo_live import run_fixture_checks
-        result = run_fixture_checks(args.upstream_checkout, args.agent_binary, repo / "target")
+        snapshots = {"cli": adapter.digest(CLI_BYTES), "agentdojo_live": adapter.digest(MODULE_BYTES),
+                     "agentdojo_native": adapter.digest(NATIVE_BYTES)}
+        helpers = ["test_agentdojo_live"]
+        if args.mode == "native-fixture":
+            helpers.append("test_agentdojo_native")
+        compiled_helpers = {}
+        for name in helpers:
+            path = MODULE_PATH.with_name(name + ".py")
+            source = path.read_bytes()
+            helper = types.ModuleType(name)
+            helper.__file__ = str(path)
+            sys.modules[name] = helper
+            exec(compile(source, str(path), "exec", dont_inherit=True), helper.__dict__)
+            compiled_helpers[name] = helper
+            snapshots[name] = adapter.digest(source)
+        run_fixture_checks = compiled_helpers[helpers[-1]].run_fixture_checks
+        try:
+            if args.mode == "native-fixture":
+                result = run_fixture_checks(args.upstream_checkout, args.agent_binary, repo / "target", snapshots)
+            else:
+                result = run_fixture_checks(args.upstream_checkout, args.agent_binary, repo / "target")
+            if fixture_output is not None:
+                result["cli_source_sha256"] = adapter.digest(CLI_BYTES)
+                fixture_output.publish(result)
+        except Exception as error:
+            if fixture_output is not None:
+                fixture_output.publish({"status": "incomplete", "field_gate_complete": False,
+                                        "error_type": type(error).__name__})
+            raise
     else:
         required = [args.plan, args.provider, args.model, args.base_url, args.credential_env,
                     args.max_calls, args.max_total_request_bytes, args.max_output_tokens]
@@ -80,7 +120,7 @@ def main():
             output.publish({"status": "incomplete", "live_gate_complete": False, "error_type": type(error).__name__})
             raise adapter.AdapterError("Live setup failed; sanitized failure evidence was preserved") from None
         output.publish(result)
-    if args.evidence and args.mode != "live":
+    if args.evidence and args.mode not in {"live", "native-fixture"}:
         args.evidence.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))
     if result.get("status") == "incomplete":
@@ -100,6 +140,8 @@ def run_live(args, repo):
     policy_bytes = (repo / "crates/agent/policies/agent-default.yaml").read_bytes()
     policy_hash = adapter.digest(policy_bytes)
     binary_hash = adapter.file_hash(args.agent_binary)
+    native_registry_path = getattr(args, "native_registry", None)
+    native_registry = native.Registry(native_registry_path.read_bytes()) if native_registry_path else None
     if (set(plan) != {"schema_version", "upstream_revision", "benchmark_version", "suite", "cases"}
             or plan["schema_version"] != 1 or plan["upstream_revision"] != adapter.REVISION
             or not isinstance(plan["cases"], list) or not plan["cases"]):
@@ -124,6 +166,9 @@ def run_live(args, repo):
                                       input_usd_per_million=args.input_usd_per_million,
                                       output_usd_per_million=args.output_usd_per_million)
     suite = get_suite(plan["benchmark_version"], plan["suite"])
+    if native_registry is not None:
+        for function in suite.tools:
+            native_registry.schema(function)
     registry = [{"name": function.name, "description": function.description,
                  "schema": function.parameters.model_json_schema(), "docstring": function.full_docstring,
                  "dependencies": {name: dependency.env_dependency if isinstance(dependency.env_dependency, str)
@@ -139,7 +184,7 @@ def run_live(args, repo):
                     "google-genai", "rich", "deepdiff", "anthropic", "cohere", "requests"]
     dependency_versions = {name: importlib.metadata.version(name) for name in dependencies}
     # Every daemon uses the same private snapshot, never the mutable repository policy path.
-    (repo / "target").mkdir(exist_ok=True)
+    adapter.safe_temporary_parent(repo / "target")
     snapshot_directory = tempfile.TemporaryDirectory(prefix="agentdojo-policy-", dir=repo / "target")
     policy = Path(snapshot_directory.name) / "policy.yaml"
     policy.write_bytes(policy_bytes)
@@ -149,6 +194,7 @@ def run_live(args, repo):
         for case, task, injection in selected:
             for defended in [False, True]:
                 started = time.monotonic()
+                daemon = None
                 try:
                     llm = OpenAILLM(provider, args.model)
                     llm.name = args.model
@@ -156,10 +202,16 @@ def run_live(args, repo):
                                                                         system_message_name=None, system_message=None))
                     if adapter.file_hash(args.agent_binary) != binary_hash or policy.read_bytes() != policy_bytes:
                         raise adapter.AdapterError("Frozen executable or policy snapshot changed")
-                    with adapter.DisposableAgent(args.agent_binary, policy, repo / "target") as daemon:
-                        runtime = adapter.runtime_class(upstream, daemon.client) if defended else upstream.runtime.FunctionsRuntime
+                    daemon = adapter.DisposableAgent(args.agent_binary, policy, repo / "target",
+                                                      native_registry=native_registry if defended else None)
+                    with daemon:
+                        if defended and native_registry is not None:
+                            runtime = native.runtime_class(upstream, daemon.client)
+                            native.guard_pipeline(pipeline, upstream, daemon.client)
+                        else:
+                            runtime = adapter.runtime_class(upstream, daemon.client) if defended else upstream.runtime.FunctionsRuntime
                         utility, injection_success = adapter.run_original_task(suite, pipeline, task, injection, case["injections"], runtime)
-                        if daemon.client.failed:
+                        if daemon.client.failed or getattr(daemon.client, "withheld", False):
                             raise adapter.AdapterError("Task has incomplete inspection evidence; evaluators are not reported")
                         row = {"user_task_id": case["user_task_id"], "injection_task_id": case["injection_task_id"],
                                  "defended": defended, "utility": utility,
@@ -170,11 +222,20 @@ def run_live(args, repo):
                                  "deny": sum(row["decision"] == "deny" for row in daemon.client.receipts),
                                  "approval_required": sum(row["decision"] == "ask" for row in daemon.client.receipts),
                                  "receipt_sha256": adapter.digest(adapter.encoded(daemon.client.receipts))}
+                        if defended and native_registry is not None:
+                            row.update(pre_calls=sum(item["event"] == "call" for item in daemon.client.receipts),
+                                       post_results_observed=sum(item["event"] == "result" for item in daemon.client.receipts),
+                                       contexts_admitted=sum(item["event"] == "context" and item["release"]
+                                                             for item in daemon.client.receipts))
                     rows.append(row)
                 except Exception as error:
                     failure = {"user_task_id": case["user_task_id"], "injection_task_id": case["injection_task_id"],
                                "defended": defended, "error_type": type(error).__name__,
                                "evaluators_reported": False}
+                    if defended and native_registry is not None and daemon is not None and hasattr(daemon, "client"):
+                        failure.update(native_policy_withheld=getattr(daemon.client, "withheld", False),
+                                       inspection_failed=daemon.client.failed,
+                                       native_receipt_sha256=adapter.digest(adapter.encoded(daemon.client.receipts)))
                     break
             if failure:
                 break
@@ -183,7 +244,7 @@ def run_live(args, repo):
         if snapshot_root.parent != (repo / "target").resolve() or not snapshot_root.name.startswith("agentdojo-policy-"):
             raise adapter.AdapterError("Refusing cleanup outside the generated policy snapshot directory")
         snapshot_directory.cleanup()
-    return {"schema_version": 1, "mode": "live-fallback", "observed_at_utc": datetime.now(timezone.utc).isoformat(),
+    report = {"schema_version": 1, "mode": "live-native" if native_registry else "live-fallback", "observed_at_utc": datetime.now(timezone.utc).isoformat(),
             "status": "incomplete" if failure else "completed", "incomplete_case": failure,
             "upstream": upstream.verified, "plan_sha256": adapter.digest(plan_bytes),
             "policy_sha256": policy_hash, "agent_binary_sha256": binary_hash,
@@ -210,6 +271,19 @@ def run_live(args, repo):
                             "Unattended Ask refuses execution, without a human approval channel",
                             "Input cost reservation uses UTF-8 request bytes, not a verified model tokenizer or invoice",
                             "No native-semantic adaptation or attack effectiveness claim from fixture checks"]}
+    if native_registry is not None:
+        report.update(native_contract=native.CONTRACT, native_semantics_registry_sha256=native_registry.sha256,
+                      native_adapter_source_sha256=adapter.digest(NATIVE_BYTES),
+                      limitations=["HTTP authenticates a trusted local collector; it cannot attest actual tool execution",
+                                   "Operator-installed registry accuracy remains an explicit trust boundary",
+                                   "No human native approval channel; Ask/Deny stop and suppress evaluators",
+                                   "Calls failing before the validated native callable abort without prevention credit",
+                                   "Nested calls may already have effects before an outer call or result is withheld",
+                                   "Withheld results cannot undo completed tool effects",
+                                   "Serial pipeline, one original ToolsExecutor, fixed server bounds and expiry",
+                                   "Cost reservation uses request bytes, not verified tokens or a provider invoice",
+                                   "Fixture evidence is not independent attack effectiveness or task utility"])
+    return report
 
 
 if __name__ == "__main__":
