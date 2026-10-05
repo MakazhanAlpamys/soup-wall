@@ -81,10 +81,16 @@ The former private workspace recorded successful OIDC discovery/JWKS retrieval
 against Google's public issuer and signed metadata validation against a
 Microsoft federation endpoint on 2026-09-04. The October 2026 public checkpoints
 repeat the Microsoft probe on Windows/Linux and record Google discovery plus
-two JWKS keys accepted by the production client. The Google path also showed
-intermittent five-second connection timeouts on this host; retain those failures
-alongside the successful metadata evidence. See the
-[execution record](ROADMAP_EXECUTION.md). None of these probes exercises an
+two JWKS keys accepted by the production client. During those public checks,
+the optional Google test first failed twice at the existing five-second connect timeout.
+An isolated probe of the exact production client then accepted discovery and
+two JWKS keys in 2.067 seconds; a later connection timed out again. Direct
+TCP/curl probes showed variable connection establishment. No reproducible
+client, TLS, or proxy defect was demonstrated, and neither the timeout nor TLS
+checks were weakened. Retain the failures alongside the successful metadata
+evidence as an environment reliability limit. The
+[current roadmap](../ROADMAP.md#remaining-acceptance-gates) keeps the external
+identity gate open. None of these probes exercises an
 interactive OIDC authorization-code exchange, a SAML assertion and ACS callback,
 or vendor SCIM behavior.
 

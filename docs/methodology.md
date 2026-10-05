@@ -15,9 +15,8 @@ cargo run --locked --release -p soup-wall-bench -- \
 The current corpus has 19 attack and 21 benign sessions. The committed
 [generated scorecard](benchmarks/agent-security-scorecard.generated.md) is
 compared byte-for-byte with a fresh run by the benchmark CI workflow. The
-[human-readable scorecard](benchmarks/agent-security-scorecard.md) reports the
-raw counts and explains the categories. A session is detected when the agent
-policy interrupts at least one event; the benign count records interruptions
+raw counts below describe the shipped no-judge policy. A session is detected
+when the agent policy interrupts at least one event; the benign count records interruptions
 of ordinary work. You can check a candidate policy with `--policy path/to/policy.yaml`;
 the command exits nonzero if it misses a reviewed attack or interrupts a
 reviewed benign session.
@@ -25,6 +24,32 @@ reviewed benign session.
 This small, hand-authored corpus checks regressions in known scenarios. It is
 not a held-out sample, a measure of novel-attack detection, or evidence of a
 production protection rate. No current rival comparison is published from it.
+
+| Baseline check | Count |
+| --- | --- |
+| Reviewed attack sessions interrupted | 19 of 19 |
+| Benign sessions interrupted | 0 of 21 |
+
+| Reviewed attack category | Interrupted |
+| --- | --- |
+| destructive-from-taint | 2/2 |
+| indirect-injection | 5/5 |
+| mcp-poisoning | 2/2 |
+| pii-egress | 1/1 |
+| secret-egress | 4/4 |
+| subagent-escalation | 2/2 |
+| unknown-host | 3/3 |
+
+Review and regenerate the scorecard whenever the corpus, policy, or action
+classification changes. Raw counts are used because this small reviewed sample
+does not support a general protection-rate claim. A live held-out third-party
+evaluation remains an open gate; the historical replay described below has a
+different method and evidence boundary.
+
+A [public benchmark snapshot](https://gist.github.com/MakazhanAlpamys/68284f675fc9bdaf3994bd13e2b34c6f)
+contains the synthetic scorecard, corpus, manifest, and provenance exported from
+commit `e9c91be` on 2026-09-01. It is a reviewed regression baseline. Publish a new
+versioned snapshot when the corpus or policy changes.
 
 Add `--agent-out target/agent-evaluation.json` to retain machine-readable evidence.
 The report records SHA-256 hashes of the corpus, review manifest, policy and

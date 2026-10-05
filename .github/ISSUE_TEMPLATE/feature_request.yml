@@ -1,0 +1,27 @@
+name: Feature request
+description: Propose a bounded improvement for the team to discuss.
+body:
+  - type: markdown
+    attributes:
+      value: Use English. Check the [current roadmap](https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/ROADMAP.md) and existing issues first.
+  - type: textarea
+    id: need
+    attributes:
+      label: User need
+      description: Who needs this behavior and what task does it help them complete?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the affected surface, expected result, and relevant compatibility or security boundaries.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How would a reviewer verify the change? Mention alternatives or dependencies if relevant.
+    validations:
+      required: true

@@ -10,6 +10,8 @@
 
 ## Choose where to start
 
+Joining the development team? Start with the [development guide](docs/DEVELOPMENT.md), then read [CONTRIBUTING.md](CONTRIBUTING.md). The [documentation index](docs/README.md) links setup, architecture, operator procedures, and verification evidence.
+
 | Surface | What it does | Runs as |
 | --- | --- | --- |
 | **Soup Wall Agent** | Reviews tool calls, tool results, MCP manifests, and subagent authority. Starts in shadow mode. | `agentfw` daemon and CLI |
@@ -20,7 +22,7 @@ The `llm-firewall` binary and `LLM_FW_*` settings retain their established names
 
 ## Build
 
-Install the current stable Rust toolchain with `rustfmt` and `clippy`, then run from the repository root:
+Install the current stable Rust toolchain with `rustfmt` and `clippy`, a platform C/C++ build toolchain, and Python 3.10+ for integration tests. See the [platform prerequisites](docs/DEVELOPMENT.md#prerequisites), then run from the repository root:
 
 ```sh
 cargo build --locked --release --workspace
@@ -98,7 +100,7 @@ The customer workspace at `/customer` requires configured OIDC or SAML federatio
 
 Security reports, including Gateway and control-plane bypasses, belong in [SECURITY.md](SECURITY.md). Contributions are described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-The [public roadmap](docs/ROADMAP.md) lists the remaining full-workspace release checks and field validation; the [changelog](CHANGELOG.md) records released changes.
+The [public roadmap](docs/ROADMAP.md) lists development priorities, remaining release gates, and field validation; the [changelog](CHANGELOG.md) records released changes.
 The [architecture guide](docs/ARCHITECTURE.md) maps the three product surfaces to their crates and decision boundaries. The [upgrade guide](docs/UPGRADING.md) covers existing installations, and the [production runbook](docs/operations/PRODUCTION_RUNBOOK.md) covers readiness and alerts. Operators can also use the [Agent sandbox guide](docs/operations/SANDBOX.md), [identity checks](docs/operations/IDENTITY_INTEROPERABILITY.md), and [manual staging drills](docs/operations/STAGING_DRILLS.md).
 
 ## Provenance and license
