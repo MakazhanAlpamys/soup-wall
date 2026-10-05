@@ -4,6 +4,10 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
 
 ## Unreleased
 
+- Added an opt-in AgentDojo native-runtime fallback adapter, pinned runtime
+  contract checks, explicit provider budgets and atomic aggregate evidence.
+  The shipped policy is unchanged; independent live-model effectiveness and
+  native semantic coverage remain separate acceptance gates.
 - Fixed Windows Agent installation instructions and honored IPv4, IPv6, and
   localhost binds consistently across daemon clients. Added disposable Windows
   ACL, enforcement, shadow, and outage acceptance checks.

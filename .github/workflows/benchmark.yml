@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Verify pinned historical trace import fidelity
+      - name: Verify historical import and free runtime adapter contracts
         run: python3 -m unittest discover -s scripts/benchmarks -p 'test_*.py' -v
       - name: Run reproducible agent benchmark
         shell: bash

@@ -599,8 +599,13 @@ def run_fixture_checks(checkout, binary, temporary_parent):
                "crates/agent/policies/agent-default.yaml"]
     dependencies = ["openai", "pydantic", "docstring-parser", "typing-extensions", "PyYAML", "tenacity",
                     "google-genai", "rich", "deepdiff", "anthropic", "cohere", "requests"]
+    source_revision = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                                     capture_output=True, check=True, text=True).stdout.strip()
+    source_modified = bool(subprocess.run(["git", "-C", str(repo), "status", "--porcelain", "--", *sources],
+                                         capture_output=True, check=True, text=True).stdout.strip())
     return {"schema_version": 1, "mode": "fixture", "observed_at_utc": datetime.now(timezone.utc).isoformat(),
-            "source_base_revision": "b7c8866", "upstream": UPSTREAM.verified,
+            "source_revision": source_revision, "source_worktree_modified": source_modified,
+            "upstream": UPSTREAM.verified,
             "agent_binary_sha256": adapter.file_hash(AGENT_BINARY),
             "source_file_sha256": {name: adapter.file_hash(repo / name) for name in sources},
             "python_version": ".".join(str(part) for part in sys.version_info[:3]),

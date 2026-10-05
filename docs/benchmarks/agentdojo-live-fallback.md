@@ -10,6 +10,17 @@ hints, or replace the [negative historical baseline](independent-history-replay.
 The implemented and measured checkpoint is a free runtime integration fixture.
 An operator-selected independent live model evaluation remains outstanding.
 
+The existing benchmark CI runs the dependency-free checks with:
+
+```powershell
+python -m unittest discover -s scripts/benchmarks -p 'test_*.py' -v
+```
+
+It exercises eight historical-import and ten adapter safety methods. Without an
+explicit upstream checkout, the bytecode-contamination method and two runtime
+test classes are explicitly skipped. The separate fixture command below runs
+all 29 adapter checks with the pinned runtime and a disposable Agent.
+
 ## Prepare an isolated runtime
 
 The default command prints a manifest and makes no model calls:
@@ -75,6 +86,8 @@ The checks establish that:
 The sanitized [recorded fixture evidence](evidence/agentdojo-live-fixture-2026-10-05.json)
 contains only hashes, versions, check counts, and limitations. Fixture utility is
 not independent AgentDojo task utility or attack success.
+The observed source revision and modification flag accompany exact file-byte
+hashes; newline conversion can change those hashes across checkouts.
 
 ## Operator-selected live run
 

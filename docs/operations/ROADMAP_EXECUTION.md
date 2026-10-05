@@ -47,7 +47,8 @@ remain visible; dependencies are never marked complete to make the plan green.
    restore and real-IdP acceptance if authorized infrastructure is available.
    Keep a precise record of any remaining external dependencies.
    The pinned historical importer, fidelity checks, outcome JSON and negative
-   baseline are complete. Native live-runtime adaptation and the field run remain.
+   baseline and the verified native-runtime fallback adapter are complete.
+   Native semantic coverage and the operator-selected live field run remain.
 6. [x] **Integration and release review.** Review changes, run required checks,
    push focused PRs, record CI results, and reconcile roadmap, operator guidance,
    and changelog with the evidence. Do not publish a new release or claim field
@@ -159,3 +160,13 @@ provider credentials, identity assertions, prompts, or customer data.
   establishment. No reproducible client/TLS/proxy defect was demonstrated and no
   timeout or TLS checks were weakened. This is bounded metadata evidence plus
   an environment reliability limit, not interactive real-IdP login acceptance.
+- Native runtime adapter: `0961bdf` adds an original, opt-in AgentDojo adapter
+  for the existing `/hook` contract, preserving pinned native tool names,
+  schemas, validation, dependencies, results and evaluators. All 29 actual
+  runtime/disposable-Agent checks passed independently on Windows. The existing
+  hosted benchmark discovers the free tests without provider credentials.
+  Broken HTTP, malformed decisions and missing inspection stop a trajectory
+  before reporting evaluators; immutable plan/policy snapshots, source hashes,
+  explicit provider budgets and atomic evidence bind the measured experiment.
+  The unchanged shipped policy retains its native semantic and result-gating
+  limits; no real model or paid provider was called. [Reproduction and bounds](../benchmarks/agentdojo-live-fallback.md).
