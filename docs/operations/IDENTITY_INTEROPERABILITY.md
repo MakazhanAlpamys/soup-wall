@@ -42,6 +42,19 @@ records Windows and Linux fixture results and the limited public metadata probe.
 
 ## Optional external discovery probes
 
+Record the provider's exact HTTPS issuer, without adding its discovery suffix.
+Soup Wall derives discovery URLs using
+[OpenID Connect Discovery 1.0 section 4.1](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationRequest):
+remove a terminating slash, then append `/.well-known/openid-configuration`
+after the issuer path. For example, the issuer
+`https://id.example.test/realms/acme` yields
+`https://id.example.test/realms/acme/.well-known/openid-configuration`, matching
+[Keycloak's realm endpoint](https://www.keycloak.org/securing-apps/oidc-layers).
+This is OIDC provider discovery, with a different path rule from RFC 8414 OAuth
+authorization-server metadata. The returned issuer must still exactly match
+the configured issuer, including a configured terminating slash. HTTPS,
+certificate validation, refusal of redirects, and PKCE S256 remain required.
+
 `crates/proxy/tests/external_identity.rs` includes ignored tests that exercise
 the production OIDC discovery/JWKS client and signed SAML metadata validator
 against operator-selected endpoints. Run them only from an operator-controlled

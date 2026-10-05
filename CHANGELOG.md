@@ -8,6 +8,10 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
   contract checks, explicit provider budgets and atomic aggregate evidence.
   The shipped policy is unchanged; independent live-model effectiveness and
   native semantic coverage remain separate acceptance gates.
+- Fixed OIDC discovery for issuers with paths, including Keycloak realms.
+  The well-known configuration path now follows the issuer path as required
+  by OpenID Connect Discovery 1.0 section 4.1; exact issuer validation remains
+  required.
 - Fixed Windows Agent installation instructions and honored IPv4, IPv6, and
   localhost binds consistently across daemon clients. Added disposable Windows
   ACL, enforcement, shadow, and outage acceptance checks.

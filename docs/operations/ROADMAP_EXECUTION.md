@@ -170,3 +170,9 @@ provider credentials, identity assertions, prompts, or customer data.
   explicit provider budgets and atomic evidence bind the measured experiment.
   The unchanged shipped policy retains its native semantic and result-gating
   limits; no real model or paid provider was called. [Reproduction and bounds](../benchmarks/agentdojo-live-fallback.md).
+- OIDC path correction: [PR #24](https://github.com/MakazhanAlpamys/soup-wall/pull/24)
+  fixes actual discovery construction for realm/tenant issuer paths, preserving
+  ports, IPv6 and encoded path segments. All 28 OIDC tests and 151 Gateway library
+  tests passed locally (two external integrations ignored), and all 18 hosted
+  checks passed on `bcf66a0`. It merged as `934653821f73dd702dfe5b8977c6c5ea751ad28a`.
+  Interactive login remains an independent acceptance gate.
