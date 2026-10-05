@@ -48,7 +48,7 @@ remain visible; dependencies are never marked complete to make the plan green.
    Keep a precise record of any remaining external dependencies.
    The pinned historical importer, fidelity checks, outcome JSON and negative
    baseline are complete. Native live-runtime adaptation and the field run remain.
-6. [ ] **Integration and release review.** Review changes, run required checks,
+6. [x] **Integration and release review.** Review changes, run required checks,
    push focused PRs, record CI results, and reconcile roadmap, operator guidance,
    and changelog with the evidence. Do not publish a new release or claim field
    validation on the strength of source-level tests alone.
@@ -140,3 +140,22 @@ provider credentials, identity assertions, prompts, or customer data.
   Gateway, PostgreSQL and Redis processes are stopped after the recovery drill.
   `e89d802` rejects symlink/junction redirection of the ignored datasets base;
   independent review found and verified this privacy boundary.
+- Hosted integration: all 18 checks on `b7c8866` passed, including default and
+  all-feature tests, CodeQL for Rust/Python/actions, four native SAML targets,
+  Windows acceptance, Docker, storage integrations, advisory review and SBOM.
+  [PR #22](https://github.com/MakazhanAlpamys/soup-wall/pull/22) merged as
+  `6b150aa005cf311858272bb28c3d2b38296540e5`. This completes the implementation
+  integration checkpoint; managed deployment and field gates above stay open.
+- CodeQL follow-up: seven existing open alerts were reviewed against their
+  scanned source. Six are test-only OIDC/SCIM fixtures; the production allocation
+  is bounded by validation to 1000 records. Its runtime boundary rejects 0/1001
+  before persistence and accepts 1000. Alerts are dismissed with individual
+  reasons, retaining their history and all queries. Zero open alerts were
+  verified afterward. [Review and reopening criteria](evidence/CODEQL_TRIAGE_2026-10-05.md).
+- External OIDC discovery: the optional Google test first failed twice at the
+  existing five-second connect timeout. An isolated probe of the exact production
+  client then accepted discovery and two JWKS keys in 2.067 seconds; a later
+  connection again timed out. Direct TCP/curl probes showed variable connection
+  establishment. No reproducible client/TLS/proxy defect was demonstrated and no
+  timeout or TLS checks were weakened. This is bounded metadata evidence plus
+  an environment reliability limit, not interactive real-IdP login acceptance.
