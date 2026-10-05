@@ -587,15 +587,15 @@ impl OidcHttpClient {
 }
 
 /// Construct the OpenID Connect Discovery URL according to OIDC Discovery
-/// section 4.1: issuer path components appear after `/.well-known`.
+/// section 4.1: remove a terminating slash and append
+/// `/.well-known/openid-configuration` after the issuer path. This differs from
+/// the OAuth authorization-server metadata path construction in RFC 8414.
 pub fn discovery_url(issuer: &str) -> anyhow::Result<Url> {
     let mut url = parse_https_uri(issuer, "OIDC issuer", false)?;
-    let path = url.path();
-    let discovery_path = if path == "/" {
-        "/.well-known/openid-configuration".to_owned()
-    } else {
-        format!("/.well-known/openid-configuration{path}")
-    };
+    let discovery_path = format!(
+        "{}/.well-known/openid-configuration",
+        url.path().trim_end_matches('/')
+    );
     url.set_path(&discovery_path);
     Ok(url)
 }
@@ -792,16 +792,69 @@ mod tests {
     }
 
     #[test]
-    fn discovery_url_inserts_well_known_before_an_issuer_path() {
+    fn discovery_url_appends_well_known_to_the_oidc_issuer_path() {
+        // OIDC Discovery 1.0 section 4.1, including Keycloak's realm endpoint.
+        for (issuer, expected) in [
+            (
+                "https://id.example.test",
+                "https://id.example.test/.well-known/openid-configuration",
+            ),
+            (
+                "https://id.example.test/",
+                "https://id.example.test/.well-known/openid-configuration",
+            ),
+            (
+                "https://id.example.test/realms/acme",
+                "https://id.example.test/realms/acme/.well-known/openid-configuration",
+            ),
+            (
+                "https://id.example.test/auth/realms/acme/",
+                "https://id.example.test/auth/realms/acme/.well-known/openid-configuration",
+            ),
+        ] {
+            assert_eq!(discovery_url(issuer).unwrap().as_str(), expected);
+        }
+    }
+
+    #[test]
+    fn discovery_url_preserves_ports_and_encoded_path_components() {
+        for (issuer, expected) in [
+            (
+                "https://id.example.test:8443/realms/acme%2Fdivision%20one/",
+                "https://id.example.test:8443/realms/acme%2Fdivision%20one/.well-known/openid-configuration",
+            ),
+            (
+                "https://[::1]:8443/realms/acme",
+                "https://[::1]:8443/realms/acme/.well-known/openid-configuration",
+            ),
+        ] {
+            assert_eq!(discovery_url(issuer).unwrap().as_str(), expected);
+        }
+    }
+
+    #[test]
+    fn discovery_url_rejects_unsafe_issuer_uris() {
+        for issuer in [
+            "http://id.example.test/realms/acme",
+            "https://user:pass@id.example.test/realms/acme",
+            "https://id.example.test/realms/acme?other=issuer",
+            "https://id.example.test/realms/acme#fragment",
+        ] {
+            assert!(discovery_url(issuer).is_err());
+        }
+    }
+
+    #[test]
+    fn discovery_path_trimming_does_not_relax_exact_issuer_validation() {
+        let mut connection = connection();
+        connection.issuer.push('/');
+        let mut document = discovery();
+        assert!(document.validate_for_connection(&connection).is_err());
+        document.issuer.push('/');
+        assert!(document.validate_for_connection(&connection).is_ok());
         assert_eq!(
-            discovery_url("https://id.example.test/realms/acme")
-                .unwrap()
-                .as_str(),
-            "https://id.example.test/.well-known/openid-configuration/realms/acme"
-        );
-        assert_eq!(
-            discovery_url("https://id.example.test").unwrap().as_str(),
-            "https://id.example.test/.well-known/openid-configuration"
+            discovery_url(&connection.issuer).unwrap().as_str(),
+            "https://id.example.test/realms/acme/.well-known/openid-configuration"
         );
     }
 
