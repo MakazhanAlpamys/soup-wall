@@ -601,6 +601,14 @@ async fn serve() -> anyhow::Result<()> {
         .clone()
         .unwrap_or_else(|| home.join("audit.jsonl"));
     let state: agentfw::Shared = Arc::new(AppState {
+        native: cfg
+            .native
+            .as_ref()
+            .map(|native| {
+                let native_token = agentfw::token::load_or_create(&home.join("native-token"))?;
+                agentfw::native::NativeState::load(native, native_token)
+            })
+            .transpose()?,
         firewall: Mutex::new(firewall),
         sessions: Sessions::default(),
         audit: AuditSink::open(&audit_path)?,

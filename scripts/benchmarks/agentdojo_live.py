@@ -289,15 +289,27 @@ def isolated_environment(profile: Path):
     return env
 
 
+def safe_temporary_parent(parent: Path):
+    """Reject redirected scratch ancestry before writing private profiles or policy snapshots."""
+    selected = parent.absolute()
+    if selected != selected.resolve():
+        raise AdapterError("Temporary parent must be canonical and unlinked")
+    for candidate in [selected, *selected.parents]:
+        if candidate.is_symlink() or (hasattr(candidate, "is_junction") and candidate.is_junction()):
+            raise AdapterError("Temporary parent ancestry must be unlinked")
+    selected.mkdir(parents=True, exist_ok=True)
+    return selected
+
+
 class DisposableAgent:
     """Owns only a fresh temporary profile and its own explicitly selected binary."""
-    def __init__(self, binary: Path, policy: Path, temporary_parent: Path, enforce=True):
+    def __init__(self, binary: Path, policy: Path, temporary_parent: Path, enforce=True, native_registry=None):
         self.binary, self.policy = binary.resolve(), policy.resolve()
-        temporary_parent.mkdir(parents=True, exist_ok=True)
-        self.temporary_parent = temporary_parent.resolve()
+        self.temporary_parent = safe_temporary_parent(temporary_parent)
         self.directory = None
         self.process = None
         self.enforce = enforce
+        self.native_registry = native_registry
 
     def __enter__(self):
         self.directory = Path(tempfile.mkdtemp(prefix="agentdojo-live-", dir=self.temporary_parent)).resolve()
@@ -310,6 +322,13 @@ class DisposableAgent:
         policy = self.policy.as_posix().replace("'", "''")
         (agent_dir / "config.yaml").write_text(f"bind: 127.0.0.1\nport: {port}\nenforce: {str(self.enforce).lower()}\n"
                                                f"policy: '{policy}'\n", encoding="utf-8")
+        if self.native_registry is not None:
+            registry_path = agent_dir / "native-registry.json"
+            registry_path.write_bytes(self.native_registry.raw)
+            registry_yaml = registry_path.as_posix().replace("'", "''")
+            with (agent_dir / "config.yaml").open("a", encoding="utf-8") as config:
+                config.write(f"native:\n  registry_path: '{registry_yaml}'\n"
+                             f"  registry_sha256: {self.native_registry.sha256}\n")
         try:
             installed = subprocess.run([str(self.binary), "install"], env=self.env, capture_output=True,
                                        cwd=self.directory, timeout=10)
@@ -338,6 +357,10 @@ class DisposableAgent:
                                        cwd=self.directory, capture_output=True, timeout=10)
             if preflight.returncode != 0:
                 raise AdapterError("Disposable Agent did not pass enforcing preflight")
+            if self.native_registry is not None:
+                from agentdojo_native import NativeClient
+                native_token = (agent_dir / "native-token").read_text().strip()
+                self.client = NativeClient(f"http://127.0.0.1:{port}", native_token, self.native_registry)
             self.client.event("SessionStart")
             return self
         except BaseException:

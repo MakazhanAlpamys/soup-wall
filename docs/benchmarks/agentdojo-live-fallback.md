@@ -160,6 +160,10 @@ recorded experiment inputs.
 
 ## Existing boundary remains
 
+The optional [native admission contract](native-admission.md) provides a separate
+operator-installed registry and result/context gate. Select it explicitly with
+`--native-registry`; the fallback described and measured here keeps `/hook`.
+
 `/hook` classifies native names with the existing unknown-tool fallback and
 derives their result provenance as `LocalSystem`. It accepts no trusted native
 semantic declarations. PostToolUse inspects/records results but always returns
@@ -168,11 +172,12 @@ policy's no-judge escalation fallback remains unchanged. Unattended Ask refuses
 execution because this adapter has no human approval channel; this host behavior
 is stated separately from the YAML policy.
 
-Native-tool trust/action declarations and a result approval channel therefore
-need a reviewed library-level adapter and a separate versioned evaluation. No
-shell encoding, fake egress URL, fabricated MCP handshake, or tuning against the
-40 public attack attempts can repair that boundary honestly. A live fallback
-run does not close the native-semantic or field-effectiveness gate.
+The separately versioned native path supplies installed trust/action
+declarations and result/context admission. It requires its own registry review
+and evaluation; the fallback does not acquire those semantics. Shell encoding,
+fake egress URLs, fabricated MCP handshakes, or tuning against the 40 public
+attack attempts do not establish coverage. A live fallback run does not close
+the native-semantic or field-effectiveness gate.
 
 Primary runtime contracts: [FunctionsRuntime](https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/src/agentdojo/functions_runtime.py),
 [ToolsExecutor and formatter](https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/src/agentdojo/agent_pipeline/tool_execution.py),

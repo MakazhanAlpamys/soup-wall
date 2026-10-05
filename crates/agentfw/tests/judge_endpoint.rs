@@ -61,6 +61,7 @@ fn model_reply(answer: &str) -> serde_json::Value {
 fn build_state(policy_yaml: &str, judge: JudgeCfg, dir: &std::path::Path) -> agentfw::Shared {
     let policy = AgentPolicySet::from_yaml(policy_yaml).expect("policy parses");
     Arc::new(AppState {
+        native: None,
         firewall: Mutex::new(AgentFirewall::new(policy, DEFAULT_TAINT_CAP)),
         sessions: Sessions::default(),
         audit: AuditSink::open(&dir.join("audit.jsonl")).unwrap(),

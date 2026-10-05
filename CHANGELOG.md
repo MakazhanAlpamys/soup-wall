@@ -4,6 +4,11 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
 
 ## Unreleased
 
+- Added opt-in operator-installed native admission with immutable tool semantics,
+  separate authentication, single-use invocation bindings, and result/context
+  gates. The AgentDojo adapter preserves the original runtime and formatter;
+  native semantic coverage and model effectiveness require separate evidence.
+  Fixed post-result hooks consuming pending action grants.
 - Added Gateway scrape-target outage detection, Prometheus rule regressions,
   monitoring configuration examples and an isolated real monitoring drill.
   The published Windows Gateway passed 26 checks with authenticated firing

@@ -50,7 +50,9 @@ remain visible; dependencies are never marked complete to make the plan green.
    Keep a precise record of any remaining external dependencies.
    The pinned historical importer, fidelity checks, outcome JSON and negative
    baseline and the verified native-runtime fallback adapter are complete.
-   Native semantic coverage and the operator-selected live field run remain.
+   Operator-installed native semantics and correlated result/context admission
+   are implemented. Reviewed registry coverage for selected tools and the
+   operator-selected live field run remain.
 6. [x] **Integration and release review.** Review changes, run required checks,
    push focused PRs, record CI results, and reconcile roadmap, operator guidance,
    and changelog with the evidence. Do not publish a new release or claim field
@@ -214,3 +216,8 @@ provider credentials, identity assertions, prompts, or customer data.
   pass; historical evidence is preserved separately. It merged as
   `9b5267d52c0dff2759c42fa08df94471dc58b2ef`. No corrected vendor runtime or
   external identity gate is claimed.
+- Monitoring source integration: [PR #27](https://github.com/MakazhanAlpamys/soup-wall/pull/27)
+  passed all 19 hosted checks on `d3b38a9`, including the vendor preparation
+  regressions, four SAML platforms and actual Rust/Python/actions CodeQL. It
+  merged as `50b6b4e7825a587c148778a1e0f17800cd98256e`. Timestamped local
+  firing/resolved evidence retains its managed-TLS and staffed-routing limits.

@@ -116,6 +116,20 @@ impl AuditSink {
     /// Write one line. Failures are returned, never panicked — a broken audit log
     /// must not take down the hook path.
     pub fn write(&self, line: &AuditLine) -> anyhow::Result<()> {
+        self.write_serialized(line)
+    }
+
+    /// Native admission requires successful aggregate evidence before release.
+    pub(crate) fn write_native(&self, line: &serde_json::Value) -> anyhow::Result<()> {
+        self.write_serialized(line)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fail_writes_for_test(&self, path: &Path) {
+        *self.file.lock().unwrap() = File::open(path).unwrap();
+    }
+
+    fn write_serialized(&self, line: &impl Serialize) -> anyhow::Result<()> {
         let mut json = serde_json::to_string(line)?;
         json.push('\n');
         let mut f = self

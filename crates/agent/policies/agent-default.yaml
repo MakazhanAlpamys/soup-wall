@@ -10,12 +10,12 @@ agent_policies:
   # Untrusted content driving a destructive action is the canonical indirect-injection
   # kill chain. Never merely ask.
   - name: deny-tainted-destructive
-    when: { taint: [network, mcp, subagent], action_class: destructive }
+    when: { taint: [network, mcp, subagent, native], action_class: destructive }
     action: deny
     message: "Blocked: destructive action derived from untrusted content"
 
   - name: deny-tainted-privilege
-    when: { taint: [network, mcp, subagent], action_class: privilege_changing }
+    when: { taint: [network, mcp, subagent, native], action_class: privilege_changing }
     action: deny
     message: "Blocked: privilege change derived from untrusted content"
 
@@ -64,7 +64,7 @@ agent_policies:
   # The judge may only tighten this to `ask`, never past it. See judge.rs and the
   # phase-10 design spec.
   - name: escalate-tainted-side-effect
-    when: { taint: [network, mcp, subagent], min_action_class: side_effecting }
+    when: { taint: [network, mcp, subagent, native], min_action_class: side_effecting }
     action: escalate
     fallback: allow
     message: "This action uses content fetched earlier from an untrusted source."
