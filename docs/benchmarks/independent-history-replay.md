@@ -95,7 +95,8 @@ cargo run --locked --release -p soup-wall-bench -- \
 
 The first import invocation verifies selection only. Output must be a fresh
 subdirectory under this checkout's ignored `datasets/`; an existing destination
-is rejected. HTTPS access to GitHub's public API and raw-file host is required.
+is rejected. The `datasets/` base must not be a symlink or junction, and resolved
+descendants cannot leave it. HTTPS access to GitHub's public API and raw-file host is required.
 The license, original traces, JSONL projection, manifest, and full sanitized report
 stay local. Inspect only metadata and aggregate outputs before publishing evidence.
 Passing the unmodified shipped YAML to `--policy` enables the process-exit gate

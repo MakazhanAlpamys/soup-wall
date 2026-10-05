@@ -175,8 +175,11 @@ def project(trace: dict, path: str) -> tuple[dict, dict]:
 
 
 def destination(path: Path) -> Path:
+    # A redirected base could place raw histories outside Git's ignored child.
+    datasets = ROOT / "datasets"
+    if datasets.resolve() != datasets:
+        raise ValueError("datasets/ must not be a symlink or junction")
     resolved = path.resolve()
-    datasets = (ROOT / "datasets").resolve()
     if not resolved.is_relative_to(datasets) or resolved == datasets:
         raise ValueError("output must be a new directory inside this checkout's ignored datasets/")
     if resolved.exists():

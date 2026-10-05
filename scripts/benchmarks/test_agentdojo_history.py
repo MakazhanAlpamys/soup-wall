@@ -122,6 +122,24 @@ class HistoryImportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             IMPORT.parse_json(b'{"x":NaN}')
 
+    def test_datasets_base_cannot_redirect_raw_data_to_unignored_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            base = root / "datasets"
+            original_resolve = Path.resolve
+            for redirected_base in (root, root / "unignored"):
+                # Canonical behavior of either a directory symlink or junction;
+                # no Windows link privilege or filesystem mutation is needed.
+                def redirected(path, *args, **kwargs):
+                    if path.is_relative_to(base):
+                        return redirected_base / path.relative_to(base)
+                    return original_resolve(path, *args, **kwargs)
+
+                with self.subTest(target=redirected_base), patch.object(IMPORT, "ROOT", root), \
+                     patch.object(Path, "resolve", autospec=True, side_effect=redirected):
+                    with self.assertRaises(ValueError):
+                        IMPORT.destination(base / "fresh-run")
+
 
 if __name__ == "__main__":
     unittest.main()
