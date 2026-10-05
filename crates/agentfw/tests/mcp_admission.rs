@@ -76,17 +76,91 @@ struct Fixture {
     output: tokio::io::Lines<BufReader<ChildStdout>>,
     ledger: std::path::PathBuf,
     stderr: std::path::PathBuf,
+    #[cfg(windows)]
+    private_before_launch: bool,
+}
+
+#[cfg(windows)]
+fn protected_dacl(path: &Path) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr::null_mut;
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Authorization::{GetNamedSecurityInfoW, SE_FILE_OBJECT};
+    use windows_sys::Win32::Security::{
+        GetSecurityDescriptorControl, DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR,
+        SE_DACL_PROTECTED,
+    };
+    let name = path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    let mut descriptor: PSECURITY_DESCRIPTOR = null_mut();
+    // SAFETY: The path is NUL-terminated and Windows returns LocalAlloc-owned memory.
+    let result = unsafe {
+        GetNamedSecurityInfoW(
+            name.as_ptr(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION,
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            &mut descriptor,
+        )
+    };
+    if result != 0 || descriptor.is_null() {
+        return false;
+    }
+    let mut control = 0;
+    let mut revision = 0;
+    // SAFETY: The security descriptor remains allocated until the control query finishes.
+    let ok = unsafe { GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) } != 0;
+    // SAFETY: GetNamedSecurityInfoW allocated this descriptor with LocalAlloc.
+    unsafe {
+        LocalFree(descriptor);
+    }
+    ok && control & SE_DACL_PROTECTED != 0
 }
 
 impl Fixture {
     async fn new(mode: &str, enforce: bool) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let home = dir.path().join(".agentfw");
-        std::fs::create_dir_all(&home).unwrap();
+        let stderr = dir.path().join("gateway-stderr.log");
+        // The real bootstrap assigns current-user ownership and a protected DACL
+        // even on elevated Windows runners. Discard setup instructions and keys.
+        let bootstrap = tokio::time::timeout(
+            Duration::from_secs(10),
+            Command::new(env!("CARGO_BIN_EXE_agentfw"))
+                .arg("install")
+                .env(
+                    if cfg!(windows) { "USERPROFILE" } else { "HOME" },
+                    dir.path(),
+                )
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::from(
+                    std::fs::File::create(&stderr).unwrap(),
+                ))
+                .kill_on_drop(true)
+                .status(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert!(
+            bootstrap.success(),
+            "fixture private Agent bootstrap failed"
+        );
         let bytes = registry().to_string().into_bytes();
         let digest = sha(&bytes);
         let registry_path = dir.path().join("registry.json");
         std::fs::write(&registry_path, &bytes).unwrap();
+        // Create through the same protected API as the daemon, then replace only
+        // the content of these already-private fixture files with synthetic tokens.
+        agentfw::token::load_or_create(&home.join("native-token")).unwrap();
+        agentfw::token::load_or_create(&home.join("token")).unwrap();
         std::fs::write(home.join("native-token"), TOKEN).unwrap();
         std::fs::write(home.join("token"), "fixture-hook-token").unwrap();
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -120,7 +194,6 @@ impl Fixture {
         let path = registry_path.to_string_lossy().replace('\'', "''");
         std::fs::write(home.join("config.yaml"), format!("port: {port}\nenforce: true\nnative:\n  registry_path: '{path}'\n  registry_sha256: '{digest}'\n")).unwrap();
         let ledger = dir.path().join("executed.jsonl");
-        let stderr = dir.path().join("gateway-stderr.log");
         let python = if cfg!(windows) { "python" } else { "python3" };
         let mut command = Command::new(env!("CARGO_BIN_EXE_agentfw"));
         command.args([
@@ -142,6 +215,10 @@ impl Fixture {
         command
             .env("AGENTFW_TOKEN", "synthetic-hook-env")
             .env("AGENTFW_NATIVE_TOKEN", "synthetic-native-env");
+        #[cfg(windows)]
+        let private_before_launch = [home.clone(), home.join("token"), home.join("native-token")]
+            .iter()
+            .all(|path| protected_dacl(path));
         command
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
@@ -160,6 +237,8 @@ impl Fixture {
             output,
             ledger,
             stderr,
+            #[cfg(windows)]
+            private_before_launch,
         }
     }
 
@@ -248,6 +327,16 @@ fn executed(path: &Path) -> Vec<Value> {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect()
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn native_mcp_fixture_bootstraps_protected_profile_before_gateway_launch() {
+    // Plain filesystem creation inherits a loose DACL and may assign Administrators
+    // ownership on an elevated runner. The fixture must use the real private bootstrap.
+    let mut fixture = Fixture::new("normal", true).await;
+    assert!(fixture.private_before_launch, "fixture profile and both token files must already have protected DACLs before gateway startup");
+    fixture.ready().await;
 }
 
 #[tokio::test]
