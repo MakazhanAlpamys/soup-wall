@@ -183,10 +183,13 @@ fn validate_local_url(value: &str) -> Result<()> {
 }
 
 fn readonly_url(value: &str) -> Result<String> {
+    validate_local_url(value)?;
     let mut parsed = reqwest::Url::parse(value)?;
-    parsed
-        .query_pairs_mut()
-        .append_pair("options", "-c default_transaction_read_only=on");
+    // PostgreSQL URI options use percent decoding, not form decoding: a '+'
+    // remains literal instead of becoming a space between '-c' and the setting.
+    parsed.set_query(Some(
+        "sslmode=disable&options=-c%20default_transaction_read_only%3Don",
+    ));
     Ok(parsed.into())
 }
 
@@ -918,6 +921,28 @@ mod tests {
         }
         for url in ["postgresql://fixture:private@localhost/source?sslmode=disable", "postgresql://fixture:private@203.0.113.1/source?sslmode=disable", "postgresql://fixture:private@127.0.0.1/source?sslmode=require", "postgresql://fixture:private@127.0.0.1/source?sslmode=disable&options=-c%20search_path=other", "http://127.0.0.1/source?sslmode=disable"] {
             assert!(validate_local_url(url).is_err());
+        }
+    }
+
+    #[test]
+    fn read_only_probe_options_decode_without_changing_the_endpoint() {
+        for url in [
+            "postgresql://fixture:private@127.0.0.1:5432/source?sslmode=disable",
+            "postgresql://fixture%2Boperator:p%2Bass%20word%40%3A%2F%23@[::1]:5433/source%2Bdb?sslmode=disable",
+            "postgresql://fixture+operator:p+ass%20word@127.0.0.1:6543/source+db?sslmode=disable",
+        ] {
+            let original = tokio_postgres::Config::from_str(url).unwrap();
+            let probe = tokio_postgres::Config::from_str(&readonly_url(url).unwrap()).unwrap();
+            assert_eq!(
+                probe.get_options(),
+                Some("-c default_transaction_read_only=on")
+            );
+            assert_eq!(probe.get_hosts(), original.get_hosts());
+            assert_eq!(probe.get_ports(), original.get_ports());
+            assert_eq!(probe.get_user(), original.get_user());
+            assert_eq!(probe.get_password(), original.get_password());
+            assert_eq!(probe.get_dbname(), original.get_dbname());
+            assert_eq!(probe.get_ssl_mode(), original.get_ssl_mode());
         }
     }
 
