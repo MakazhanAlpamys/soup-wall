@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "acceptance": "passed",
-  "observed_at_utc": "2026-10-04T22:56:11.629731+05:00",
+  "observed_at_utc": "2026-10-04T18:06:48.774210+00:00",
   "claude_version": "2.1.289 (Claude Code)",
-  "agent_binary_sha256": "d11530f7ef93a091dad251708fd8ee3d852c39ed427550d1e6a804e592d6df21",
+  "agent_binary_sha256": "2e6d1c73142f11f5705e8569c32716113ba2ca925f34e8c1ad612cc222bb0218",
   "claude_binary_sha256": "bcc6d9117aec30ad9414490302a25414359c871f5647e32e49b055c92bf84e0b",
   "checks_passed": 41,
   "checks": [
@@ -62,7 +62,7 @@
       "audit_bash_verdict": "deny",
       "mock_messages_requests": 3,
       "mock_token_count_requests": 0,
-      "elapsed_ms": 1375
+      "elapsed_ms": 1437
     },
     {
       "mode": "shadow",
@@ -76,7 +76,7 @@
       "audit_bash_verdict": "deny",
       "mock_messages_requests": 3,
       "mock_token_count_requests": 0,
-      "elapsed_ms": 2219
+      "elapsed_ms": 2250
     },
     {
       "mode": "offline",
@@ -90,7 +90,7 @@
       "audit_bash_verdict": null,
       "mock_messages_requests": 3,
       "mock_token_count_requests": 0,
-      "elapsed_ms": 3562
+      "elapsed_ms": 3500
     }
   ],
   "external_provider_requests_sent": 0,
@@ -101,7 +101,5 @@
   "offline_fail_open_observed": true,
   "controlled_shell_commands_executed": 2,
   "limitation": "Local deterministic fixtures; no real-model task, field soak, adversarial effectiveness, or OS network containment claim.",
-  "isolated_profiles_removed": true,
-  "source_base_commit": "51c2f0234a785916da26cac463b7c8d9fa29ef84",
-  "failure_cleanup_verified": true
+  "isolated_profiles_removed": true
 }

@@ -121,7 +121,7 @@ provider credentials, identity assertions, prompts, or customer data.
   354 events with 0/40 interrupted injection attempts and 0/40 interrupted benign
   sessions under the unchanged default policy. The explicit policy gate fails
   and retains JSON evidence. This exposes the native-tool adapter boundary,
-  not a count of successful attacks. Seven importer tests pass without network
+  not a count of successful attacks. Eight importer tests pass without network
   access. [Source review, reproduction and live-run plan](../benchmarks/independent-history-replay.md).
 - Real host checkpoint: `e9679d1` runs native Claude Code 2.1.289 with the actual
   Agent HTTP hooks, Read and a harmless disposable shell marker. All 41 checks
@@ -130,3 +130,13 @@ provider credentials, identity assertions, prompts, or customer data.
   attempts. This establishes host integration and fail-open behavior for the
   custom fixture policy, not shipped-policy effectiveness or field soaking.
   [Command and evidence](CLAUDE_HOST_ACCEPTANCE.md).
+- Integration verification: `0a9fa83` incorporates merged SAML hardening into
+  the checkpoint branch. Required Windows formatting and workspace Clippy pass;
+  all 719 default workspace tests pass, with five explicitly ignored checks
+  (live local-model, dependency services, and external identity). The earlier
+  isolated storage tests and hosted storage jobs exercise the dependency cases.
+  Both Gateway failure-evidence regressions and all eight importer tests pass.
+  The rebuilt root Agent again passes all 41 real-host checks. Own disposable
+  Gateway, PostgreSQL and Redis processes are stopped after the recovery drill.
+  `e89d802` rejects symlink/junction redirection of the ignored datasets base;
+  independent review found and verified this privacy boundary.
