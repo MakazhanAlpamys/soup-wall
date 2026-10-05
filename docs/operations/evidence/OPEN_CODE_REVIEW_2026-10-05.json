@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "tool": {
+    "repository": "https://github.com/alibaba/open-code-review",
+    "release": "v1.12.12",
+    "source_revision": "182898cf522da3d04157b422752d028417974e19",
+    "binary_sha256": "c34033f9da77e65aebddd64e37e671b4dd773ad4868e4f73922d13766ee6bb82",
+    "license": "Apache-2.0",
+    "mode": "official delegation preview/rule + full-tree scan --preview; review performed by current Codex host agent"
+  },
+  "reviewed_source": {
+    "base_revision": "50b6b4e7825a587c148778a1e0f17800cd98256e",
+    "head_revision": "e275019f5a3e53e74366a2b394362b0a066ead8e",
+    "frozen_tree_tar_sha256": "247e8f20610504bf6af8d21bff38fd30b1838c5295f1a514a4762ece8e886602",
+    "separately_reviewed_delta": "8f607f5 (fresh test nonces only)"
+  },
+  "execution_boundary": {
+    "ocr_managed_inference": false,
+    "host_agent_review": true,
+    "extra_external_provider_api_calls": 0,
+    "ambient_provider_credentials_in_tool_environment": false,
+    "isolated_home_and_config": true,
+    "telemetry": false,
+    "global_install_or_plugin_changes": false,
+    "external_reviews_comments_messages": false
+  },
+  "coverage": {
+    "changed_files": 31,
+    "ocr_selected_files": 22,
+    "ocr_excluded_files": 9,
+    "host_reviewed_changed_files": 31,
+    "host_skipped_changed_files": 0,
+    "diff_coverage_rate": 1.0,
+    "full_project_preview_files": 240,
+    "full_project_preview_selected": 187,
+    "full_project_preview_excluded": 53,
+    "full_project_autonomous_inference_completed": false,
+    "project_scan_limitation": "The full-tree command was deterministic selection only, not an autonomous completed defect scan. Host review covered the complete current PR diff and related safety contexts; unmodified selected files were not all individually deep-reviewed."
+  },
+  "changed_file_ledger": [
+    {
+      "path": "crates/agent/policies/agent-default.yaml",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agent/src/action.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agent/src/engine.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agent/src/event.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agent/src/lib.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agent/src/policy.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/src/audit.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/src/config.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/src/grant.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/src/handlers.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/src/lib.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/src/main.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/src/native.rs",
+      "status": "added",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/tests/hook_endpoint.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/tests/judge_endpoint.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/tests/mcp_endpoint.rs",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "crates/agentfw/tests/native_endpoint.rs",
+      "status": "added",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "docs/benchmarks/evidence/agentdojo-fallback-after-native-2026-10-05.json",
+      "status": "added",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "docs/benchmarks/evidence/agentdojo-native-fixture-2026-10-05.json",
+      "status": "added",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "scripts/agentdojo-live.py",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "scripts/benchmarks/agentdojo_live.py",
+      "status": "modified",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "scripts/benchmarks/agentdojo_native.py",
+      "status": "added",
+      "ocr_selected": true,
+      "host_review": "reviewed changed hunks and applicable safety context"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "status": "modified",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "unsupported_ext",
+      "host_review": "manually reviewed despite tool exclusion"
+    },
+    {
+      "path": "README.md",
+      "status": "modified",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "unsupported_ext",
+      "host_review": "manually reviewed despite tool exclusion"
+    },
+    {
+      "path": "SECURITY.md",
+      "status": "modified",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "unsupported_ext",
+      "host_review": "manually reviewed despite tool exclusion"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "status": "modified",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "unsupported_ext",
+      "host_review": "manually reviewed despite tool exclusion"
+    },
+    {
+      "path": "docs/benchmarks/agentdojo-live-fallback.md",
+      "status": "modified",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "unsupported_ext",
+      "host_review": "manually reviewed despite tool exclusion"
+    },
+    {
+      "path": "docs/benchmarks/evidence/agentdojo-native-fixture-2026-10-05.md",
+      "status": "added",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "unsupported_ext",
+      "host_review": "manually reviewed despite tool exclusion"
+    },
+    {
+      "path": "docs/benchmarks/native-admission.md",
+      "status": "added",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "unsupported_ext",
+      "host_review": "manually reviewed despite tool exclusion"
+    },
+    {
+      "path": "docs/operations/ROADMAP_EXECUTION.md",
+      "status": "modified",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "unsupported_ext",
+      "host_review": "manually reviewed despite tool exclusion"
+    },
+    {
+      "path": "scripts/benchmarks/test_agentdojo_native.py",
+      "status": "added",
+      "ocr_selected": false,
+      "ocr_exclusion_reason": "default_path",
+      "host_review": "manually reviewed despite tool exclusion"
+    }
+  ],
+  "confirmed_findings": [
+    {
+      "path": "crates/agent/policies/agent-default.yaml",
+      "reviewed_head_start_line": 66,
+      "reviewed_head_end_line": 70,
+      "category": "security",
+      "severity": "high",
+      "title": "Tainted unknown egress bypasses its explicit Ask rule",
+      "effect": "A neutral unknown-host send resolves Ask before taint, but Allow after admitted foreign URL content because an earlier Escalate rule has fallback Allow. Reproduced with real AgentFirewall generic-hook and native-library entrypoints; no callable or network execution.",
+      "original_policy_sha256": "28c82065ce77f437b9b3bec45255002c2305d4ebb152885e0d0ef37f8c915310",
+      "corrected_policy_sha256": "2210099a25e67e0a347510c068039fa159d3d78a8054eafbc86a6c698729dc38",
+      "correction": "Place every remaining explicit Ask rule ahead of weaker Escalate/fallbackAllow, preserving first-match semantics and allowlisted ordinary side-effect fallback.",
+      "status": "source corrected and frozen; root owns commit/push and refreshed daemon evidence",
+      "regressions": [
+        "taint_cannot_allow_unknown_egress_but_allowlisted_sends_keep_their_fallback",
+        "deny_precedence_survives_tainted_unknown_egress"
+      ],
+      "verification": {
+        "agent_tests_passed": 157,
+        "all_target_clippy_warnings_denied": true,
+        "format_and_diff_checks": true,
+        "release_policy_corpus": {
+          "attack_interruptions": 19,
+          "attack_total": 19,
+          "benign_uninterrupted": 21,
+          "benign_total": 21,
+          "policy_gate": "passed"
+        }
+      },
+      "before_probe_stdout_sha256": "049447c98fc9b25c7e8fc6b3ad0dbe834fe3d61939553a0fd5c843b588ef92bc",
+      "after_probe_stdout_sha256": "848d36dc29d81a4d07f01c4022bc3e525616290f696e3545f38219a0daf82f31",
+      "before_probe_executable_sha256": "31a3d7120063f4bbdca40c33440c21e13e09af90ba527316be49c6721aedf30c",
+      "after_probe_executable_sha256": "6537eff2ed84e0613cd3f9cbc9b7fa6f1a3e71f9aa940aa6a7100110db81bbb8"
+    }
+  ],
+  "heuristic_findings_reported": 0,
+  "limitations": [
+    "Delegation mode runs no OCR-managed provider inference; the host-agent finding is not attributed to an autonomous static or model scan.",
+    "The official full-project preview excluded overly large tenant_store.rs/postgres.rs and unsupported documentation/lockfile types; no clean complete-project scanning claim is made.",
+    "Hosted CodeQL alerts39/40 were isolated test nonce fixtures and separately corrected by root; this report does not change GitHub alerts or suppress queries."
+  ],
+  "root_integration": {
+    "correction_source_revision": "0c333cd881b9393b2509cd4eb8867103a7b32b3e",
+    "nonce_fixture_source_revision": "8f607f53c60acca3739e0ecd78079c5dfed9278c",
+    "native_checks_passed": 26,
+    "fallback_checks_passed": 29,
+    "actual_agent_sha256": "000fe4309e3961360bc6b964598416fd4f2183f640a37c9b57f6fe540564cc99",
+    "real_model_calls": 0,
+    "native_scripted_loopback_provider_requests": 7,
+    "raw_review_sha256": "ddbf236ee25af1f30187fb5ad7000be042042d3ac35842e426dfc9db1e176d94"
+  }
+}

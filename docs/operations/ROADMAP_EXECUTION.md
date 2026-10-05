@@ -237,3 +237,12 @@ provider credentials, identity assertions, prompts, or customer data.
   removal automatic review rejected after their owned children were stopped.
   Current tool-registry coverage and external effectiveness/utility/soaking
   gates stay open. [Evidence and reproduction](../benchmarks/evidence/agentdojo-native-fixture-2026-10-05.md).
+- Native review correction: official OpenCodeReview delegation selected files and
+  rules for the complete PR diff; host review also covered tool-excluded files.
+  Actual engine probes confirmed that weaker tainted escalation could override
+  unknown-host Ask. `0c333cd` fixes precedence and adds both hook/native
+  regressions. All 157 Agent tests and the 19-attack/21-benign release corpus pass;
+  the rebuilt daemon again passes 26 native and 29 fallback checks. Two CodeQL
+  fixture nonce findings are corrected in source without suppressing queries.
+  Full-project preview is selection evidence, not a completed autonomous scan.
+  [Provenance, finding and boundaries](evidence/OPEN_CODE_REVIEW_2026-10-05.md).
