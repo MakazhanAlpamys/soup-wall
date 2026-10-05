@@ -27,6 +27,10 @@ the fresh generated runtime was removed; cleanup errors are empty and the
 overall status is `passed`. Independent free regressions passed all 13 Python
 script tests, including 11 monitoring safety tests and two existing Gateway
 failure-evidence tests. No model requests or external notifications were sent.
+Both deployment-asset tests and workspace formatting also passed. Final
+documentation review reconciled the security policy with the existing Windows
+protected-DACL implementation and the observed immediate hook fail-open
+behavior; these are documentation corrections to previously verified code.
 
 This establishes local scrape-target outage detection and authenticated
 firing/resolved delivery. It does not establish managed TLS, a staffed
