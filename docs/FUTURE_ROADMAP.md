@@ -86,13 +86,18 @@ native tools. Define session ownership, child authority, cancellation, expiry,
 restarts, bounded outstanding calls and private audit behavior before promising
 general coverage.
 
-The shipped default policy uses first-match precedence. Static reading places
-`escalate-tainted-side-effect` with `fallback: allow` before
-`ask-unknown-host`. A tainted side effect to an unknown destination is therefore
-a policy-overlap hypothesis to verify using the engine and actual facets. This
-document records no confirmed bypass and proposes no untested reorder. The
-regression must distinguish no judge, judge allow/ask, errors and unavailable
-judges, and check the intended result for each overlap.
+The shipped default policy uses first-match precedence. Independent checks
+confirmed through the actual hook and native library entrypoints that an
+untainted send to an unknown host produced `ask`, while admitted foreign
+content tainted the same send and let the earlier
+`escalate-tainted-side-effect` with `fallback: allow` override
+`ask-unknown-host`. The current security correction orders the unknown-host
+rule before that weaker fallback and adds regressions; it is part of the
+current native checkpoint, pending publication at this planning update.
+Future work expands the combination matrix to no judge, judge allow/ask,
+errors and unavailable judges, and verifies the intended result for each
+overlap. That wider evaluation is separate from correcting this confirmed
+ordering defect.
 
 Live evaluation must retain unsuccessful runs, missed attacks, legitimate work
 interrupted and added latency. Separate the development corpus from held-out

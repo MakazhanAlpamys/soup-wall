@@ -156,6 +156,30 @@ class RestoreRefusals(unittest.TestCase):
                     RESTORE.parse_admin_url(value)
                 self.assertNotIn("neutral-secret", str(error.exception))
 
+    def test_database_identity_removes_postgres_inet_cidr_for_ipv4_and_ipv6(self):
+        for host, prefix in [("127.0.0.1", 32), ("::1", 128)]:
+            with self.subTest(host=host):
+                backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+                backend.databases = {name: RESTORE.Endpoint(host, 5432, "fixture", "neutral", name)
+                                     for name in ("source", "drill")}
+                def postgres_identity(endpoint, query):
+                    # PostgreSQL inet::text includes its mask. host(inet) returns
+                    # the address alone, which is the literal endpoint identity.
+                    address = host if "host(inet_server_addr())" in query else f"{host}/{prefix}"
+                    return f"{endpoint.database}|{address}|{endpoint.port}"
+                with patch.object(backend, "sql", side_effect=postgres_identity):
+                    self.assertEqual(backend.identities(),
+                        (f"source|{host}|5432", f"drill|{host}|5432"))
+
+    def test_canonical_host_still_requires_reserved_database_and_port(self):
+        backend = RESTORE.PostgresBackend(Path.cwd(), {}, None)
+        backend.databases = {name: RESTORE.Endpoint("127.0.0.1", 5432, "fixture", "neutral", name)
+                             for name in ("source", "drill")}
+        for mismatched in ["other|127.0.0.1|5432", "source|127.0.0.1|5433"]:
+            with self.subTest(identity=mismatched), patch.object(backend, "sql", return_value=mismatched):
+                with self.assertRaises(RESTORE.AcceptanceError):
+                    backend.identities()
+
     def test_windows_fails_closed_before_artifact_or_process_creation(self):
         with tempfile.TemporaryDirectory() as temporary, patch.object(RESTORE.os, "name", "nt"):
             with self.assertRaises(RESTORE.AcceptanceError):

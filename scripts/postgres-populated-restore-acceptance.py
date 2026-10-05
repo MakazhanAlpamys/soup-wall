@@ -24,7 +24,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlsplit
 DATABASE_ENV = "LLM_FW_RESTORE_FIXTURE_DATABASE_URL"
 TARGET_ENV = "LLM_FW_RESTORE_FIXTURE_RESTORED_DATABASE_FINGERPRINT"
 IDENTITY_SQL = ("SELECT current_database() || '|' || "
-    "COALESCE(inet_server_addr()::text, 'local') || '|' || "
+    "COALESCE(host(inet_server_addr()), 'local') || '|' || "
     "COALESCE(inet_server_port()::text, 'local');")
 MAX_OUTPUT = 16 * 1024 * 1024
 NAME = re.compile(r"[a-z_][a-z0-9_]{0,62}\Z")

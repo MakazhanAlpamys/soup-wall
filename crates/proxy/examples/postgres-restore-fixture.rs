@@ -205,7 +205,7 @@ async fn database_fingerprint(url: &str) -> Result<String> {
     let row = database_client(url)
         .await?
         .query_one(
-            "SELECT current_database() || '|' || COALESCE(inet_server_addr()::text, 'local') || '|' || COALESCE(inet_server_port()::text, 'local')",
+            "SELECT current_database() || '|' || COALESCE(host(inet_server_addr()), 'local') || '|' || COALESCE(inet_server_port()::text, 'local')",
             &[],
         )
         .await?;
