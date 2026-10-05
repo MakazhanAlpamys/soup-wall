@@ -35,9 +35,9 @@ reviewed integration and evidence.
 
 Local restore and monitoring evidence likewise leave managed TLS, real IdP
 interoperability, staffed routing and customer recovery gates open. The new
-populated restore checkpoint needs an actual isolated run before it becomes
-acceptance evidence; its synthetic queued webhook records do not establish
-delivery to a receiver.
+populated restore checkpoint now has an actual isolated passing run recorded in
+[local evidence](operations/evidence/POPULATED_RESTORE_2026-10-05.md). Its synthetic
+queued webhook records do not establish delivery to a receiver.
 
 ## First future proof
 
