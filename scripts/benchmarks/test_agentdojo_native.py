@@ -5,6 +5,7 @@ import http.server
 import importlib.util
 import json
 import os
+import sys
 from pathlib import Path
 import tempfile
 import threading
@@ -93,6 +94,21 @@ class NativeHandler(http.server.BaseHTTPRequestHandler):
 
 
 class NativeSafety(unittest.TestCase):
+    def test_prestart_config_and_registry_failure_clean_childless_owned_profile(self):
+        for method in ("write_text", "write_bytes"):
+            with self.subTest(preparation_write=method), tempfile.TemporaryDirectory() as directory:
+                parent = Path(directory).resolve()
+                policy = parent / "policy.yaml"
+                policy.write_bytes(b"default: allow\n")
+                owner = adapter.DisposableAgent(Path(sys.executable), policy, parent, native_registry=registry())
+                with patch.object(Path, method, side_effect=PermissionError("synthetic preparation failure")), patch.object(
+                        adapter.subprocess, "run") as install:
+                    with self.assertRaisesRegex(PermissionError, "preparation failure"):
+                        owner.__enter__()
+                install.assert_not_called()
+                self.assertIsNone(owner.process)
+                self.assertFalse(owner.directory.exists())
+
     def test_lifecycle_failure_cannot_skip_cleanup_and_failed_teardown_retains_profile(self):
         class Child:
             def __init__(self, fail):

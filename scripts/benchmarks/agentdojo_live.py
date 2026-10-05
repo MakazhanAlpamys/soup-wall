@@ -313,23 +313,23 @@ class DisposableAgent:
 
     def __enter__(self):
         self.directory = Path(tempfile.mkdtemp(prefix="agentdojo-live-", dir=self.temporary_parent)).resolve()
-        self.env = isolated_environment(self.directory)
-        agent_dir = self.directory / ".agentfw"
-        agent_dir.mkdir()
-        with socket.socket() as sock:
-            sock.bind(("127.0.0.1", 0))
-            port = sock.getsockname()[1]
-        policy = self.policy.as_posix().replace("'", "''")
-        (agent_dir / "config.yaml").write_text(f"bind: 127.0.0.1\nport: {port}\nenforce: {str(self.enforce).lower()}\n"
-                                               f"policy: '{policy}'\n", encoding="utf-8")
-        if self.native_registry is not None:
-            registry_path = agent_dir / "native-registry.json"
-            registry_path.write_bytes(self.native_registry.raw)
-            registry_yaml = registry_path.as_posix().replace("'", "''")
-            with (agent_dir / "config.yaml").open("a", encoding="utf-8") as config:
-                config.write(f"native:\n  registry_path: '{registry_yaml}'\n"
-                             f"  registry_sha256: {self.native_registry.sha256}\n")
         try:
+            self.env = isolated_environment(self.directory)
+            agent_dir = self.directory / ".agentfw"
+            agent_dir.mkdir()
+            with socket.socket() as sock:
+                sock.bind(("127.0.0.1", 0))
+                port = sock.getsockname()[1]
+            policy = self.policy.as_posix().replace("'", "''")
+            (agent_dir / "config.yaml").write_text(f"bind: 127.0.0.1\nport: {port}\nenforce: {str(self.enforce).lower()}\n"
+                                                   f"policy: '{policy}'\n", encoding="utf-8")
+            if self.native_registry is not None:
+                registry_path = agent_dir / "native-registry.json"
+                registry_path.write_bytes(self.native_registry.raw)
+                registry_yaml = registry_path.as_posix().replace("'", "''")
+                with (agent_dir / "config.yaml").open("a", encoding="utf-8") as config:
+                    config.write(f"native:\n  registry_path: '{registry_yaml}'\n"
+                                 f"  registry_sha256: {self.native_registry.sha256}\n")
             installed = subprocess.run([str(self.binary), "install"], env=self.env, capture_output=True,
                                        cwd=self.directory, timeout=10)
             if installed.returncode != 0:

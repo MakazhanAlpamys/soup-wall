@@ -120,6 +120,11 @@ successful prevention. Withholding a result cannot undo effects the function
 already performed. Nested functions retain their original ordering, including
 effects that occurred before an outer invocation was withheld.
 
+Native escalation uses the policy's declared fallback (or Ask if absent). This
+MVP does not call the optional local judge through the native endpoint, including
+when a judge is configured for the existing hook path. Review escalation
+fallbacks as part of the installed native policy.
+
 ## Explicit evaluation
 
 The default CLI remains a traffic-free manifest. A native live run adds
