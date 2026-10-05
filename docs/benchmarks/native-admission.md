@@ -25,7 +25,8 @@ native:
 ```
 
 The daemon reads and validates that snapshot once at startup. Native admission
-is disabled without it and requires enforcement. It uses a separately generated,
+is disabled without it and requires enforcement and the optional judge disabled.
+It uses a separately generated,
 protected `.agentfw/native-token`; the regular Claude/MCP token cannot authorize
 native requests. There is no HTTP registry installation/update endpoint.
 
@@ -121,9 +122,9 @@ already performed. Nested functions retain their original ordering, including
 effects that occurred before an outer invocation was withheld.
 
 Native escalation uses the policy's declared fallback (or Ask if absent). This
-MVP does not call the optional local judge through the native endpoint, including
-when a judge is configured for the existing hook path. Review escalation
-fallbacks as part of the installed native policy.
+MVP does not call the optional local judge; configuration rejects combining
+native admission with an enabled judge. Review escalation fallbacks as part of
+the installed native policy.
 
 ## Explicit evaluation
 
@@ -156,3 +157,9 @@ no-execution admission record. Do not silently skip inspection or turn those
 aborts into benchmark success. Live defended task utility, held-out outcomes,
 registry coverage for actual selected tools and shadow soaking still need their
 own evidence.
+
+The [2026-10-05 Windows checkpoint](evidence/agentdojo-native-fixture-2026-10-05.md)
+records 26 passing native checks and 29 passing fallback compatibility checks,
+including the actual production pipeline with a scripted loopback provider.
+It also preserves earlier incomplete runs and the outstanding historical
+profile-cleanup rejection.

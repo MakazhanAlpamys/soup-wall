@@ -221,3 +221,19 @@ provider credentials, identity assertions, prompts, or customer data.
   regressions, four SAML platforms and actual Rust/Python/actions CodeQL. It
   merged as `50b6b4e7825a587c148778a1e0f17800cd98256e`. Timestamped local
   firing/resolved evidence retains its managed-TLS and staffed-routing limits.
+- Native admission implementation: `6f3ad63` adds the separately authenticated
+  `sw-native/1` endpoint, immutable operator tool registry, declared action/source
+  semantics and single-use invocation/result/context bindings. The original
+  AgentDojo runtime and formatter remain intact; model-bound content changes
+  taint only on actual context admission, and nested parent returns complete
+  their own records. Required Windows formatting, workspace Clippy, all 759
+  default tests (five explicitly ignored) and the shipped-policy corpus pass.
+- Native integration evidence: clean `e259b76` passes 26 pinned-runtime/native
+  checks plus all 29 existing fallback checks with the same actual Agent.
+  The production native pipeline received seven scripted loopback-provider
+  requests and zero real model/paid-provider calls. Preparation, teardown,
+  schema, binding, result/context and 70-nested-return boundaries are checked.
+  Earlier incomplete runs remain visible, including two private profiles whose
+  removal automatic review rejected after their owned children were stopped.
+  Current tool-registry coverage and external effectiveness/utility/soaking
+  gates stay open. [Evidence and reproduction](../benchmarks/evidence/agentdojo-native-fixture-2026-10-05.md).
