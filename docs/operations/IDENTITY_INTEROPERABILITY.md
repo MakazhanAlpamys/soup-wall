@@ -70,10 +70,14 @@ cargo test -p llm-firewall --test external_identity real_signed_saml_metadata_is
 
 The former private workspace recorded successful OIDC discovery/JWKS retrieval
 against Google's public issuer and signed metadata validation against a
-Microsoft federation endpoint on 2026-09-04. Those historical checks did not
-exercise an interactive OIDC authorization-code exchange, a SAML assertion
-and ACS callback, or vendor SCIM behavior. They have not been repeated as
-part of this public-source import.
+Microsoft federation endpoint on 2026-09-04. The October 2026 public checkpoints
+repeat the Microsoft probe on Windows/Linux and record Google discovery plus
+two JWKS keys accepted by the production client. The Google path also showed
+intermittent five-second connection timeouts on this host; retain those failures
+alongside the successful metadata evidence. See the
+[execution record](ROADMAP_EXECUTION.md). None of these probes exercises an
+interactive OIDC authorization-code exchange, a SAML assertion and ACS callback,
+or vendor SCIM behavior.
 
 Before a customer pilot, use a dedicated sandbox IdP with a registered HTTPS
 callback and verify login, logout, session rotation, SAML assertion acceptance,

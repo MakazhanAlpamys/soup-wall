@@ -37,6 +37,19 @@ cargo test --locked -p llm-firewall --test external_identity real_signed_saml_me
 
 An isolated Windows compile probe using `kryptering =0.6.0` with only the `aws-lc` provider and AWS-LC's prebuilt NASM option failed at kryptering's target guard: `AWS-LC requires Linux or non-FIPS macOS on x86_64/aarch64`. Removing that guard locally would require assuming support that upstream has not reviewed; this change does not vendor or patch its crypto implementation. Other platforms and CPU architectures retain RustCrypto rather than acquiring this new compile failure.
 
+The 2026-10-05 provider API review found no supported downstream feature switch
+that removes this Windows boundary. AWS-LC itself [supports Windows](https://aws.github.io/aws-lc-rs/platform_support.html);
+the restriction is in the current XML-crypto provider integration. Kryptering's
+[provider interface](https://docs.rs/crate/kryptering/0.6.0/source/src/backend.rs)
+is sealed, with RustCrypto and AWS-LC implementations. `tls-ring` selects the TLS
+provider, and PKCS#11 still needs a software XML provider. The exported
+`XmlSecurityBackend` in saml-rs is not injected into its
+[standard SSO flow](https://docs.rs/crate/saml-rs/0.5.3/source/src/flow.rs).
+An OpenSSL/xmlsec replacement therefore needs upstream API integration and
+signature-boundary review. A supported Windows AWS-LC release with upstream CI
+is the smallest identified dependency checkpoint; no unsupported guard removal
+or local cryptographic fork was introduced.
+
 `cargo audit --json` reported exactly one vulnerability, `RUSTSEC-2023-0071`. Audit with that single existing exception passed, while still reporting the existing informational `paste` maintenance and yanked `chacha20 0.10.1` warnings. The complete release lock continues to include the Windows RSA dependency.
 
 ## Remaining acceptance
