@@ -19,12 +19,12 @@ When testing against a hosted instance, use only systems and accounts you own or
 
 ## Documented boundaries
 
-- The Claude Code hook **fails open** if the Agent daemon is unavailable: after the hook timeout, the host proceeds. `agentfw preflight` detects an unavailable daemon; guarded execution owns the process boundary and fails closed.
+- The Claude Code hook **fails open** if the Agent daemon is unavailable: the host proceeds when the request fails, which can happen immediately on connection refusal. The configured timeout is a ceiling. `agentfw preflight` detects an unavailable daemon; guarded execution owns the process boundary and fails closed.
 - Agent enforcement starts in **shadow mode**. Gateway agent inspection and capability policy are off by default and shadow-first when enabled. A report should include the settings and policy that were active.
 - The Gateway's default bind is loopback. A non-loopback bind requires proxy or tenant authentication; deploy a trusted HTTPS edge and protect the admin panel for remote use.
 - The default detector uses signatures and heuristics. The optional ML stage requires separate model assets. Neither stage guarantees detection of adaptive attacks.
 - Approval grants are scoped to one exact `ask` action. They do not defend against an attacker who already runs as the local operator and can read the daemon's key.
-- On Unix, the Agent tightens an existing token file to mode `0600` when loading it. On Windows, the Agent does not yet set a user-only ACL on token or audit files; their protection depends on the profile directory ACL. Use a restricted profile directory on shared Windows hosts.
+- On Unix, the Agent tightens an existing token file to mode `0600` when loading it. On Windows, Agent directory, token and audit access uses protected DACLs for the current user and LocalSystem. Existing token and audit handles are secured before reading or writing. This does not protect against processes running as the operator or a privileged administrator; see [Windows acceptance and limits](docs/operations/WINDOWS_AGENT_ACCEPTANCE.md).
 - The self-hosted identity implementation has local protocol tests, but real customer identity-provider interoperability has not been established. The constrained SCIM subset does not support every SCIM operation.
 - Usage records and invoice previews are evidence for review, not final invoices or payment collection. Spend limits are request-admission controls.
 

@@ -4,6 +4,11 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
 
 ## Unreleased
 
+- Added Gateway scrape-target outage detection, Prometheus rule regressions,
+  monitoring configuration examples and an isolated real monitoring drill.
+  The published Windows Gateway passed 26 checks with authenticated firing
+  and resolved delivery; managed TLS and staffed notification routing remain
+  independent acceptance gates.
 - Added an opt-in AgentDojo native-runtime fallback adapter, pinned runtime
   contract checks, explicit provider budgets and atomic aggregate evidence.
   The shipped policy is unchanged; independent live-model effectiveness and

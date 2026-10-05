@@ -69,7 +69,19 @@ used by the monitoring stack before rollout:
 
 ```text
 promtool check rules deploy/prometheus-alerts.yaml
+promtool test rules deploy/prometheus-alerts.test.yaml
 ```
+
+Configure the `soup-wall-gateway` scrape job from
+[`deploy/prometheus.example.yaml`](../../deploy/prometheus.example.yaml).
+`LLMFirewallGatewayTargetDown` fires after two minutes of `up=0` for that job.
+A stopped exporter has no readiness sample; it does not turn its readiness
+gauge into zero. Keep the existing readiness/dependency alerts alongside the
+target-down rule. The [local monitoring procedure](LOCAL_MONITORING_ACCEPTANCE.md)
+tests actual stop, authenticated firing, restart and resolved delivery with
+portable monitoring binaries. The
+[Alertmanager example](../../deploy/alertmanager.example.yaml) still requires
+an operator-owned receiver and protected credentials before deployment.
 
 Route `critical` alerts to the staffed incident channel and `warning` alerts
 to the operational backlog. The file contains no tenant labels or customer

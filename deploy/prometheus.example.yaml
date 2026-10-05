@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Replace the loopback targets with your internal monitoring endpoints.
+# The job name is part of the Gateway target-down rule's selection contract.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+rule_files:
+  - prometheus-alerts.yaml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['127.0.0.1:9093']
+scrape_configs:
+  - job_name: soup-wall-gateway
+    metrics_path: /metrics
+    follow_redirects: false
+    proxy_from_environment: false
+    static_configs:
+      - targets: ['127.0.0.1:8080']

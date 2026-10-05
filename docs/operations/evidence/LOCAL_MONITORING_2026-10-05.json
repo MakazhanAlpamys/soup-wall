@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "started_at_utc": "2026-10-05T09:02:42.588197+00:00",
+  "status": "passed",
+  "evidence_scope": "local-published-gateway-real-monitoring-authenticated-loopback-receiver",
+  "artifact_label": "v0.4.0",
+  "managed_staging_validated": false,
+  "staffed_notification_channel_validated": false,
+  "model_requests_sent": 0,
+  "checks": [
+    {
+      "name": "official-archive-and-executable-bindings",
+      "status": "passed"
+    },
+    {
+      "name": "shipped-seven-rules-valid",
+      "status": "passed"
+    },
+    {
+      "name": "baseline-missing-target-outage-regression-reproduced",
+      "status": "passed"
+    },
+    {
+      "name": "fixed-down-stale-dependency-and-recovery-regressions",
+      "status": "passed"
+    },
+    {
+      "name": "gateway-preflight",
+      "status": "passed"
+    },
+    {
+      "name": "prometheus-config-valid",
+      "status": "passed"
+    },
+    {
+      "name": "gateway-ready",
+      "status": "passed"
+    },
+    {
+      "name": "alertmanager-ready",
+      "status": "passed"
+    },
+    {
+      "name": "prometheus-ready",
+      "status": "passed"
+    },
+    {
+      "name": "receiver-rejects-missing-authentication",
+      "status": "passed"
+    },
+    {
+      "name": "healthy-target-scraped",
+      "status": "passed"
+    },
+    {
+      "name": "healthy-control-plane-metric",
+      "status": "passed"
+    },
+    {
+      "name": "no-healthy-target-down-notification",
+      "status": "passed"
+    },
+    {
+      "name": "stopped-target-scraped-down",
+      "status": "passed"
+    },
+    {
+      "name": "stopped-gateway-readiness-metric-is-absent",
+      "status": "passed"
+    },
+    {
+      "name": "new-rule-pending-before-firing",
+      "status": "passed"
+    },
+    {
+      "name": "for-duration-has-not-fired-early",
+      "status": "passed"
+    },
+    {
+      "name": "authenticated-firing-notification",
+      "status": "passed"
+    },
+    {
+      "name": "original-two-minute-for-duration-preserved",
+      "status": "passed"
+    },
+    {
+      "name": "actual-prometheus-rule-firing",
+      "status": "passed"
+    },
+    {
+      "name": "dependency-alert-not-fabricated",
+      "status": "passed"
+    },
+    {
+      "name": "restarted-gateway-ready",
+      "status": "passed"
+    },
+    {
+      "name": "restarted-target-scraped-healthy",
+      "status": "passed"
+    },
+    {
+      "name": "authenticated-resolved-notification",
+      "status": "passed"
+    },
+    {
+      "name": "recovered-rule-inactive",
+      "status": "passed"
+    },
+    {
+      "name": "resolved-notification-matches-firing-cycle",
+      "status": "passed"
+    }
+  ],
+  "phases": [
+    {
+      "name": "healthy",
+      "observed_at_utc": "2026-10-05T09:03:02.335500+00:00",
+      "up": 1,
+      "control_plane_ready": 1
+    },
+    {
+      "name": "owned-gateway-stopped",
+      "observed_at_utc": "2026-10-05T09:03:02.340509+00:00"
+    },
+    {
+      "name": "target-down-pending",
+      "observed_at_utc": "2026-10-05T09:03:30.783101+00:00",
+      "up": 0,
+      "control_plane_ready": "absent"
+    },
+    {
+      "name": "authenticated-firing",
+      "observed_at_utc": "2026-10-05T09:05:31.984418+00:00",
+      "seconds_after_owned_gateway_stop": 149.547
+    },
+    {
+      "name": "authenticated-resolved",
+      "observed_at_utc": "2026-10-05T09:06:01.625840+00:00",
+      "up": 1,
+      "control_plane_ready": 1
+    }
+  ],
+  "notifications": [
+    {
+      "status": "firing",
+      "observed_at_utc": "2026-10-05T09:05:31.292303+00:00",
+      "authenticated": true,
+      "body_sha256": "1bd52b1fbc75441278305ec8aae2e5f5caebd99335fa2d050e53b8f034033148",
+      "starts_at": "2026-10-05T09:05:30.283Z",
+      "ends_at": "0001-01-01T00:00:00Z"
+    },
+    {
+      "status": "resolved",
+      "observed_at_utc": "2026-10-05T09:06:01.296838+00:00",
+      "authenticated": true,
+      "body_sha256": "a111d4e8f1d2f36bfa3f6f10754668cbd046e8afc6ada623a45a89206abf9ab9",
+      "starts_at": "2026-10-05T09:05:30.283Z",
+      "ends_at": "2026-10-05T09:06:00.283Z"
+    }
+  ],
+  "settings": {
+    "job_name": "soup-wall-gateway",
+    "alertname": "LLMFirewallGatewayTargetDown",
+    "for_seconds": 120,
+    "rule_group_interval_seconds": 30,
+    "scrape_interval_seconds": 5,
+    "receiver_group_wait_seconds": 1,
+    "receiver_group_interval_seconds": 5,
+    "send_resolved": true,
+    "alertmanager_cluster_enabled": false
+  },
+  "limitations": [
+    "Loopback HTTP with disposable receiver authentication",
+    "Gateway process stop exercises scrape-target loss, not PostgreSQL/Redis failure",
+    "No detector/block alert, Gateway policy webhook, managed TLS, or staffed channel claim"
+  ],
+  "tools": {
+    "schema_version": 1,
+    "platform": "windows-amd64",
+    "tools": {
+      "prometheus": {
+        "version": "3.15.0",
+        "archive": "prometheus-3.15.0.windows-amd64.zip",
+        "archive_sha256": "5d333b385557d9adc2ff015d13da9809baccc52fb800a82d1e5c94b79258f87e",
+        "checksums_sha256": "023cab1e6b275ee1b8f5f64215a01d74bbb1b19c45183b7296ced4aa4532707b",
+        "official_release": "https://github.com/prometheus/prometheus/releases/download/v3.15.0/",
+        "licenses_sha256": {
+          "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "NOTICE": "ac9e304462a58a4d71b6488423d4447e614c8b31d517fe24345016522c102a78"
+        },
+        "executables_sha256": {
+          "prometheus.exe": "c19135130c94e17aa02520ba40c3c8a35727653cd2c667b6a12f9a18313df7ac",
+          "promtool.exe": "b02a6d8726533fbf59d40fad83646105429b6ed2f1b928f9d44659c67a83659b"
+        }
+      },
+      "alertmanager": {
+        "version": "0.34.1",
+        "archive": "alertmanager-0.34.1.windows-amd64.zip",
+        "archive_sha256": "69624d6ce3674dbcf8cefc5a93d7028d00bbd5e0196a8384907f51593a495fef",
+        "checksums_sha256": "0872f3f38d4688872dd9064243d09006ead668690585522e366e624f23931778",
+        "official_release": "https://github.com/prometheus/alertmanager/releases/download/v0.34.1/",
+        "licenses_sha256": {
+          "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "NOTICE": "24f7d73529defd2e28b4bb5e0f0396cebb6d3e74b7f66a26b62d0d3251431582"
+        },
+        "executables_sha256": {
+          "alertmanager.exe": "179b69ceb43a58e331135d022e9f76b0b4dd9630c11dc491eee2ef0aa2dfcf26",
+          "amtool.exe": "0d09e6bffb7e2bd4407bf54488d1da1504ac5bbb2e2b47ffc34339445eb3030f"
+        }
+      }
+    }
+  },
+  "tools_manifest_sha256": "6529b1c6b3bbe08905e4962b1510283565ce59dfcdec58ec7a851db958078481",
+  "gateway_binary_sha256": "3818ba06b6a8191e3c5a5a1ca7c8f6044468e87484c9dfcbd00107b78ee8b85a",
+  "gateway_archive_sha256": "0502b8d6f8596d72c1168d8ccd4efc71c707f14b8cc3e36eb062a8169c9c75a7",
+  "harness_sha256": "eb16104b03917c7e53c1254e586b94d5601269305563db4e6026abcd2eab66e5",
+  "shipped_rules_sha256": "78cb3400adc990c70ff72e5ab0ea5d302635a977a6dcb6a7ccb70616eaffc3ad",
+  "regression_fixture_sha256": "6d02d028f5072a65b1c02df419531872124257cf5051ed70a74db08933c46b6b",
+  "baseline_revision": "934653821f73dd702dfe5b8977c6c5ea751ad28a",
+  "baseline_rules_sha256": "8227d6e7789cacba8738e61d95ecb3ea069b05e8a6dde5c9ded3f03cfb18209a",
+  "configuration_sha256": {
+    "firewall.yaml": "42b9c0d89dd4da2cadf17c7edca2c0a084925364456203990215fa883a359c61",
+    "policy.yaml": "b3dd7de50827803d6b1258b1afb10e74006b58ef937f78d9e7fd27e30c49b879",
+    "prometheus.yaml": "fa39c431214072b69a626974d3ab4b4c6c3ada05545d5580a32aee0224a13995",
+    "alertmanager.yaml": "383511ff4412ff6f2062d65e2cdaca0cb86aebfd22a9b765426b33a58bea5872"
+  },
+  "cleanup": {
+    "owned_children_stopped": true,
+    "generated_runtime_removed": true,
+    "errors": []
+  },
+  "observed_at_utc": "2026-10-05T09:06:01.817040+00:00"
+}

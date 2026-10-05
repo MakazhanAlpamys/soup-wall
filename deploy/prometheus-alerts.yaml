@@ -2,6 +2,17 @@ groups:
   - name: llm-firewall-readiness
     interval: 30s
     rules:
+      - alert: LLMFirewallGatewayTargetDown
+        expr: up{job="soup-wall-gateway"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: gateway
+        annotations:
+          summary: Soup Wall Gateway metrics target is unavailable
+          description: Prometheus has failed to scrape the named Gateway target for at least two minutes.
+          runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#health-and-monitoring
+
       - alert: LLMFirewallControlPlaneUnavailable
         expr: min_over_time(llm_firewall_control_plane_ready[2m]) == 0
         for: 2m

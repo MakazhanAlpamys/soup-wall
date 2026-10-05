@@ -6,6 +6,11 @@ interoperability or alert delivery. Keep those gates in the
 [roadmap execution record](ROADMAP_EXECUTION.md) open until their own evidence
 exists.
 
+The separate [local monitoring acceptance](LOCAL_MONITORING_ACCEPTANCE.md)
+procedure exercises a real scrape-target outage and authenticated loopback
+firing/resolved notifications. This additional local procedure does not close
+managed deployment or staffed notification-channel gates.
+
 ## Gateway and SQLite Console
 
 Verify a release archive against that release's `SHA256SUMS`, extract it, then
