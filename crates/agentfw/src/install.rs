@@ -10,22 +10,29 @@ use std::path::Path;
 
 use serde_json::json;
 
+use crate::Config;
+
 /// The `settings.json` fragment wiring all five hook events to the daemon.
 ///
 /// The token is passed by environment variable, never written inline — settings
 /// files are routinely committed to version control, and a token embedded in
 /// JSON would ship straight into git history.
 ///
-/// The 5-second timeout is deliberate, not conservative padding: measured
-/// 2026-07-30, an unreachable HTTP hook fails open — Claude Code waits out the
-/// timeout, then lets the tool call proceed. So this number is exactly what a
-/// stopped daemon costs on every single tool call. It stays at 5s rather than
-/// dropping lower because phase 10's local-model judge tier needs a 3s budget of
-/// its own; shortening this now would clip legitimate slow judgments later.
+/// HTTP hooks fail open on a connection error or timeout. Five seconds bounds a
+/// stalled request; a refused connection can return much earlier. This budget
+/// also leaves room for the optional local-model judge's three-second deadline.
 pub fn hook_block(port: u16) -> serde_json::Value {
+    hook_block_for_config(&Config {
+        port,
+        ..Config::default()
+    })
+}
+
+/// Hook settings using the same validated bind and port as the daemon.
+pub fn hook_block_for_config(config: &Config) -> serde_json::Value {
     let entry = json!({
         "type": "http",
-        "url": format!("http://127.0.0.1:{port}/hook"),
+        "url": config.endpoint_url("/hook"),
         "headers": { "Authorization": "Bearer $AGENTFW_TOKEN" },
         "allowedEnvVars": ["AGENTFW_TOKEN"],
         "timeout": 5
@@ -48,26 +55,38 @@ pub fn hook_block(port: u16) -> serde_json::Value {
 /// first experience of the tool, so it prints the token *path* (never the
 /// token itself — an operator pasting this into a bug report should not leak
 /// their secret), and spells out both costs an operator would otherwise have
-/// to discover by debugging: a stopped daemon silently taxing every tool call,
+/// to discover by debugging: a stopped daemon declining to inspect tool calls,
 /// and shadow mode silently declining to block anything until told to.
 pub fn instructions(port: u16, token_path: &Path) -> String {
+    instructions_for_config(
+        &Config {
+            port,
+            ..Config::default()
+        },
+        token_path,
+    )
+}
+
+/// Installation instructions for the daemon's configured loopback endpoint.
+pub fn instructions_for_config(config: &Config, token_path: &Path) -> String {
     format!(
         "Add this to your Claude Code settings.json (merge into any existing \"hooks\" block \
          rather than overwriting it):\n\n\
          {block}\n\n\
-         Then export the token before starting Claude Code — the token itself is never printed \
+         Then set the token in the shell that starts Claude Code — the token itself is never printed \
          here, only its path:\n\n  \
-         export AGENTFW_TOKEN=$(cat {token_path})\n\n\
+         {token_command}\n\n\
          THE HOOK IS NOT A SECURITY BOUNDARY. Each hook has a 5-second timeout. If agentfw is \
-         not running, every tool call still proceeds — Claude Code fails open — after waiting out \
-         the full 5 seconds. The host decides this and agentfw cannot override it, so a stopped \
-         daemon is silent: it shows up as \"Claude Code feels slow\", never as an error. Do not \
+         not running, tools may proceed unchecked by agentfw — Claude Code fails open on a \
+         connection error or timeout. A stalled hook can add up to 5 seconds; connection refusal \
+         can return sooner. The host's own permissions still apply. Hook errors may be shown, \
+         but they do not prevent the tool call. The host decides this and agentfw cannot override it. Do not \
          rely on the hook to prevent anything; treat it as a decision and audit layer.\n\n  \
          Check before a session, or from your shell profile or a wrapper script:\n\n  \
          agentfw preflight              # exits 2 if the daemon is down, 4 with --require-enforce in shadow mode\n\n\
          SHADOW MODE: the daemon starts with enforcement OFF. Verdicts are computed and written \
-         to the audit log on every tool call, but nothing is ever blocked — permissionDecision is \
-         always \"defer\", leaving your existing permission rules untouched. This is deliberate: it \
+         to the audit log on every tool call, but nothing is ever blocked — no permissionDecision \
+         is emitted, leaving your existing permission rules untouched. This is deliberate: it \
          lets you measure this firewall's real false-positive rate on your own normal work before \
          it can affect anything.\n\n  \
          PROMOTING TO ENFORCEMENT — the whole sequence:\n\n  \
@@ -91,9 +110,29 @@ pub fn instructions(port: u16, token_path: &Path) -> String {
          Route approved shell calls through the Linux-only guarded entry point so the exact command \
          is inspected before bubblewrap creates a process:\n\n  \
          agentfw guarded-shell --workspace ./checkout -- 'make test'\n",
-        block = serde_json::to_string_pretty(&hook_block(port)).unwrap_or_default(),
-        token_path = token_path.display(),
+        block = serde_json::to_string_pretty(&hook_block_for_config(config)).unwrap_or_default(),
+        token_command = token_command(token_path),
     )
+}
+
+fn token_command(token_path: &Path) -> String {
+    let path = token_path.to_string_lossy();
+    #[cfg(windows)]
+    {
+        // PowerShell single-quoted literals keep spaces, $, and backticks inert.
+        // A literal quote inside one is represented by two quotes.
+        format!(
+            "$env:AGENTFW_TOKEN = (Get-Content -Raw -LiteralPath '{}').Trim()",
+            path.replace('\'', "''")
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        format!(
+            "export AGENTFW_TOKEN=\"$(cat -- '{}')\"",
+            path.replace('\'', "'\"'\"'")
+        )
+    }
 }
 
 #[cfg(test)]
@@ -154,6 +193,31 @@ mod tests {
     }
 
     #[test]
+    fn configured_installation_preserves_each_supported_bind_for_every_event() {
+        for (bind, endpoint) in [
+            ("127.0.0.1", "http://127.0.0.1:9001/hook"),
+            ("::1", "http://[::1]:9001/hook"),
+            ("localhost", "http://localhost:9001/hook"),
+        ] {
+            let config = Config::from_yaml(&format!("bind: '{bind}'\nport: 9001\n")).unwrap();
+            let block = hook_block_for_config(&config);
+            for event in [
+                "PreToolUse",
+                "PostToolUse",
+                "SubagentStop",
+                "SessionStart",
+                "SessionEnd",
+            ] {
+                let hook = &block["hooks"][event][0]["hooks"][0];
+                assert_eq!(hook["url"], endpoint);
+                assert_eq!(hook["headers"]["Authorization"], "Bearer $AGENTFW_TOKEN");
+            }
+            let instructions = instructions_for_config(&config, Path::new("/users/test/token"));
+            assert!(instructions.contains(endpoint));
+        }
+    }
+
+    #[test]
     fn instructions_never_print_a_literal_token() {
         // instructions() reads the token PATH via load_or_create semantics, but
         // must never interpolate the secret itself into the printed output. This
@@ -162,7 +226,13 @@ mod tests {
         let path = Path::new("/home/u/.agentfw/token");
         let out = instructions(8787, path);
         assert!(out.contains(&path.display().to_string()));
-        assert!(out.contains("cat "), "must show how to read the token file");
+        #[cfg(windows)]
+        assert!(out.contains("Get-Content -Raw -LiteralPath"));
+        #[cfg(not(windows))]
+        assert!(
+            out.contains("cat -- "),
+            "must show how to read the token file"
+        );
 
         // Sanity-check the assertion style itself would catch a leak: a string
         // that DOES contain a bogus "real" token must fail this same check.
@@ -174,6 +244,22 @@ mod tests {
         assert!(
             !out.contains("Bearer sk-should-not-appear-abc123"),
             "the real instructions output must not contain any concrete bearer token"
+        );
+    }
+
+    #[test]
+    fn token_command_quotes_paths_instead_of_evaluating_them() {
+        let path = Path::new("/users/a b/o'brien/$literal`name/token");
+        let command = token_command(path);
+        #[cfg(windows)]
+        assert_eq!(
+            command,
+            "$env:AGENTFW_TOKEN = (Get-Content -Raw -LiteralPath '/users/a b/o''brien/$literal`name/token').Trim()"
+        );
+        #[cfg(not(windows))]
+        assert_eq!(
+            command,
+            "export AGENTFW_TOKEN=\"$(cat -- '/users/a b/o'\"'\"'brien/$literal`name/token')\""
         );
     }
 

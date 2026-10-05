@@ -26,6 +26,40 @@ This small, hand-authored corpus checks regressions in known scenarios. It is
 not a held-out sample, a measure of novel-attack detection, or evidence of a
 production protection rate. No current rival comparison is published from it.
 
+Add `--agent-out target/agent-evaluation.json` to retain machine-readable evidence.
+The report records SHA-256 hashes of the corpus, review manifest, policy and
+running binary; author-supplied provenance; each session's interruption outcome;
+missed attacks and interrupted benign sessions; and p50/p99 policy replay time.
+It contains no event payloads. A candidate policy that fails `--policy` still
+writes this report before returning a nonzero exit. The existing Markdown
+regression scorecard stays unchanged and is still compared byte-for-byte in CI;
+CI also retains the JSON report.
+
+Replay time includes construction of a fresh firewall per session and stops at
+the first interruption. It does not measure warmed daemon throughput, provider
+latency or tool execution. No model or tool runs during this evaluation, so
+task utility is explicitly unmeasured. A policy interruption is not evidence
+that a host prevented an action. Report task success and attack success from a
+separate end-to-end experiment before claiming field effectiveness.
+
+For an independently collected corpus, provide the same reviewed session JSONL
+format and an adjacent `.manifest.json` with its actual license, provenance,
+source URL/revision, counts and categories. Keep the source snapshot and its
+conversion procedure available for review. Freeze the corpus and policy before
+evaluating; label review and independence are human acceptance gates, not facts
+the executable can establish from an author-supplied manifest. Do not re-label
+missed attacks or tune against held-out results and continue calling them held
+out. Record the exact source commit, build profile, compiler and hardware with
+the generated hashes. This import path supports offline policy review; running
+AgentDojo or another live-agent benchmark still requires its separately
+reviewed runtime, permissions, models and dataset terms.
+
+The [independent historical replay](benchmarks/independent-history-replay.md)
+provides a pinned AgentDojo importer, source selection and fidelity checks, and
+an aggregate negative baseline. Its native tools expose a coverage gap in the
+current coding-tool adapter. Keep that outcome and the live evaluation plan
+separate from the synthetic regression scorecard.
+
 ## Text benchmark: available tool, historical results
 
 The text benchmark accepts labeled JSONL (`{"text":"...","label":true}`,

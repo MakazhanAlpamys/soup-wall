@@ -77,6 +77,9 @@ async fn ask_daemon(
 /// line; when a child line is a `tools/list` result, asks the daemon and (if enforcing
 /// and rejected) replaces it with a JSON-RPC error carrying the same id.
 pub async fn run(cfg: ProxyCfg) -> anyhow::Result<()> {
+    // The daemon is loopback-only. In particular, ::1 must not be routed to an
+    // inherited HTTP proxy together with the local authentication token.
+    let client = reqwest::Client::builder().no_proxy().build()?;
     let mut child = Command::new(&cfg.command)
         .args(&cfg.args)
         .stdin(Stdio::piped())
@@ -86,7 +89,6 @@ pub async fn run(cfg: ProxyCfg) -> anyhow::Result<()> {
 
     let mut child_stdin = child.stdin.take().expect("child stdin");
     let child_stdout = child.stdout.take().expect("child stdout");
-    let client = reqwest::Client::new();
 
     // client stdin -> child stdin (verbatim).
     let up = tokio::spawn(async move {

@@ -4,6 +4,23 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
 
 ## Unreleased
 
+- Fixed Windows Agent installation instructions and honored IPv4, IPv6, and
+  localhost binds consistently across daemon clients. Added disposable Windows
+  ACL, enforcement, shadow, and outage acceptance checks.
+- Added an isolated Gateway binary acceptance command covering SQLite Console,
+  authentication, provider forwarding, blocked requests, and restart persistence.
+  Recorded published v0.4.0 binary checks and local PostgreSQL/Redis recovery and
+  encrypted restore evidence.
+- Added native Claude Code HTTP-hook acceptance using deterministic loopback
+  model fixtures. Corrected outage guidance: connection failure can return
+  immediately; the configured timeout is a ceiling, not a mandatory delay.
+- Added agent evaluation JSON with immutable input snapshots, exact hashes,
+  interruption outcomes, replay latency, and atomic output. Failed candidate
+  gates retain evidence in CI. Added a pinned independent AgentDojo historical
+  importer and recorded the current native-tool coverage gap without claiming
+  live effectiveness.
+- Added a checkpointed roadmap execution record. Managed staging, real-IdP,
+  live-model evaluation, and shadow soaking remain open acceptance gates.
 - Updated the SAML stack to `saml-rs 0.5.3`, `bergshamra 0.9.2`, and the `kryptering 0.6.0` security backport. Linux and macOS use AWS-LC; Windows retains RustCrypto because upstream's AWS-LC provider still rejects Windows. The `rsa` advisory remains in the complete release lock and [issue #19](https://github.com/MakazhanAlpamys/soup-wall/issues/19) stays open.
 - Added SAML signature and metadata tampering checks and CI verification on all four archive targets. Encrypted assertions remain rejected and the SP does not advertise assertion encryption. Real-IdP acceptance still requires operator evidence.
 

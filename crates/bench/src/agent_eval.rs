@@ -5,7 +5,9 @@
 //! detection breakdown.
 
 use std::collections::BTreeMap;
+use std::time::Instant;
 
+use serde::Serialize;
 use soup_wall_agent::AgentPolicySet;
 
 use crate::agent_dataset::Session;
@@ -20,6 +22,17 @@ pub struct AgentEval {
     pub false_positives: Vec<String>,
     /// ids of attack sessions that were missed — for inspection.
     pub misses: Vec<String>,
+    pub sessions: Vec<SessionResult>,
+}
+
+#[derive(Serialize)]
+pub struct SessionResult {
+    pub id: String,
+    pub category: String,
+    pub is_attack: bool,
+    pub interrupted: bool,
+    /// Includes construction of a fresh firewall and replay until interruption.
+    pub policy_replay_ms: f64,
 }
 
 impl AgentEval {
@@ -56,8 +69,18 @@ pub fn evaluate_with(sessions: &[Session], policy: Option<&AgentPolicySet>) -> A
     let mut per_category: BTreeMap<String, (u64, u64)> = BTreeMap::new();
     let mut false_positives = Vec::new();
     let mut misses = Vec::new();
+    let mut results = Vec::new();
     for s in sessions {
+        let started = Instant::now();
         let flagged = flags_with(s, policy);
+        let policy_replay_ms = started.elapsed().as_secs_f64() * 1000.0;
+        results.push(SessionResult {
+            id: s.id.clone(),
+            category: s.category.clone(),
+            is_attack: s.is_attack,
+            interrupted: flagged,
+            policy_replay_ms,
+        });
         confusion.record(flagged, s.is_attack);
         if s.is_attack {
             let entry = per_category.entry(s.category.clone()).or_insert((0, 0));
@@ -76,6 +99,7 @@ pub fn evaluate_with(sessions: &[Session], policy: Option<&AgentPolicySet>) -> A
         per_category,
         false_positives,
         misses,
+        sessions: results,
     }
 }
 

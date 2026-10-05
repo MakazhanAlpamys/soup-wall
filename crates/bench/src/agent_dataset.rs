@@ -84,8 +84,13 @@ impl RawSession {
 }
 
 /// Parse a JSONL corpus into sessions. A malformed line is an error naming the line.
+#[cfg(test)]
 pub fn load(path: &str) -> anyhow::Result<Vec<Session>> {
     let body = std::fs::read_to_string(path)?;
+    parse(&body)
+}
+
+fn parse(body: &str) -> anyhow::Result<Vec<Session>> {
     let mut out = Vec::new();
     let mut ids = BTreeSet::new();
     for (n, line) in body.lines().enumerate() {
@@ -118,23 +123,41 @@ pub fn load(path: &str) -> anyhow::Result<Vec<Session>> {
 /// Load a corpus only after its adjacent review manifest has validated its
 /// exact label counts and category set. The expected sibling filename is
 /// `agent_sessions.manifest.json` for `agent_sessions.jsonl`.
+#[cfg(test)]
 pub fn load_reviewed(path: &str) -> anyhow::Result<Vec<Session>> {
-    let sessions = load(path)?;
+    Ok(load_reviewed_snapshot(path)?.sessions)
+}
+
+pub struct ReviewedSnapshot {
+    pub sessions: Vec<Session>,
+    pub corpus_bytes: Vec<u8>,
+    pub manifest_bytes: Vec<u8>,
+}
+
+/// Retain exactly the validated bytes used by evaluation, without reopening
+/// mutable inputs when evidence is written after replay.
+pub fn load_reviewed_snapshot(path: &str) -> anyhow::Result<ReviewedSnapshot> {
+    let corpus_bytes = std::fs::read(path)?;
+    let sessions = parse(std::str::from_utf8(&corpus_bytes)?)?;
     let manifest_path = Path::new(path).with_extension("manifest.json");
-    let body = std::fs::read_to_string(&manifest_path).with_context(|| {
+    let manifest_bytes = std::fs::read(&manifest_path).with_context(|| {
         format!(
             "agent corpus review manifest is required at {}",
             manifest_path.display()
         )
     })?;
-    let manifest: CorpusManifest = serde_json::from_str(&body).with_context(|| {
+    let manifest: CorpusManifest = serde_json::from_slice(&manifest_bytes).with_context(|| {
         format!(
             "agent corpus review manifest is not valid JSON: {}",
             manifest_path.display()
         )
     })?;
     validate_manifest(&manifest, &sessions)?;
-    Ok(sessions)
+    Ok(ReviewedSnapshot {
+        sessions,
+        corpus_bytes,
+        manifest_bytes,
+    })
 }
 
 fn validate_manifest(manifest: &CorpusManifest, sessions: &[Session]) -> anyhow::Result<()> {

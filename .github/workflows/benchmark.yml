@@ -24,16 +24,22 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Verify pinned historical trace import fidelity
+        run: python3 -m unittest discover -s scripts/benchmarks -p 'test_*.py' -v
       - name: Run reproducible agent benchmark
         shell: bash
         run: |
           cargo run --locked --release -p soup-wall-bench -- \
             --agent crates/bench/corpora/agent_sessions.jsonl \
+            --agent-out agent-evaluation.json \
             > agent-security-scorecard.md
           diff -u docs/benchmarks/agent-security-scorecard.generated.md agent-security-scorecard.md
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: agent-security-scorecard
-          path: agent-security-scorecard.md
-          if-no-files-found: error
+          path: |
+            agent-security-scorecard.md
+            agent-evaluation.json
+          if-no-files-found: ignore
           retention-days: 90

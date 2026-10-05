@@ -4,6 +4,7 @@
 mod agent_dataset;
 mod agent_eval;
 mod agent_guard;
+mod agent_report;
 mod dataset;
 mod evaluate;
 mod metrics;
@@ -36,6 +37,11 @@ struct Cli {
     /// session is interrupted. Requires --agent.
     #[arg(long, requires = "agent")]
     policy: Option<String>,
+    /// Write privacy-safe offline agent evaluation evidence with hashes,
+    /// per-session outcomes, missed attacks, benign interruptions and replay latency.
+    /// Does not measure task success or end-to-end agent execution.
+    #[arg(long, requires = "agent")]
+    agent_out: Option<String>,
     /// Risk-score threshold for CoreGuard.
     #[arg(long, default_value_t = 50)]
     threshold: u8,
@@ -232,48 +238,83 @@ fn parse_rival(spec: &str) -> anyhow::Result<SubprocessGuard> {
 /// non-zero if any reviewed attack is missed or any reviewed benign session is
 /// interrupted. That is the check an operator runs after narrowing a rule and
 /// before enforcing the edit against live work.
-fn run_agent_benchmark(corpus: &str, policy_path: Option<&str>) -> anyhow::Result<()> {
-    let sessions = agent_dataset::load_reviewed(corpus)?;
-    let candidate = match policy_path {
-        Some(path) => {
-            let yaml = std::fs::read_to_string(path)
-                .map_err(|e| anyhow::anyhow!("cannot read policy {path}: {e}"))?;
-            Some(
-                soup_wall_agent::AgentPolicySet::from_yaml(&yaml)
-                    .map_err(|e| anyhow::anyhow!("policy {path} does not parse: {e}"))?,
-            )
-        }
-        None => None,
-    };
-    let eval = agent_eval::evaluate_with(&sessions, candidate.as_ref());
+fn run_agent_benchmark(
+    corpus: &str,
+    policy_path: Option<&str>,
+    output_path: Option<&str>,
+) -> anyhow::Result<()> {
+    let snapshot = agent_dataset::load_reviewed_snapshot(corpus)?;
+    let sessions = &snapshot.sessions;
+    let candidate_yaml = policy_path
+        .map(|path| {
+            std::fs::read_to_string(path)
+                .map_err(|e| anyhow::anyhow!("cannot read policy {path}: {e}"))
+        })
+        .transpose()?;
+    let candidate = candidate_yaml
+        .as_deref()
+        .map(|yaml| {
+            soup_wall_agent::AgentPolicySet::from_yaml(yaml)
+                .map_err(|e| anyhow::anyhow!("candidate policy does not parse: {e}"))
+        })
+        .transpose()?;
+    let policy_bytes = candidate_yaml
+        .as_deref()
+        .unwrap_or(include_str!("../../agent/policies/agent-default.yaml"))
+        .as_bytes();
+    let eval = agent_eval::evaluate_with(sessions, candidate.as_ref());
+    if let Some(path) = output_path {
+        // Write evidence before a failing candidate gate exits, so misses and
+        // interruptions are retained for review instead of losing the failure.
+        agent_report::write(corpus, policy_path, &snapshot, policy_bytes, &eval, path)?;
+    }
     let n_attack = sessions.iter().filter(|s| s.is_attack).count();
     let n_benign = sessions.len() - n_attack;
 
-    println!("# Agent-attack benchmark\n");
-    println!(
-        "Corpus: {} attack + {} benign = {} sessions. Hand-authored — measures coverage of \
+    let bundled = snapshot.corpus_bytes == include_bytes!("../corpora/agent_sessions.jsonl")
+        && snapshot.manifest_bytes == include_bytes!("../corpora/agent_sessions.manifest.json");
+    if bundled {
+        println!("# Agent-attack benchmark\n");
+        println!(
+            "Corpus: {} attack + {} benign = {} sessions. Hand-authored — measures coverage of \
          known attack shapes, not generalization to novel attacks.\n",
-        n_attack,
-        n_benign,
-        sessions.len()
-    );
-    println!("| Metric | Result |");
-    println!("|---|---|");
-    println!(
-        "| **Detection rate** | {:.1}% ({}/{}) |",
-        eval.detection_rate() * 100.0,
-        eval.confusion.tp,
-        eval.confusion.tp + eval.confusion.fn_
-    );
-    println!(
-        "| **False-positive rate** | {:.1}% ({}/{}) |",
-        eval.false_positive_rate() * 100.0,
-        eval.confusion.fp,
-        eval.confusion.fp + eval.confusion.tn
-    );
-
-    println!("\n## Detection by category\n");
-    println!("| Category | Detected |");
+            n_attack,
+            n_benign,
+            sessions.len()
+        );
+        println!("| Metric | Result |");
+        println!("|---|---|");
+        println!(
+            "| **Detection rate** | {:.1}% ({}/{}) |",
+            eval.detection_rate() * 100.0,
+            eval.confusion.tp,
+            eval.confusion.tp + eval.confusion.fn_
+        );
+        println!(
+            "| **False-positive rate** | {:.1}% ({}/{}) |",
+            eval.false_positive_rate() * 100.0,
+            eval.confusion.fp,
+            eval.confusion.fp + eval.confusion.tn
+        );
+        println!("\n## Detection by category\n");
+        println!("| Category | Detected |");
+    } else {
+        println!("# Offline agent policy replay\n");
+        println!("Corpus: {n_attack} attack-labelled + {n_benign} benign-labelled = {} sessions. \
+            Interruptions are policy verdicts; attack prevention and task success are not measured.\n", sessions.len());
+        println!("| Metric | Result |");
+        println!("|---|---|");
+        println!(
+            "| Attack-labelled sessions interrupted | {}/{} |",
+            eval.confusion.tp, n_attack
+        );
+        println!(
+            "| Benign-labelled sessions interrupted | {}/{} |",
+            eval.confusion.fp, n_benign
+        );
+        println!("\n## Attack-labelled interruptions by category\n");
+        println!("| Category | Interrupted |");
+    }
     println!("|---|---|");
     for (cat, (hit, total)) in &eval.per_category {
         println!("| {cat} | {hit}/{total} |");
@@ -320,7 +361,7 @@ fn main() -> anyhow::Result<()> {
 
     // Agent-attack benchmark: a separate corpus + scorecard from the text one.
     if let Some(corpus) = cli.agent.as_deref() {
-        return run_agent_benchmark(corpus, cli.policy.as_deref());
+        return run_agent_benchmark(corpus, cli.policy.as_deref(), cli.agent_out.as_deref());
     }
     anyhow::ensure!(
         !cli.dataset.is_empty(),

@@ -68,6 +68,24 @@ A non-loopback bind requires `proxy_auth` or `tenant_store`. Put a trusted HTTPS
 
 Use the [production runbook](operations/PRODUCTION_RUNBOOK.md) and [staging drill guide](operations/STAGING_DRILLS.md) to run dependency and encrypted restore checks from an operator-controlled host on the internal staging network.
 
+Before configuring an external deployment, exercise a downloaded Gateway binary
+with Python 3 and the isolated acceptance fixture:
+
+```sh
+python scripts/self-hosted-local-acceptance.py --gateway /absolute/path/to/llm-firewall --artifact-label v0.4.0 --out target/local-gateway-evidence.json
+```
+
+On Windows, pass the absolute path to `llm-firewall.exe`. Verify the release
+archive against its published `SHA256SUMS` before extracting it. For a source
+build, use its exact Git commit as `--artifact-label`. The script uses disposable
+SQLite, generated tokens, loopback ports and a local provider fixture; it
+checks authorization, a permitted request, an injection blocked before upstream
+forwarding, and persistence across restart. It prints only aggregate checks and
+the binary hash, and exits nonzero on failure. It never calls a real model
+provider or changes your existing configuration. Its evidence establishes local
+binary acceptance; managed TLS, PostgreSQL/Redis recovery and real-IdP acceptance
+remain separate gates.
+
 ## 5. Understand the data paths
 
 | Component | Network and state |
