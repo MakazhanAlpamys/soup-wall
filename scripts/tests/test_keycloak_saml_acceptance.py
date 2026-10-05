@@ -20,6 +20,23 @@ REQUESTS_AVAILABLE = importlib.util.find_spec("requests") is not None
 
 
 class DriverSafetyTests(unittest.TestCase):
+    def test_redirected_ignored_target_is_rejected_before_private_writes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            original_resolve = Path.resolve
+
+            def redirected(path, *args, **kwargs):
+                if path == root / "target":
+                    return root / "docs"
+                return original_resolve(path, *args, **kwargs)
+
+            with patch.object(Path, "resolve", autospec=True, side_effect=redirected), \
+                    patch.object(Path, "mkdir", autospec=True) as mkdir:
+                with self.assertRaisesRegex(RuntimeError, "redirected"):
+                    DRIVER.scratch_directory(root)
+                mkdir.assert_not_called()
+            self.assertFalse((root / "docs").exists())
+
     def test_bad_archive_hash_is_rejected_before_extraction(self):
         with tempfile.TemporaryDirectory() as temporary:
             archive = Path(temporary) / "runtime.zip"

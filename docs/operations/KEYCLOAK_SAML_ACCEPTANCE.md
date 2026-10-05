@@ -56,6 +56,8 @@ customer infrastructure, or Linux/macOS vendor runtimes. Signed plaintext
 assertions are required; XML decryption remains unsupported. Windows still uses
 RustCrypto, so the `rsa` advisory and
 [issue #19](https://github.com/MakazhanAlpamys/soup-wall/issues/19) remain open.
+The ignored `target` and runtime scratch path must be real checkout directories;
+symlink/junction redirection is rejected before private runtime files are written.
 
 ## Pinned external runtimes and licenses
 

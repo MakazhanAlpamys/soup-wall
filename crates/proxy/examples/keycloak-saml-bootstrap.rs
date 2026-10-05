@@ -15,6 +15,16 @@ fn main() -> anyhow::Result<()> {
             "usage: keycloak-saml-bootstrap NEW_DATABASE ISSUER SYNTHETIC_SUBJECT SYNTHETIC_ALIAS"
         );
     };
+    println!("{}", bootstrap(database, issuer, subject, alias)?);
+    Ok(())
+}
+
+fn bootstrap(
+    database: &str,
+    issuer: &str,
+    subject: &str,
+    alias: &str,
+) -> anyhow::Result<serde_json::Value> {
     if subject == alias {
         bail!("the negative signature check needs a distinct pre-provisioned alias");
     }
@@ -35,20 +45,80 @@ fn main() -> anyhow::Result<()> {
     let alias_principal = store.create_workspace_principal("Synthetic negative-check user")?;
     store.link_workspace_external_identity(&alias_principal.id, issuer, alias)?;
     store.set_workspace_membership(&workspace.id, &alias_principal.id, WorkspaceRole::Owner)?;
-    for name_id in [subject, alias] {
-        let access = store
-            .verified_identity_workspace_access(&organization.id, &workspace.id, issuer, name_id)?
-            .context("pre-provisioned synthetic identity has no workspace access")?;
-        if access.role != WorkspaceRole::Owner {
+    // The SAML connection is imported by the driver after bootstrap. Verify
+    // stored identities/memberships here; the OIDC authorization helper needs
+    // a separate configured OIDC connection and cannot validate this SAML seed.
+    let members = store.list_workspace_members(&workspace.id)?;
+    for (name_id, principal_id) in [(subject, &principal.id), (alias, &alias_principal.id)] {
+        let linked = store
+            .workspace_principal_for_external_identity(issuer, name_id)?
+            .context("pre-provisioned synthetic identity is not linked")?;
+        let membership = members
+            .iter()
+            .find(|member| member.principal_id == linked.id)
+            .context("pre-provisioned synthetic identity has no workspace membership")?;
+        if linked.id != *principal_id
+            || !linked.active
+            || !membership.active
+            || membership.role != WorkspaceRole::Owner
+        {
             bail!("pre-provisioned synthetic identity lacks the owner role");
         }
     }
-    println!(
-        "{}",
-        serde_json::json!({
-            "organization_id": organization.id,
-            "workspace_id": workspace.id,
-        })
-    );
-    Ok(())
+    Ok(serde_json::json!({
+        "organization_id": organization.id,
+        "workspace_id": workspace.id,
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bootstrap_preprovisions_two_active_owners_before_idp_import() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("fixture.sqlite");
+        let issuer = "https://127.0.0.1:20443/realms/fixture";
+        let scope = bootstrap(
+            database.to_str().unwrap(),
+            issuer,
+            "user@example.test",
+            "alias@example.test",
+        )
+        .expect("SAML bootstrap must not require a configured OIDC connection");
+        let store = TenantStore::open(database.to_str().unwrap()).unwrap();
+        let members = store
+            .list_workspace_members(scope["workspace_id"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(members.len(), 2);
+        assert_ne!(members[0].principal_id, members[1].principal_id);
+        for subject in ["user@example.test", "alias@example.test"] {
+            let principal = store
+                .workspace_principal_for_external_identity(issuer, subject)
+                .unwrap()
+                .unwrap();
+            let member = members
+                .iter()
+                .find(|member| member.principal_id == principal.id)
+                .unwrap();
+            assert!(principal.active && member.active);
+            assert_eq!(member.role, WorkspaceRole::Owner);
+        }
+    }
+
+    #[test]
+    fn bootstrap_refuses_existing_file_without_modifying_it() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("existing.sqlite");
+        std::fs::write(&database, b"existing operator data").unwrap();
+        assert!(bootstrap(
+            database.to_str().unwrap(),
+            "https://idp.example/realm",
+            "user",
+            "alias"
+        )
+        .is_err());
+        assert_eq!(std::fs::read(&database).unwrap(), b"existing operator data");
+    }
 }

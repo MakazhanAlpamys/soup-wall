@@ -65,6 +65,21 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def scratch_directory(root):
+    """Keep private vendor material below the checkout's real ignored target."""
+    root = Path(root).resolve()
+    target = root / "target"
+    scratch = target / "keycloak-saml"
+    for folder in (target, scratch):
+        if (folder.is_symlink() or (hasattr(folder, "is_junction") and folder.is_junction())
+                or folder.resolve() != folder.absolute()):
+            raise RuntimeError("private runtime scratch must not be a redirected path")
+    scratch.mkdir(parents=True, exist_ok=True)
+    if scratch.resolve() != scratch.absolute():
+        raise RuntimeError("private runtime scratch changed during preparation")
+    return scratch
+
+
 class ReportOutput:
     """Reserve a fresh writable output before allocating any vendor resources."""
 
@@ -343,8 +358,7 @@ def run(args):
                 raise RuntimeError("manual vendor runtime dependency is unavailable")
         import requests
 
-        scratch = Path(__file__).resolve().parents[1] / "target" / "keycloak-saml"
-        scratch.mkdir(parents=True, exist_ok=True)
+        scratch = scratch_directory(Path(__file__).resolve().parents[1])
         report["gateway_sha256"] = sha256(args.gateway)
         report["bootstrap_helper_sha256"] = sha256(args.bootstrap_helper)
         report["driver_sha256"] = sha256(__file__)

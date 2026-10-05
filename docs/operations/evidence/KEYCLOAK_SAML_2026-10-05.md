@@ -39,8 +39,16 @@ root allowlist and owned profiles/JVM home, the unsigned realm's own pin, and a
 second explicitly authorized synthetic principal for NameID mutation. Evidence
 output is now reserved before runtime allocation, rejects existing/input files,
 and atomically preserves incomplete checkpoints on write failure. Thirteen
-offline regressions pass. The corrected driver/bootstrap **have not** been
+offline regressions passed for that prepared snapshot. Root review added the
+ignored-directory guard, bringing the driver checks to fourteen. A native
+bootstrap execution then exposed an incorrect OIDC authorization check before
+any IdP connection existed; the helper now verifies its stored active SAML
+identity links and Owner memberships. Two mandatory native bootstrap regressions
+cover fresh provisioning and refusing an existing file unchanged. The corrected
+driver/bootstrap **have not** been
 rerun against Keycloak, and their hashes are separate preparation evidence.
+File hashes describe the measured checkout bytes; newline conversion can alter
+them across checkouts. Root verification is recorded separately in the JSON.
 
 No filename, numeric errno or specific cause was preserved for the initial
 `PermissionError`. Subsequent native removal attempts were rejected before

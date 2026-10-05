@@ -2551,6 +2551,7 @@ dependencies = [
  "soup-wall-agent",
  "soup-wall-core",
  "subtle",
+ "tempfile",
  "tokio",
  "tokio-postgres",
  "tokio-postgres-rustls",

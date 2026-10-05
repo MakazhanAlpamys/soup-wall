@@ -185,3 +185,12 @@ provider credentials, identity assertions, prompts, or customer data.
   measured source tree. [Aggregate evidence](../benchmarks/evidence/agentdojo-live-fixture-2026-10-05.json)
   retains the actual runtime, executable, dependency and policy versions. No
   independent model effectiveness or managed deployment gate is closed.
+- Vendor identity preparation: the portable Keycloak driver and bootstrap
+  helper preserve actual vendor signatures and production ACS behavior. The
+  initial run recorded 22 functional observations but failed cleanup and has
+  documented isolation/negative-check confounds. The reviewed driver has 14
+  offline checks, two mandatory native bootstrap regressions, fresh atomic
+  evidence and a real ignored-directory boundary. No corrected full vendor
+  rerun occurred. The automatic cleanup rejection and required operator action
+  remain explicit; no identity/crypto field gate is marked complete.
+  [Historical result and prepared-source evidence](evidence/KEYCLOAK_SAML_2026-10-05.md).
