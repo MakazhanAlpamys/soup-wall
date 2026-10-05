@@ -50,7 +50,9 @@ remain visible; dependencies are never marked complete to make the plan green.
    Keep a precise record of any remaining external dependencies.
    The pinned historical importer, fidelity checks, outcome JSON and negative
    baseline and the verified native-runtime fallback adapter are complete.
-   Native semantic coverage and the operator-selected live field run remain.
+   Operator-installed native semantics and correlated result/context admission
+   are implemented. Reviewed registry coverage for selected tools and the
+   operator-selected live field run remain.
 6. [x] **Integration and release review.** Review changes, run required checks,
    push focused PRs, record CI results, and reconcile roadmap, operator guidance,
    and changelog with the evidence. Do not publish a new release or claim field
@@ -214,3 +216,33 @@ provider credentials, identity assertions, prompts, or customer data.
   pass; historical evidence is preserved separately. It merged as
   `9b5267d52c0dff2759c42fa08df94471dc58b2ef`. No corrected vendor runtime or
   external identity gate is claimed.
+- Monitoring source integration: [PR #27](https://github.com/MakazhanAlpamys/soup-wall/pull/27)
+  passed all 19 hosted checks on `d3b38a9`, including the vendor preparation
+  regressions, four SAML platforms and actual Rust/Python/actions CodeQL. It
+  merged as `50b6b4e7825a587c148778a1e0f17800cd98256e`. Timestamped local
+  firing/resolved evidence retains its managed-TLS and staffed-routing limits.
+- Native admission implementation: `6f3ad63` adds the separately authenticated
+  `sw-native/1` endpoint, immutable operator tool registry, declared action/source
+  semantics and single-use invocation/result/context bindings. The original
+  AgentDojo runtime and formatter remain intact; model-bound content changes
+  taint only on actual context admission, and nested parent returns complete
+  their own records. Required Windows formatting, workspace Clippy, all 759
+  default tests (five explicitly ignored) and the shipped-policy corpus pass.
+- Native integration evidence: clean `e259b76` passes 26 pinned-runtime/native
+  checks plus all 29 existing fallback checks with the same actual Agent.
+  The production native pipeline received seven scripted loopback-provider
+  requests and zero real model/paid-provider calls. Preparation, teardown,
+  schema, binding, result/context and 70-nested-return boundaries are checked.
+  Earlier incomplete runs remain visible, including two private profiles whose
+  removal automatic review rejected after their owned children were stopped.
+  Current tool-registry coverage and external effectiveness/utility/soaking
+  gates stay open. [Evidence and reproduction](../benchmarks/evidence/agentdojo-native-fixture-2026-10-05.md).
+- Native review correction: official OpenCodeReview delegation selected files and
+  rules for the complete PR diff; host review also covered tool-excluded files.
+  Actual engine probes confirmed that weaker tainted escalation could override
+  unknown-host Ask. `0c333cd` fixes precedence and adds both hook/native
+  regressions. All 157 Agent tests and the 19-attack/21-benign release corpus pass;
+  the rebuilt daemon again passes 26 native and 29 fallback checks. Two CodeQL
+  fixture nonce findings are corrected in source without suppressing queries.
+  Full-project preview is selection evidence, not a completed autonomous scan.
+  [Provenance, finding and boundaries](evidence/OPEN_CODE_REVIEW_2026-10-05.md).

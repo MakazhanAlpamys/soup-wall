@@ -18,6 +18,7 @@ const TOKEN: &str = "test-token-abcdefghijklmnopqrstuvwxyz012345";
 
 fn state(dir: &std::path::Path) -> agentfw::Shared {
     Arc::new(AppState {
+        native: None,
         firewall: Mutex::new(AgentFirewall::with_default_policy()),
         sessions: Sessions::default(),
         audit: AuditSink::open(&dir.join("audit.jsonl")).unwrap(),

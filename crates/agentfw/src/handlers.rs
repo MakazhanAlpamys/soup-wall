@@ -77,6 +77,7 @@ impl Sessions {
 
 /// All state shared across hook requests.
 pub struct AppState {
+    pub native: Option<crate::native::NativeState>,
     pub firewall: Mutex<AgentFirewall>,
     pub sessions: Sessions,
     pub audit: AuditSink,
@@ -99,8 +100,8 @@ pub struct AppState {
     /// Which approvals have been spent. Single use is enforced here, not by the
     /// pending file, so a failed delete cannot become a second authorization.
     pub grant_ledger: crate::grant::GrantLedger,
-    /// Key the daemon signs approvals with. Domain-separated from the hook token
-    /// so possession of one never implies the other.
+    /// Approval-signing key derived from the hook token with domain separation.
+    /// A hook-token holder can derive this key; collector isolation is necessary.
     pub grant_key: Vec<u8>,
 }
 
@@ -252,7 +253,7 @@ pub async fn hook(
     // `Ask` is redeemable: `Deny` is a policy refusal, and letting an approval
     // override it would turn every deny into a prompt an attacker can wait out.
     let mut approval = None;
-    if verdict == Verdict::Ask {
+    if is_pre && verdict == Verdict::Ask {
         if let Some(tool) = &payload.tool_name {
             let action = crate::grant::ActionRef {
                 session: payload.session_id.clone(),

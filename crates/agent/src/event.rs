@@ -29,9 +29,20 @@ pub enum Provenance {
     UserPrompt,
     LocalProject,
     LocalSystem,
-    Network { host: String },
-    McpServer { name: String },
-    Subagent { name: String },
+    Network {
+        host: String,
+    },
+    McpServer {
+        name: String,
+    },
+    Subagent {
+        name: String,
+    },
+    /// Third-party native data, declared by an operator-installed runtime registry.
+    Native {
+        registry: String,
+        tool: String,
+    },
 }
 
 impl Provenance {
@@ -41,7 +52,8 @@ impl Provenance {
             Provenance::LocalProject | Provenance::LocalSystem => Trust::Semi,
             Provenance::Network { .. }
             | Provenance::McpServer { .. }
-            | Provenance::Subagent { .. } => Trust::Untrusted,
+            | Provenance::Subagent { .. }
+            | Provenance::Native { .. } => Trust::Untrusted,
         }
     }
 
@@ -60,6 +72,7 @@ impl Provenance {
             Provenance::Network { .. } => "network",
             Provenance::McpServer { .. } => "mcp",
             Provenance::Subagent { .. } => "subagent",
+            Provenance::Native { .. } => "native",
         }
     }
 
@@ -73,6 +86,7 @@ impl Provenance {
             Provenance::UserPrompt | Provenance::LocalProject | Provenance::LocalSystem => None,
             Provenance::Network { host } => Some(host),
             Provenance::McpServer { name } | Provenance::Subagent { name } => Some(name),
+            Provenance::Native { registry, .. } => Some(registry),
         }
     }
 
@@ -85,6 +99,7 @@ impl Provenance {
             Provenance::Network { host } => format!("network:{host}"),
             Provenance::McpServer { name } => format!("mcp:{name}"),
             Provenance::Subagent { name } => format!("subagent:{name}"),
+            Provenance::Native { registry, tool } => format!("native:{registry}:{tool}"),
         }
     }
 }

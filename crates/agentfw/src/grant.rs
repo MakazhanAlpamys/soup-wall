@@ -141,9 +141,9 @@ fn sign(key: &[u8], grant: &Grant) -> String {
 
 /// Derive the approval-signing key from the daemon token.
 ///
-/// Domain-separated so the two never coincide: a component that legitimately
-/// holds the hook token must not thereby be able to mint approvals, and a leaked
-/// approval must not disclose the token.
+/// Domain separation makes the key distinct from the token; it is not secrecy.
+/// Anyone holding the hook token can derive this key and mint approvals. The
+/// protected operator profile and trusted collector boundary remain necessary.
 pub fn derive_key(token: &str) -> Vec<u8> {
     let mut hash = Sha256::new();
     hash.update(b"agentfw/approval-key/v1\0");

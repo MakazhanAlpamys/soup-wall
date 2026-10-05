@@ -34,6 +34,7 @@ pub enum TaintSource {
     Network,
     Mcp,
     Subagent,
+    Native,
 }
 
 impl TaintSource {
@@ -43,6 +44,7 @@ impl TaintSource {
             (TaintSource::Network, Provenance::Network { .. })
                 | (TaintSource::Mcp, Provenance::McpServer { .. })
                 | (TaintSource::Subagent, Provenance::Subagent { .. })
+                | (TaintSource::Native, Provenance::Native { .. })
         )
     }
 }
