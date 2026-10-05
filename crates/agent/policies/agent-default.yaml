@@ -1,7 +1,8 @@
 # Default agent policy. First match wins; anything unmatched falls through to `default`.
 # Verdicts: allow | ask | deny.
 #
-# Ordering rule for this file: all `deny` rules come before all `ask` rules. Since
+# Ordering rule for this file: `deny`, then `ask`, then the weaker `escalate`
+# fallback. Since
 # first-match-wins means ordering encodes precedence, a weaker verdict must never
 # pre-empt a stronger one on an overlapping condition — e.g. a network send that is
 # both a sensitive-path reference AND a detected secret must resolve to `deny`, not
@@ -57,18 +58,6 @@ agent_policies:
     action: ask
     message: "An MCP tool description contains instructions aimed at the agent. Trust this server?"
 
-  # A tainted side-effecting action is the genuinely ambiguous case: measured at
-  # 7 of 15 benign follow-ups in a lab run, so prompting unconditionally is too
-  # noisy and gets the tool switched off. Ask the local judge if one is configured;
-  # otherwise fall back to allow — a false prompt here is exactly what erodes trust.
-  # The judge may only tighten this to `ask`, never past it. See judge.rs and the
-  # phase-10 design spec.
-  - name: escalate-tainted-side-effect
-    when: { taint: [network, mcp, subagent, native], min_action_class: side_effecting }
-    action: escalate
-    fallback: allow
-    message: "This action uses content fetched earlier from an untrusted source."
-
   # A pinned MCP server whose manifest changed since we last saw it — the "rug pull".
   - name: ask-manifest-drift
     when: { mcp_manifest_changed: true }
@@ -85,6 +74,20 @@ agent_policies:
     when: { egress_not_allowlisted: true }
     action: ask
     message: "This call reaches a host that is not on the allowlist. Allow?"
+
+  # A tainted side-effecting action is the genuinely ambiguous case: measured at
+  # 7 of 15 benign follow-ups in a lab run, so prompting unconditionally is too
+  # noisy and gets the tool switched off. Ask the local judge if one is configured;
+  # otherwise fall back to allow — a false prompt here is exactly what erodes trust.
+  # This weaker fallback follows every explicit Ask: taint must never turn a send
+  # to an unknown host from Ask into Allow. Allowlisted ordinary side effects keep
+  # their existing fallback. The judge may only tighten this to `ask`, never past
+  # it. See judge.rs and the phase-10 design spec.
+  - name: escalate-tainted-side-effect
+    when: { taint: [network, mcp, subagent, native], min_action_class: side_effecting }
+    action: escalate
+    fallback: allow
+    message: "This action uses content fetched earlier from an untrusted source."
 
 egress_allowlist:
   - api.anthropic.com
