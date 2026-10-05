@@ -66,4 +66,3 @@ tempfile = "3"
 [[example]]
 name = "keycloak-saml-bootstrap"
 test = true
-
