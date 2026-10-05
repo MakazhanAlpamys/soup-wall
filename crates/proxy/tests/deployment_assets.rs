@@ -54,6 +54,7 @@ fn prometheus_alert_rules_track_only_exported_operational_metrics() {
     assert_eq!(
         alerts,
         BTreeSet::from([
+            "LLMFirewallGatewayTargetDown",
             "LLMFirewallAuditEventsDropped",
             "LLMFirewallAuditPersistenceFailed",
             "LLMFirewallAuditQueueDisabled",
@@ -64,6 +65,10 @@ fn prometheus_alert_rules_track_only_exported_operational_metrics() {
     );
 
     let metrics_source = include_str!("../src/handlers.rs");
+    assert!(
+        expressions.contains("up{job=\"soup-wall-gateway\"} == 0"),
+        "target-down must be scoped to the documented Gateway scrape job"
+    );
     for metric in [
         "llm_firewall_control_plane_ready",
         "llm_firewall_audit_queue_enabled",

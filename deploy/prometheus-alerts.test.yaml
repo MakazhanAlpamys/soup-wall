@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: Apache-2.0
+rule_files:
+  - prometheus-alerts.yaml
+evaluation_interval: 30s
+tests:
+  - name: Gateway process outage produces target-down, not a fabricated dependency zero
+    interval: 30s
+    input_series:
+      - series: 'up{job="soup-wall-gateway",instance="127.0.0.1:9001"}'
+        values: '1 1 0 0 0 0 0 0 0 0 0 0 1 1 1 1'
+      - series: 'llm_firewall_control_plane_ready{job="soup-wall-gateway",instance="127.0.0.1:9001"}'
+        values: '1 1 stale _ _ _ _ _ _ _ _ _ 1 1 1 1'
+      - series: 'up{job="unrelated-service",instance="127.0.0.1:9002"}'
+        values: '0x15'
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: LLMFirewallGatewayTargetDown
+        exp_alerts: []
+      - eval_time: 2m30s
+        alertname: LLMFirewallGatewayTargetDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: LLMFirewallGatewayTargetDown
+        exp_alerts:
+          - exp_labels:
+              job: soup-wall-gateway
+              instance: '127.0.0.1:9001'
+              severity: critical
+              component: gateway
+            exp_annotations:
+              summary: Soup Wall Gateway metrics target is unavailable
+              description: Prometheus has failed to scrape the named Gateway target for at least two minutes.
+              runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#health-and-monitoring
+      - eval_time: 5m
+        alertname: LLMFirewallControlPlaneUnavailable
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: LLMFirewallGatewayTargetDown
+        exp_alerts: []
+  - name: Live Gateway still reports genuine dependency failure independently
+    interval: 30s
+    input_series:
+      - series: 'up{job="soup-wall-gateway",instance="127.0.0.1:9001"}'
+        values: '1x14'
+      - series: 'llm_firewall_control_plane_ready{job="soup-wall-gateway",instance="127.0.0.1:9001"}'
+        values: '1 1 0 0 0 0 0 0 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: LLMFirewallControlPlaneUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: soup-wall-gateway
+              instance: '127.0.0.1:9001'
+              severity: critical
+              component: control-plane
+            exp_annotations:
+              summary: Soup Wall control plane is unavailable
+              description: PostgreSQL or SQLite readiness has remained unavailable for at least two minutes.
+              runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#dependency-failure-drills
+      - eval_time: 3m
+        alertname: LLMFirewallGatewayTargetDown
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: LLMFirewallControlPlaneUnavailable
+        exp_alerts: []

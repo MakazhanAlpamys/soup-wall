@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0
+# Reserved example host: configure an owned receiver and its protected token file.
+# Verify that critical notifications reach a staffed incident channel, and that
+# warnings have an operational owner. This example alone proves neither.
+route:
+  receiver: operator-webhook
+  group_by: [alertname, job, instance]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+receivers:
+  - name: operator-webhook
+    webhook_configs:
+      - url: https://alerts.example.test/hooks/soup-wall
+        send_resolved: true
+        http_config:
+          follow_redirects: false
+          proxy_from_environment: false
+          authorization:
+            credentials_file: /run/secrets/soup-wall-alerts-token
