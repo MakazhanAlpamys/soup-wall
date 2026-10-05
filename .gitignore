@@ -8,6 +8,11 @@ __pycache__/
 # Internal notes, draft specifications and personal scratch work stay local.
 /local-notes/
 
+# Local planning output from development skills stays out of team documentation.
+/docs/plans/
+/docs/superpowers/
+/.superpowers/
+
 # ML model weights -- fetched on demand via scripts/fetch-model.sh (large, upstream-licensed)
 /models
 

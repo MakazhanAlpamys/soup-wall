@@ -48,6 +48,9 @@ overview. Choose a guide below for development, operation or evaluation.
 [ROADMAP](ROADMAP.md) records the tagged baseline, product principles,
 dependency-ordered phases, open decisions and one final release gate. Internal
 drafts and personal notes stay locally under ignored `local-notes/`.
+Generated planning output under `docs/plans/`, `docs/superpowers/` and
+`.superpowers/` also stays local. One-off review and alert-triage notes are kept
+in `local-notes/reviews/`; public aggregate evidence remains versioned.
 Dated evidence records refer to their original source commit and environment
 and may mention historical paths. They are not automatic claims about the latest
 checkout.

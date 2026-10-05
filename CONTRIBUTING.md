@@ -10,12 +10,12 @@ Use English for documentation, code comments, user-facing messages, issue descri
 
 Start with the [development guide](docs/DEVELOPMENT.md) for prerequisites, the workspace map, and focused checks. Use the [documentation index](docs/README.md) to find the current guide rather than adding another planning or status document. The [roadmap](docs/ROADMAP.md) is the single current plan; dated evidence belongs beside its reproduction procedure.
 
-Keep internal drafts, unaccepted specifications and personal notes in ignored `local-notes/`. Accepted interfaces, decision rationale, reproduction procedures and sanitized evidence belong in the public documentation. The source baseline is `baseline/team-handoff`; the roadmap plans one final product release after all required phases pass. Ordinary commits and private candidate builds do not publish a release.
+Keep internal drafts, unaccepted specifications and personal notes in ignored `local-notes/`. Generated planning directories `docs/plans/`, `docs/superpowers/` and `.superpowers/` are also local. Accepted interfaces, decision rationale, reproduction procedures and sanitized evidence belong in the public documentation. The source baseline is `baseline/team-handoff`; the roadmap plans one final product release after all required phases pass. Ordinary commits and private candidate builds do not publish a release.
 
-1. Choose a bounded issue or describe the intended behavior before a large API or architecture change. Report vulnerabilities through [SECURITY.md](SECURITY.md).
+1. Choose a bounded issue or describe the intended behavior before a large API or architecture change. Name its roadmap phase, prerequisites and verifiable acceptance criteria; explain independent work when it is outside the phases. Report vulnerabilities through [SECURITY.md](SECURITY.md).
 2. Create a topic branch, conventionally `codex/<short-description>` for Codex-assisted work. External contributors can use a fork. Keep unrelated changes in separate pull requests.
 3. Implement the change, update the relevant documentation, and run the checks below plus the focused checks for the affected surface.
-4. Open a pull request describing the problem, resulting behavior, compatibility impact, and verification. Identify skipped checks and any required environment. Link the issue when one exists.
+4. Open a pull request describing the problem, resulting behavior, compatibility impact, and verification. Explain skipped checks and any required environment. Link the issue when one exists. Identify the base and prerequisite PR for a stacked change; merge prerequisites first and refresh the remaining PR against its new base.
 5. The author addresses review findings; reviewers check behavior, boundaries, compatibility, and evidence. Release or deployment acceptance requires an operator to run the applicable procedure in the intended environment. A local fixture result does not replace that acceptance.
 
 Do not commit local credentials, `.env` files, customer payloads, model weights, build outputs, or unreviewed external datasets. Use minimal synthetic examples in issues and pull requests. Keep attribution and evidence that support published claims when removing obsolete documentation.
@@ -30,9 +30,15 @@ cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
 python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
 python3 -m unittest discover -s scripts/benchmarks -p 'test_*.py' -v
+python3 scripts/check_docs.py
 ```
 
-On Windows, use `python` instead of `python3`. These Python suites contain environment-dependent skips; report them explicitly. Full CI also checks optional features, platform-specific behavior, dependency and license policy, containers, and service integrations. The [development guide](docs/DEVELOPMENT.md#verification) explains their scope. For documentation-only changes, verify relative links, commands, and the affected claims; no new behavior tests are needed.
+On Windows, use `python` instead of `python3`. These Python suites contain environment-dependent skips; report them explicitly. Full CI also checks optional features, platform-specific behavior, dependency advisories, SBOM generation, containers, and service integrations. License and attribution review remains a contributor responsibility; CI does not currently enforce a license allowlist. The [development guide](docs/DEVELOPMENT.md#verification) explains their scope. For documentation-only changes, run the local-link checker and verify commands and affected claims; no new behavior tests are needed.
+
+The documentation job runs on every PR, including documentation-only changes.
+Supply-chain checks cover PRs against working branches as well as `main` when
+non-documentation files change. Workflow triggers provide checks; they do not
+configure GitHub branch protection or required review rules.
 
 For an optional ML change, fetch only the reviewed model asset required by the feature and run its focused checks. Model weights and datasets have separate licenses and are not covered by the Rust workspace's Apache-2.0 declaration. See [source provenance](docs/PROVENANCE.md).
 

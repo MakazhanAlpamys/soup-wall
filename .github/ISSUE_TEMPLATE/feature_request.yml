@@ -5,6 +5,13 @@ body:
     attributes:
       value: Use English. Check the [current roadmap](https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/ROADMAP.md) and existing issues first.
   - type: textarea
+    id: scope
+    attributes:
+      label: Roadmap phase and prerequisites
+      description: Name the roadmap phase or explain why this work is independent. Link prerequisite issues or pull requests, and state what is already available.
+    validations:
+      required: true
+  - type: textarea
     id: need
     attributes:
       label: User need

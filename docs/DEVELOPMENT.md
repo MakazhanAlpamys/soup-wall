@@ -102,6 +102,19 @@ features, platform targets, service integrations, release assets and security
 checks. On Windows, [ci-local.ps1](../scripts/ci-local.ps1) provides a configurable
 wrapper for selected Rust, advisory and scorecard checks.
 
+Check local documentation links and heading anchors without network access:
+
+```sh
+python3 scripts/check_docs.py
+```
+
+On Windows, use `python`. Stage new linked files before this check so Git can
+identify them as versioned targets. The checker reads inline Markdown links and
+images, HTML image sources and ATX heading anchors; it skips fenced code and
+external URLs. It does not validate remote websites or every Markdown extension.
+Links into ignored personal notes fail even if the files exist locally. The
+`Documentation links` CI job runs for every pull request base branch.
+
 ## Source map and focused checks
 
 Read the [architecture](ARCHITECTURE.md) for component relationships and actual
@@ -173,7 +186,9 @@ for regression cases, compatibility and pull request descriptions, and
 [SECURITY](../SECURITY.md) for private vulnerability reports.
 
 Keep internal notes, draft specifications and personal scratch work under
-ignored `local-notes/`; it is also excluded from Docker build contexts. Publish
+ignored `local-notes/`; generated `docs/plans/`, `docs/superpowers/` and
+`.superpowers/` directories are also local. They are excluded from Docker build
+contexts. Publish
 reviewed interfaces and sanitized evidence in their canonical guides. The
 [roadmap](ROADMAP.md) identifies the source baseline, dependency-ordered phases
 and the single final release gate.
