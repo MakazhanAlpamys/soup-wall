@@ -75,6 +75,7 @@ struct Fixture {
     input: ChildStdin,
     output: tokio::io::Lines<BufReader<ChildStdout>>,
     ledger: std::path::PathBuf,
+    stderr: std::path::PathBuf,
 }
 
 impl Fixture {
@@ -119,6 +120,7 @@ impl Fixture {
         let path = registry_path.to_string_lossy().replace('\'', "''");
         std::fs::write(home.join("config.yaml"), format!("port: {port}\nenforce: true\nnative:\n  registry_path: '{path}'\n  registry_sha256: '{digest}'\n")).unwrap();
         let ledger = dir.path().join("executed.jsonl");
+        let stderr = dir.path().join("gateway-stderr.log");
         let python = if cfg!(windows) { "python" } else { "python3" };
         let mut command = Command::new(env!("CARGO_BIN_EXE_agentfw"));
         command.args([
@@ -143,7 +145,9 @@ impl Fixture {
         command
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
+            .stderr(std::process::Stdio::from(
+                std::fs::File::create(&stderr).unwrap(),
+            ))
             .kill_on_drop(true);
         let mut child = command.spawn().unwrap();
         let input = child.stdin.take().unwrap();
@@ -155,6 +159,7 @@ impl Fixture {
             input,
             output,
             ledger,
+            stderr,
         }
     }
 
@@ -168,13 +173,65 @@ impl Fixture {
     }
 
     async fn ready(&mut self) {
-        assert!(self.exchange(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}"#).await.is_some(), "opt-in MCP must initialize after native preflight");
+        let initialized = self.exchange(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}"#).await;
+        if initialized.is_none() {
+            // Windows may hold the redirected file open until the process exits.
+            // Bound that wait before reading a sanitized diagnostic category.
+            let _ = tokio::time::timeout(Duration::from_secs(2), self.child.wait()).await;
+        }
+        assert!(
+            initialized.is_some(),
+            "opt-in MCP must initialize after native preflight: {}",
+            self.startup_failure()
+        );
         assert!(
             self.exchange(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#)
                 .await
                 .is_some(),
             "operator-pinned manifest must be released"
         );
+    }
+
+    fn startup_failure(&mut self) -> String {
+        // Public CI gets a fixed category and status, never raw stderr, paths or token values.
+        let stderr = std::fs::read_to_string(&self.stderr).unwrap_or_default();
+        let category = [
+            (
+                "native registry path is redirected",
+                "registry_reparse_path",
+            ),
+            ("native registry path is linked", "registry_linked_path"),
+            ("untrusted owner", "private_profile_untrusted_owner"),
+            (
+                "private file path is a reparse point",
+                "private_profile_reparse_path",
+            ),
+            ("program not found", "server_executable_not_found"),
+            ("os error 2", "server_executable_not_found"),
+            ("os error 3", "server_executable_path_not_found"),
+            (
+                "MCP admission request rejected",
+                "native_preflight_rejected",
+            ),
+            ("MCP admission unavailable", "native_daemon_unavailable"),
+            (
+                "native registry bytes do not match",
+                "registry_digest_mismatch",
+            ),
+            ("MCP preflight", "native_preflight_failure"),
+            ("MCP initialization failed", "server_initialization_failed"),
+            ("unsupported", "unsupported_server_envelope"),
+        ]
+        .into_iter()
+        .find_map(|(needle, label)| stderr.contains(needle).then_some(label))
+        .unwrap_or("unclassified_startup_failure");
+        let code = self
+            .child
+            .try_wait()
+            .ok()
+            .flatten()
+            .and_then(|status| status.code());
+        format!("category={category}, exit={code:?}")
     }
 }
 
