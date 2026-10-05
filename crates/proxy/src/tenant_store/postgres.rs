@@ -2848,7 +2848,8 @@ impl PostgresTenantStore {
                          active, expires_at_unix, created_at_unix, revoked_at_unix)
                     SELECT $3, $1, $4, $2, $5, TRUE, $6, $7, NULL
                     FROM authorized
-                    RETURNING id
+                    RETURNING id, workspace_id, name, created_by_principal_id,
+                              active, expires_at_unix, created_at_unix, revoked_at_unix
                  ), audited AS (
                     INSERT INTO workspace_admin_audit
                         (organization_id, workspace_id, actor_principal_id, action,
@@ -2856,9 +2857,9 @@ impl PostgresTenantStore {
                     SELECT organization_id, $1, $2, 'service_account.create', $2, $7
                     FROM authorized CROSS JOIN inserted
                  )
-                 SELECT a.id, a.workspace_id, a.name, a.created_by_principal_id,
-                        a.active, a.expires_at_unix, a.created_at_unix, a.revoked_at_unix
-                 FROM workspace_service_accounts a JOIN inserted i ON i.id = a.id",
+                 SELECT id, workspace_id, name, created_by_principal_id,
+                        active, expires_at_unix, created_at_unix, revoked_at_unix
+                 FROM inserted",
                 &[
                     &workspace_id,
                     &actor_principal_id,

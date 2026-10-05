@@ -92,8 +92,8 @@ untainted send to an unknown host produced `ask`, while admitted foreign
 content tainted the same send and let the earlier
 `escalate-tainted-side-effect` with `fallback: allow` override
 `ask-unknown-host`. The current security correction orders the unknown-host
-rule before that weaker fallback and adds regressions; it is part of the
-current native checkpoint, pending publication at this planning update.
+rule before that weaker fallback and adds regressions; it is included in
+Native PR #28, pending merge at this planning update.
 Future work expands the combination matrix to no judge, judge allow/ask,
 errors and unavailable judges, and verifies the intended result for each
 overlap. That wider evaluation is separate from correcting this confirmed
