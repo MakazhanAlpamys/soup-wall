@@ -10,6 +10,8 @@ Use English for documentation, code comments, user-facing messages, issue descri
 
 Start with the [development guide](docs/DEVELOPMENT.md) for prerequisites, the workspace map, and focused checks. Use the [documentation index](docs/README.md) to find the current guide rather than adding another planning or status document. The [roadmap](docs/ROADMAP.md) is the single current plan; dated evidence belongs beside its reproduction procedure.
 
+Keep internal drafts, unaccepted specifications and personal notes in ignored `local-notes/`. Accepted interfaces, decision rationale, reproduction procedures and sanitized evidence belong in the public documentation. The source baseline is `baseline/team-handoff`; the roadmap plans one final product release after all required phases pass. Ordinary commits and private candidate builds do not publish a release.
+
 1. Choose a bounded issue or describe the intended behavior before a large API or architecture change. Report vulnerabilities through [SECURITY.md](SECURITY.md).
 2. Create a topic branch, conventionally `codex/<short-description>` for Codex-assisted work. External contributors can use a fork. Keep unrelated changes in separate pull requests.
 3. Implement the change, update the relevant documentation, and run the checks below plus the focused checks for the affected surface.

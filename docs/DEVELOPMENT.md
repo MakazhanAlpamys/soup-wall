@@ -172,6 +172,12 @@ exercise security or transport behavior. Follow [CONTRIBUTING](../CONTRIBUTING.m
 for regression cases, compatibility and pull request descriptions, and
 [SECURITY](../SECURITY.md) for private vulnerability reports.
 
+Keep internal notes, draft specifications and personal scratch work under
+ignored `local-notes/`; it is also excluded from Docker build contexts. Publish
+reviewed interfaces and sanitized evidence in their canonical guides. The
+[roadmap](ROADMAP.md) identifies the source baseline, dependency-ordered phases
+and the single final release gate.
+
 Use fresh evidence destinations under `target/` for local runs. Commit reviewed,
 sanitized evidence only when it supports a stated claim; retain the distinction
 between unit tests, local integration, hosted CI and external evaluation.

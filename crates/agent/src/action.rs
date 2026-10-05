@@ -132,7 +132,7 @@ fn patterns() -> &'static Patterns {
 /// argv-array-shaped tool call like `["git", "push", "origin", "main"]` must
 /// classify the same as the equivalent single string — otherwise splitting a
 /// command across array elements silently drops it below its true class. This is
-/// `classify`-only: Task 2's `facets()` keeps its own per-leaf join (or lack of
+/// `classify`-only: `facets()` keeps its own per-leaf join (or lack of
 /// one) for the core detectors, which is a separate, unrelated tradeoff.
 fn args_text(args: &serde_json::Value) -> String {
     let mut leaves = Vec::new();
@@ -261,11 +261,9 @@ mod tests {
 
     #[test]
     fn plain_retrieval_classifies_as_read_only_not_network() {
-        // Measured in Task 4: 7 of 15 benign follow-up actions after reading a
-        // README came back tainted. "Read a page, then follow one of its links" is
-        // the most common agent workflow there is. If retrieval counted as Network,
-        // taint + Network would prompt on it constantly and the tool would be
-        // switched off. Fetching is not exfiltrating.
+        // Reading documentation and following a link is an ordinary workflow.
+        // Treating retrieval as Network would let taint alone trigger the egress
+        // policy even when no data is being sent. Fetching is not exfiltrating.
         assert_eq!(
             classify(
                 "WebFetch",

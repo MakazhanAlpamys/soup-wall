@@ -12,6 +12,8 @@
 
 Joining the development team? Start with the [development guide](docs/DEVELOPMENT.md), then read [CONTRIBUTING.md](CONTRIBUTING.md). The [documentation index](docs/README.md) links setup, architecture, operator procedures, and verification evidence.
 
+Development starts from the `baseline/team-handoff` source tag. The [product roadmap](docs/ROADMAP.md) orders work by dependencies and acceptance criteria, with one final release after the complete product passes its gates. The canonical repository is [MakazhanAlpamys/soup-wall](https://github.com/MakazhanAlpamys/soup-wall).
+
 | Surface | What it does | Runs as |
 | --- | --- | --- |
 | **Soup Wall Agent** | Reviews tool calls, tool results, MCP manifests, and subagent authority. Starts in shadow mode. | `agentfw` daemon and CLI |

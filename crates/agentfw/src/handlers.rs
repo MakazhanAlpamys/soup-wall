@@ -229,7 +229,7 @@ pub async fn hook(
     let mut judged: Option<String> = None;
     if verdict == Verdict::Escalate {
         // The judge sees the tainted CONTENT and its source — never the tool call.
-        // Design spec §4b: including the action made it fire on ordinary work.
+        // Following documentation is ordinary work; judge the content's intent.
         let (span, source) = match &outcome.taint {
             Some(t) => (
                 st.spans.get(&payload.session_id, t.seq).unwrap_or_default(),

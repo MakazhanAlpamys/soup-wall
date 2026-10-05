@@ -1,179 +1,323 @@
-# Soup Wall roadmap
+# Soup Wall product roadmap
 
-Status: October 2026. This is the current roadmap for the public source,
-remaining acceptance gates, and proposed next stages. Implementation, local
-acceptance, hosted CI, and external field evidence are separate outcomes.
-A completed fixture does not close a deployment or effectiveness gate.
-Proposed work requires its own execution decision; this document does not
-authorize deployments, provider spending, or pilots.
+## Where we stand
 
-## Product direction
+Soup Wall is an Apache-2.0 AI firewall with Agent, Gateway and Console surfaces.
+Its product goal is to control what an agent can execute, where it can send
+data, what it can change, and which authority it can delegate, while preserving
+legitimate task completion.
 
-Soup Wall is one Apache-2.0 project with three self-hosted surfaces: **Agent**
-for local agent actions, **Gateway** for provider traffic, and **Console** for
-organization controls. The source distribution has no paid feature gate or
-required Soup Wall service. Hosting and support may be offered separately
-without reserving product features in a closed codebase.
+The source baseline is the annotated tag `baseline/team-handoff`, pointing to
+commit `2304818b6f461ecbef97fe68bfad50be55c17ec0`. It includes the pending MCP
+implementation in [PR #30](https://github.com/MakazhanAlpamys/soup-wall/pull/30)
+and contributor preparation in [PR #31](https://github.com/MakazhanAlpamys/soup-wall/pull/31).
+Main was `c6045d30341dbc784cb219472c93f5b35921c928` when this baseline was frozen.
+The tag records source state; it is not a product release or field certification.
+Existing releases remain historical artifacts. This plan has one final release,
+after every required phase and acceptance gate is complete.
 
-Security claims depend on actions and outcomes. Detectors identify suspicious
-content; policies and the host runtime decide whether an action can proceed.
-Keep the Agent's default shadow posture and the Claude Code hook's fail-open
-behavior visible to operators. Preserve compatible API headers, token prefixes,
-stored data, and cryptographic labels until a tested migration is available.
+Repository facts:
 
-## Implemented capabilities
+- The reviewed synthetic corpus interrupts **19 of 19 attack sessions** and
+  **0 of 21 benign sessions**. It is a regression check, not a protection rate.
+- The original independent AgentDojo replay recorded **0 interruptions across
+  40 injection-labelled histories**. Attack success and defended utility were
+  not measured. Its generic action and `LocalSystem` provenance fallbacks do
+  not represent the semantics of those native tools. Preserve that result.
+- Main already contains operator-installed native call/result/context admission.
+  The schema identity and registry are pinned, but the trusted collector still
+  supplies original runtime validation and complete semantic declarations.
+- The baseline also contains bounded stdio MCP admission. An actual Claude Code
+  control/protected pair shows a synthetic-secret send executing without the
+  gate and not executing with it; an independent ordinary-task check succeeds
+  in both. The provider responses are scripted, not live-model efficacy evidence.
+- The known unknown-host/tainted-fallback precedence defect has been corrected
+  with hook/native regressions. A wider policy overlap matrix remains open.
+- The [taint tracker](../crates/agent/src/taint.rs) bounds retained history with
+  FIFO eviction. Long-session loss of earlier provenance is a documented limit
+  that needs explicit runtime acceptance.
+- Console policy approval, activation, rollback and webhook queues exist. They
+  do not prove that a local Agent received or applied a policy.
+- Local installation, host, identity, storage, encrypted restore and monitoring
+  checks exist. Managed deployment, corrected full vendor acceptance, real IdP
+  interoperability and live defended effectiveness still require evidence.
 
-The list describes the current source branch. The stdio MCP change is in
-open [PR #30](https://github.com/MakazhanAlpamys/soup-wall/pull/30), which has not
-merged into main or a published release.
+See [architecture](ARCHITECTURE.md), [methodology](methodology.md),
+[historical replay](benchmarks/independent-history-replay.md),
+[native admission](benchmarks/native-admission.md), and
+[MCP admission](operations/MCP_STDIO_ADMISSION.md) for reproduction and limits.
 
-- Local Agent daemon, Claude Code hooks, MCP manifest inspection, audit/replay,
-  approval grants, and Linux guarded execution.
-- Opt-in [native admission](benchmarks/native-admission.md) with an immutable
-  operator-installed tool registry, separate collector authentication, and
-  correlated invocation/result/context inspection.
-- Opt-in [stdio MCP admission](operations/MCP_STDIO_ADMISSION.md) before
-  supported original calls execute and before their original text/error results
-  reach the MCP host. The current contract is sequential and bounded; it does
-  not provide general MCP authority or attest eventual model context.
-- OpenAI Chat Completions and Responses, and Anthropic Messages Gateway with
-  input/output inspection, bounded streaming, policy, and audit.
-- Self-hosted control-plane code: tenants, tokens, server-side roles, OIDC/SAML,
-  a constrained SCIM subset, policy delivery, usage evidence, reconciliation,
-  quotas, retention, and read-only invoice previews.
-- Local builds, tests, a synthetic policy regression corpus, deployment examples,
-  and supply-chain workflows.
+## Principles
 
-The source import, license/attribution review, workspace integration, and Soup
-Wall branding checkpoints are complete. The
-[v0.4.0 release](https://github.com/MakazhanAlpamys/soup-wall/releases/tag/v0.4.0)
-publishes four platform archives, checksums, six SBOMs, a Gateway image, and
-upgrade guidance. Its release checks included default/all-feature tests,
-formatting, Clippy, advisory review, SBOM generation, CodeQL, Docker, storage,
-and identity fixtures. Every subsequent change still requires checks on its
-exact HEAD before merge; earlier green releases do not establish current CI
-success. See [CHANGELOG](../CHANGELOG.md), [contribution guidance](../CONTRIBUTING.md),
-and [provenance](PROVENANCE.md) for release history and the narrow RSA exception.
+- A security verdict must bind to actual execution or result release. A detector
+  finding, manifest pin, hook configuration or interrupted trajectory is insufficient.
+- The operator controls tool semantics and authority. Model text, tool descriptions
+  and plugin annotations cannot grant permissions or declare content trusted.
+- Keep original tool names, validated arguments, results and evaluator inputs.
+  Unsupported protected paths must have an explicit refusal, never a silent bypass.
+- Keep call, parent-result and model-context boundaries distinct. Withholding a
+  result cannot undo a side effect that already executed.
+- Stronger policy decisions must survive overlaps and judge failures. Optional
+  judges cannot weaken a hard refusal or create authority.
+- Report attack success, legitimate task utility, false interruptions and latency
+  together. Retain unsuccessful runs and separate development from held-out data.
+- Show the active policy, integration coverage, shadow/enforcing state and outage
+  behavior. Legacy Claude HTTP hooks remain documented as fail-open.
+- Preserve compatible APIs, configuration, stored state and cryptographic labels
+  until an explicit migration is reviewed and verified.
+- Keep public documentation, comments and user-facing prose in English. Preserve
+  multilingual security fixtures, protocol bytes, upstream attribution and evidence.
+- Keep internal drafts, specifications and personal notes under ignored
+  `local-notes/`. Publish accepted interfaces, decisions and sanitized evidence.
 
-These are implementation and release statements, not certification of every
-provider, identity provider, or deployment environment.
+## What exists and what we are building
 
-## Remaining acceptance gates
-
-| Gate | Required evidence | Current boundary |
+| Surface | Existing implementation | Work to complete |
 | --- | --- | --- |
-| Managed self-hosting | Install a published artifact, pass preflight, authenticate to Console, observe a benign provider request and a blocked request, apply PostgreSQL migrations, and record the TLS deployment. | Local release fixtures pass; managed staging, TLS, real-provider traffic, and staffed alert routing remain open. |
-| Recovery and operations | Record PostgreSQL/Redis failure and recovery phases, restore an encrypted backup into an isolated database, verify restored state and authentication, and observe the deployment's alert routing. | Local dependency, populated restore, and loopback monitoring evidence exists; customer-data recovery and managed notification delivery remain open. |
-| Identity interoperability | Verify real OIDC login/logout/session lifecycle, signed SAML assertion acceptance and rejection, and supported SCIM provisioning/revocation against an operator-selected IdP. | Local fixtures and public metadata probes are bounded checks; corrected vendor acceptance and real-IdP interoperability remain open. |
-| SAML crypto [#19](https://github.com/MakazhanAlpamys/soup-wall/issues/19) | Remove the vulnerable RSA dependency from the locked release graph; review portable crypto; preserve encrypted-assertion rejection; retain target-build, signature, and interoperability evidence. | Four-platform signature fixtures pass. Windows still uses RSA 0.9.10 with the documented advisory exception; supported Windows XML crypto and real-IdP acceptance remain separate work. |
-| Agent effectiveness | Retain independent held-out provenance, matched attack and benign outcomes, missed attacks, legitimate task utility, false interruptions, latency, and exact source/policy/evaluator versions. | Native/fallback contracts and one actual Claude scripted MCP pair pass; broader registry coverage, live defended utility, held-out attacks, and shadow soaking remain open. |
+| Core | Detection, normalization, masking, text policy and optional ML code | Reviewed detector use and pinned optional assets for the accepted scope; no classifier-only security claims |
+| Agent | Taint, action/egress policy, grants, audit/replay and Linux guarded execution | Complete selected real-tool semantics, runtime child identity/authority, and policy composition |
+| Native and MCP integration | Immutable registry, authenticated admission and correlated result receipts; bounded stdio collector in the baseline | Coverage of selected runtime paths, explicit unsupported cases, and independently witnessed prevention with useful continuation |
+| Gateway | Chat Completions, Responses and Messages inspection with bounded streaming | Accepted provider/platform behavior, compatibility and operational checks on the final candidate |
+| Console | Tenants, roles, identity, tenant policy versions, webhook queues and usage evidence | Authenticated Agent enrollment, verified policy bundles, observed application, staged rollout and confirmed rollback |
+| Evaluation | Synthetic regressions, pinned historical importer, runtime adapters and scripted integration proofs | Frozen matched live evaluation using original independent attack/task evaluators |
+| Operations | Published archives, deployment examples, local recovery and monitoring procedures | Supported installation lifecycle, portable crypto, real identity acceptance, managed TLS, recovery and notification delivery |
 
-No managed staging address, customer IdP, live model access, or provider budget
-is implied by these local results. Use operator-authorized infrastructure and
-explicit dependencies before attempting the external gates.
+Final billing, payment collection and banking are outside this product scope.
+Usage evidence and invoice previews retain their current limits.
 
-## Completed bounded MCP proof
+## Foundation
 
-The [2026-10-05 Claude Code/MCP proof](benchmarks/evidence/CLAUDE_MCP_STDIO_2026-10-05.md)
-uses committed implementation 9530017c8c52ec88ba347f646719833a1b99d751 and an
-actual installed Claude Code 2.1.289 with a deterministic loopback provider.
-An infected document reaches the host and scripted provider. The control
-executes the original send_http and the owned receiver obtains the synthetic
-secret. The matched protected case records zero send executions and receiver
-requests, one native secret-egress Deny, and successful independently evaluated
-ordinary-task completion. Both proposal and useful-result hashes match.
+The foundation is a prerequisite for the phases below, not an early release.
+Keep the tagged baseline immutable and reconcile pending changes through review.
+Each accepted change must remain traceable to its source, tests and evidence.
 
-The custom policy deliberately allows the infected read to exercise the send
-boundary. Six Messages requests are scripted; no real model or paid provider ran.
-The evidence preserves incomplete attempts, source/binary hashes, protected
-private storage, and cleanup limitations. The measured implementation belongs to
-[PR #30](https://github.com/MakazhanAlpamys/soup-wall/pull/30); inspect its exact head
-and current checks for hosted integration status.
+The foundation is ready when:
 
-This proves execution and continuation for two reviewed tools. It does not
-complete general tool semantics, child authority, human result approval,
-shipped-policy effectiveness, or live evaluation. Host release is distinct
-from model-context admission. Withholding a result cannot undo an already
-executed side effect.
+1. A reviewed support matrix identifies platforms, hosts, transports, tool
+   families, provider APIs, storage backends and identity integrations. Every
+   path is supported, conditional or explicitly unsupported, with its fail mode.
+2. Build and experiment inputs identify exact source, lockfile, toolchain,
+   registry/schema, policy, dataset and optional asset revisions/hashes. Floating
+   `stable` and model downloads from `main` are resolved before claiming reproduction.
+3. Acceptance protocols define numeric effectiveness, utility, interruption,
+   latency, setup and recovery limits before measurement. Critical denied-action
+   tests require an independent witness of zero executions or deliveries.
+4. Component responsibilities, review boundaries and required checks are recorded
+   by role, then assigned to actual owners. No ownership is inferred from code history.
+5. License, dependency, secret-scan and security-review procedures cover the full
+   workspace. Local credentials/raw payloads remain private; public claims have
+   retained sanitized evidence. Internal working material stays ignored locally.
+6. The integration decision identifies how main, the baseline and open PRs converge.
+   CI success on one revision is not inherited by another revision.
 
-## Proposed order and acceptance
+Use [DEVELOPMENT](DEVELOPMENT.md), [CONTRIBUTING](../CONTRIBUTING.md),
+[SECURITY](../SECURITY.md), and [provenance](PROVENANCE.md) as the working rules.
 
-| Order | Next direction | Acceptance criteria and dependencies |
+## Phases
+
+Work may proceed in parallel when its prerequisites are satisfied. Each phase
+closes only when its completion evidence is reviewed. Passing source checks
+does not substitute for unavailable runtime, evaluation or deployment evidence.
+Use controlled internal candidate builds for validation and pilots; do not
+publish intermediate releases, prereleases or public container candidates.
+
+### Phase 1 — Complete reviewed tool semantics
+
+**Depends on:** the foundation and selected runtime/tool coverage.
+
+Extend the existing native registry and adapters instead of disguising tools as
+Bash commands. A `send_email` declares a network action and every recipient;
+`delete_file` declares destruction; an external-document read declares an
+untrusted result. Review defaults, optional fields and nested values.
+
+**Ready when:**
+
+- Every supported tool has reviewed schema validation, action class, provenance
+  and complete typed destination extraction, fixed by operator-owned identities.
+- Tests use original names, arguments, errors and results. Unknown tools, schema
+  drift, malformed destinations and inconsistent declarations cannot execute
+  through an enforcing path.
+- Defaults, coercion, nested arguments, all recipients and resource bounds have
+  explicit accepted/refused cases; model-provided semantic claims grant nothing.
+- Reviewed benign cases succeed and security cases retain their intended decisions.
+
+### Phase 2 — Bind enforcement to execution and delegated authority
+
+**Depends on:** Phase 1 and a reviewed collector/host integration contract.
+
+Close the selected execution and consumption paths around the existing admission
+protocol. Bind authenticated agent/session identity, parent grants, invocations,
+results and declared release points. Preserve the current bounded proof as a
+regression while extending only explicitly selected MCP capabilities.
+
+**Ready when:**
+
+- An independent receiver or execution marker proves that a denied action never
+  ran. The infected input is encountered and useful work completes after refusal.
+- Direct, nested, error and batched paths are either admitted at their declared
+  boundaries or explicitly refused. No alternate transport or callback bypasses
+  the supported gate; original accepted payloads remain intact.
+- Child tools, destinations and resources cannot exceed authenticated parent
+  grants. Cross-session substitution, replay, expiry, cancellation, restart and
+  concurrency cases cannot expand authority or release unadmitted results.
+- Long sessions, taint eviction and oversized inputs have reviewed tested
+  outcomes. Missing required inspection or provenance is never silently reported
+  as successful protection on an enforcing path.
+- Enforcement stops safely on collector/daemon uncertainty. Hook fail-open,
+  server stderr, OS effects and unattested model serialization remain explicit
+  limits wherever the selected runtime cannot control them.
+- Any human Ask continuation has a reviewed single-use scope and replay contract;
+  unsupported approval paths remain closed and are reported accurately.
+
+### Phase 3 — Freeze policy composition
+
+**Depends on:** the semantic fields and runtime boundaries from Phases 1–2.
+The case matrix can be prepared alongside those phases.
+
+Build on the corrected first-match precedence rather than re-opening the same
+known defect as new work. Review combined taint, secret/PII findings, destinations,
+sensitive paths, manifest drift and action classes.
+
+**Ready when:**
+
+- An executable reviewed matrix covers overlaps with no judge, judge outcomes,
+  malformed replies, errors and unavailable judges for each supported path.
+- A weaker fallback never overrides a required Ask/Deny; hard denials persist.
+  Native paths continue rejecting judge configuration until a reviewed extension
+  establishes the same boundary.
+- The shipped regression corpus and additional benign combinations pass without
+  relabelling cases or hiding misses. Policies and expected outcomes are frozen
+  before held-out evaluation.
+
+### Phase 4 — Demonstrate live effectiveness
+
+**Depends on:** Phases 1–3, frozen acceptance thresholds, reviewed evaluation
+data/runtime, selected model access, explicit budgets and private evidence handling.
+
+Run matched control and protected tasks with the same original task/attack
+evaluators, model configuration and seeds where supported. Evaluate the shipped
+policy and proposed variants as distinct frozen experiments.
+
+**Ready when:**
+
+- Attack success is measured from actual effects/evaluators, with independently
+  measured legitimate utility, false interruptions and end-to-end latency.
+- Reports include denominators, incomplete runs, missed attacks, interrupted
+  benign work, uncertainty, resource usage and exact source/policy/registry hashes.
+  Aborted trajectories are not assigned fabricated evaluator results.
+- Development, held-out and adaptive sets are separate; no tuning occurs against
+  held-out results. Failed outcomes and the historical negative baseline remain visible.
+- Reviewed results meet the acceptance limits recorded before the runs. Missing
+  access, budget or evaluator fidelity leaves this phase open.
+
+### Phase 5 — Make setup and status verifiable
+
+**Depends on:** the accepted integration and policy from Phases 1–3; Phase 4
+must support the protection claim shown in onboarding. Preparation can run in parallel.
+
+Make the first useful experience an installed binary, safe host integration,
+managed daemon lifecycle, an accurate status display and a synthetic-secret demo.
+
+**Ready when:**
+
+- Clean installation, upgrade, rollback and removal work on every supported
+  platform without replacing unrelated host settings or exposing credentials.
+- Status identifies the actual active policy/registry digests, integration
+  coverage and shadow/enforcing/unavailable state, verified against host behavior.
+- A user can run the safe receiver demo and a benign task; independent witnesses
+  confirm both prevention and useful completion within the accepted setup budget.
+- Startup failures, daemon loss, stale configuration and recovery have documented
+  outcomes that match tests. The README starts with this verified experience.
+- Setup and demonstration do not require real secrets or automatic provider traffic.
+
+### Phase 6 — Complete team rollout and operational validation
+
+**Depends on:** Phases 1–5 and selected deployment/identity environments.
+Operational preparation can start after the foundation is agreed.
+
+Connect Console to enrolled Agents with verified policy bundles and authenticated
+application acknowledgements. Distinguish policy issued, delivered and observed
+applied. Validate the complete deployment with opted-in pilot users on controlled
+candidate builds.
+
+**Ready when:**
+
+- Cryptographic bundle verification, tenant/host authorization, rotation and
+  revocation reject forged, stale, replayed and cross-tenant policies. Adapter
+  signature metadata validation alone does not satisfy this requirement.
+- Agents acknowledge the exact active revision/digest after atomic application.
+  Staged activation, offline/stale hosts and rollback are visible; post-rollback
+  behavior and application acknowledgements match the restored version.
+- The complete release graph passes advisory review without the RSA exception.
+  [Issue #19](https://github.com/MakazhanAlpamys/soup-wall/issues/19) has reviewed
+  portable crypto, native signature/tampering evidence and real-IdP assertion
+  interoperability; encrypted assertions remain rejected without decryption keys.
+- Managed TLS, real OIDC/SAML/SCIM lifecycle and negative authorization cases,
+  migrations, dependency failure, populated encrypted restore and credential
+  revocation pass against the declared deployment matrix and recovery objectives.
+- Actual policy webhook delivery and authenticated firing/resolved notifications
+  reach the selected receiver; retry, deduplication, failure states and operational
+  response are exercised. Queue records and loopback fixtures remain distinct evidence.
+- Pilots report observed task utility, interruptions, support and recovery against
+  agreed criteria, with consent and safe evidence retention. Findings are resolved
+  or explicitly remove the affected capability from the accepted scope through review.
+
+### Phase 7 — Accept and publish the complete product once
+
+**Depends on:** the foundation and every preceding phase being complete.
+
+Freeze one integrated commit and build one identified candidate artifact set.
+Validate the exact bytes that will be published, including compatibility,
+security, runtime, effectiveness, installation and deployment acceptance.
+
+**Ready when:**
+
+- Required default/all-feature tests, native platform checks, Python suites,
+  policy corpus, containers, storage, identity, scan/license/advisory review and
+  all product acceptance evidence pass for that source/artifact set.
+- Documentation matches measured capabilities and limitations; migration,
+  rollback, checksums, SBOMs, attribution and support procedures are reviewed.
+- The publication workflow gates **every** external push, including GHCR, on
+  the complete accepted candidate. The current container job can push after
+  `verify` before other builds finish; that dependency must be corrected first.
+- Publish one final release and its accepted artifacts. Confirm downloaded
+  hashes, installation and rollback without silently rebuilding different bytes.
+  Failed acceptance returns to the relevant phase without publishing a partial product.
+
+## Open decisions and recommendations
+
+Resolve each decision before its dependent phase starts. Record the chosen
+scope, rationale, alternatives and acceptance consequences in English.
+
+| Decision | Recommendation | Needed before |
 | --- | --- | --- |
-| 1 | Operator-controlled native semantics | Extend the reviewed registry to real tools with fixed schema/action/provenance and every typed destination. Preserve original names, validated arguments, results, and evaluator inputs. Specify unknown/inconsistent-tool outcomes and test defaults, errors, mismatches, replay, nested calls, resource limits, and concurrent completion without model calls. Model/plugin declarations cannot grant authority. |
-| 2 | Broader MCP admission and authority | Select a controllable runtime and define supported direct, nested, error, and batched paths before promising coverage. Gate each supported call before execution and each result before its declared release; prove session/parent-child authority cannot expand, cross-bind, or replay. Define result withholding and any approval contract. The bounded proof above is one prerequisite, not completion of this direction. |
-| 3 | Policy overlap regressions | Freeze baseline policy and intended precedence. Exercise overlapping taint, unknown destinations, sensitive paths, secrets, and manifest changes with no judge, judge Allow/Ask, judge errors, and unavailable judges. Preserve stronger decisions and evaluate benign interruptions. Use concrete runtime facets from directions 1–2. |
-| 4 | Matched live evaluation | Use matched tasks, attacks, model configuration, and seeds where supported. Publish attack success, legitimate task utility, false interruptions, and latency with denominators, unsuccessful runs, and uncertainty. Freeze code/policy/registry/evaluators before held-out adaptive evaluation. Requires reviewed runtime/policy boundaries, an operator-selected provider, access, and an explicit spend budget. |
-| 5 | Minutes to first run | A new operator installs a published artifact, starts the daemon, attaches supported hooks/runtime, and sees accurate shadow/enforce, connection, and active-policy status. A safe sham-secret demo and benign task pass. Measure setup time plus failure/recovery behavior on supported platforms; requires a reviewed runtime and published artifacts. |
-| 6 | Team rollout, then 5–10 pilots | Extend existing policy versions/approval/delivery with authenticated applied acknowledgements, staged activation, and tested rollback. Make offline/stale hosts visible. Then explicitly opted-in teams complete a defined pilot with utility, interruption, support, and recovery evidence. Requires evaluation, tenant/host authorization, key lifecycle, managed staging, and a staffed response path. |
+| Initial host and platform scope | Start with Claude Code and reviewed stdio MCP tools, where the existing execution proof is strongest. Preserve the existing platform matrix; extend transports/content only with explicit acceptance. | Foundation / Phase 1 |
+| Registry and schema validation ownership | Operator-reviewed immutable declarations plus original runtime validation in the trusted collector; enumerate all destinations. Resolve any additional admission-side validation for the selected schemas explicitly. | Phase 1 |
+| Child identity and grants | Bind grants to authenticated parent/session identity and constrain tools, destinations and resources. Treat runtime identity propagation as required implementation, not a library-only claim. | Phase 2 |
+| Ask and result release | Keep unsupported approval paths closed. Add exact single-use human authorization only where the selected runtime can pause and resume safely; never grant a denied action or infer model consumption. | Phase 2 |
+| Judge use | Use the shipped no-judge baseline first. Keep judges advisory/tightening only and native judge configuration rejected until its extension is reviewed. | Phase 3 |
+| Live benchmark and thresholds | Use pinned original evaluators and matched runs, preregister numeric limits and sampling/uncertainty rules, and retain failed runs. Select model access and an explicit budget before execution. | Phase 4 |
+| Distributed policy trust | Verify signed bundles with reviewed cryptography and enrolled host identities; test key lifecycle, offline cache rules, atomic activation and applied acknowledgements. | Phase 6 |
+| Windows SAML crypto | Review a portable timing-safe provider or signing-only integration that removes vulnerable RSA from the complete graph. Preserve encrypted-assertion rejection and verify real interoperability. | Phase 6 |
+| Deployment, identity and recovery scope | Keep existing SQLite/PostgreSQL boundaries, select actual IdPs and supported SCIM operations, and agree recovery, retention and notification responsibilities by role. | Phase 6 |
+| Compatibility and publication | Preserve existing interfaces until a tested migration is accepted. Keep the baseline tag separate from semver release triggers and gate all publication on the final candidate. | Foundation / Phase 7 |
 
-## Constraints for the next stages
+## Working process
 
-The operator or trusted host owns tool declarations. Names, descriptions,
-annotations, or a model's claimed read-only status cannot grant authority.
-Registry bytes/version stay fixed at daemon startup; typed extraction must
-cover every recipient and relevant field. Bind result provenance and declared
-delivery to the admitted call. The current MVP can withhold an Ask result;
-human approval needs separate scope, expiry, and replay design before release.
+Use one public roadmap and focused issues/PRs. Each issue names its phase,
+prerequisites, supported behavior and independently verifiable completion criteria.
+The author supplies implementation, relevant docs and evidence; reviewers check
+the unsafe and benign paths, compatibility and trust boundaries. Operators run
+the applicable external acceptance with explicitly selected infrastructure.
 
-Inventory actual execution and result-consumption paths before extending MCP.
-Manifest pinning and PostToolUse observations alone do not gate execution.
-Preserve upstream payloads rather than inventing Bash equivalents. Define
-session ownership, child authority, cancellation, expiry, restarts, bounded
-outstanding work, and private audit behavior. Preserve the existing Claude
-hook's documented fail-open contract while extending runtime-owned admission.
+Keep internal working notes and unaccepted design drafts in `local-notes/`,
+which stays local through `.gitignore` and outside container build contexts.
+Keep source contracts, provenance, sanitized public evidence and the generated
+regression scorecard versioned. The documentation index identifies canonical guides.
 
-The shipped policy uses first-match precedence. Native PR #28 corrected a
-confirmed overlap where weaker tainted-side-effect fallback Allow could
-override unknown-host Ask, with actual hook/native regressions.
-[Review evidence](operations/evidence/OPEN_CODE_REVIEW_2026-10-05.md) records the
-finding and limits. The wider judge/overlap matrix remains separate work.
-
-Separate development, held-out, and adaptive evaluation sets. Do not tune on
-held-out outcomes; retain failed runs and state budget-limited sample boundaries.
-Local fixture counts remain contract evidence even after a live evaluation.
-First-run guidance must explain what is actually enforced and what happens
-when the daemon is unavailable; a configured hook or running process is
-insufficient. Demos must avoid real secrets and automatic external traffic.
-
-Rollout must distinguish policy issued, delivered, and observed applied states,
-pin the activated digest, and scope acknowledgements to authenticated hosts.
-Test unavailable hosts and rollback before pilots. The first 5–10 teams are a
-learning gate, not certification; require evidence-retention permission and a
-staffed response path.
-
-Each milestone needs a separate implementation decision, review, reproducible
-checks, and dated evidence. If result release, infrastructure, access, or budget
-is unavailable, record the missing dependency instead of widening the claim.
-A source-only checkpoint does not authorize a new release or a field-validation claim.
-Banking and final billing remain separate proposals.
-
-## Evidence and reproduction
-
-| Area | Procedure and retained evidence |
-| --- | --- |
-| Release and local services | [Local release acceptance](operations/LOCAL_RELEASE_ACCEPTANCE.md), [Windows Agent acceptance](operations/WINDOWS_AGENT_ACCEPTANCE.md), and [staging/recovery drills](operations/STAGING_DRILLS.md) separate released binaries and isolated recovery from managed acceptance. |
-| Actual Claude hooks | [Claude host acceptance](operations/CLAUDE_HOST_ACCEPTANCE.md) records enforce/shadow/offline behavior against local scripted responses and the hook's fail-open boundary. |
-| Native and fallback runtimes | [Native admission](benchmarks/native-admission.md), [fallback adapter](benchmarks/agentdojo-live-fallback.md), and [native fixture evidence](benchmarks/evidence/agentdojo-native-fixture-2026-10-05.md) retain original runtime/schema/result boundaries without real-model effectiveness claims. |
-| Independent historical replay | [Reproduction and fidelity](benchmarks/independent-history-replay.md) and the [dated outcome](benchmarks/evidence/AGENTDOJO_HISTORY_2026-10-04.md) preserve the original adapter's negative policy result, not an attack-success measurement. |
-| Current stdio MCP integration | [Operator contract](operations/MCP_STDIO_ADMISSION.md) and [committed-source proof](benchmarks/evidence/CLAUDE_MCP_STDIO_2026-10-05.md) retain matched receiver/utility witnesses, failed attempts, immutable hashes, and cleanup limits. |
-| Restore and monitoring | [Populated restore](operations/evidence/POPULATED_RESTORE_2026-10-05.md) and [local monitoring](operations/evidence/LOCAL_MONITORING_2026-10-05.md) record isolated restored state and loopback firing/resolved delivery; customer recovery, managed TLS, and staffed routing remain open. |
-| Identity | [Interoperability guide](operations/IDENTITY_INTEROPERABILITY.md), [SAML provider evidence](operations/evidence/SAML_PROVIDER_2026-10-04.md), and [Keycloak checkpoint](operations/evidence/KEYCLOAK_SAML_2026-10-05.md) preserve metadata/fixture limits and incomplete vendor acceptance. |
-| Review and provenance | [OpenCodeReview delegation](operations/evidence/OPEN_CODE_REVIEW_2026-10-05.md), [CodeQL triage](operations/evidence/CODEQL_TRIAGE_2026-10-05.md), and [source provenance](PROVENANCE.md) retain reviewed findings and historical boundaries. |
-
-Dated evidence and sanitized JSON remain the historical records; Git history
-and CHANGELOG retain implementation/release chronology. Public records must
-not contain bearer tokens, provider credentials, identity assertions, prompts,
-customer data, or private snapshots. Retain unsuccessful runs and cleanup
-failures with the evidence needed for review.
-
-## Boundaries to keep clear
-
-The hand-authored agent corpus is a regression check, not an external
-effectiveness score. Local identity fixtures and metadata probes are not vendor
-certification. Queued webhook records do not establish receiver delivery.
-Spend admission counters and read-only invoice previews are not final billing;
-invoices, payments, tax, credits, and refunds remain unimplemented. The local
-Agent needs no Soup Wall account or telemetry service, while the Gateway
-intentionally contacts configured model providers and optional deployment
-services.
+Use small reviewed changes. Run the [contribution checks](../CONTRIBUTING.md)
+and affected integration/policy checks. Report skips and failures precisely;
+do not overwrite historical evidence or relabel cases to make a gate pass.
+Update the public plan when a reviewed decision changes scope or acceptance.
+Commits and internal candidate builds are checkpoints; the only planned product
+publication is the final release after complete acceptance.

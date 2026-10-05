@@ -217,10 +217,10 @@ mod tests {
         assert_eq!(h, vec!["a.com".to_string()]);
     }
 
-    // --- Hazard 4/5 fix: IPv6 literals and dotless scheme-qualified hosts must be
-    // visible to policy. An empty host list is a bypass, not a gap: Task 8's
+    // IPv6 literals and dotless scheme-qualified hosts must be
+    // visible to policy. An empty host list is a bypass: the
     // ask-unknown-host rule fires on hosts NOT in the allowlist, so a host that
-    // never appears at all can never be prompted on. ---
+    // never appears at all can never be prompted on.
 
     #[test]
     fn extracts_bracketed_ipv6_literal_host() {

@@ -5,6 +5,9 @@ __pycache__/
 /audit
 /data
 
+# Internal notes, draft specifications and personal scratch work stay local.
+/local-notes/
+
 # ML model weights -- fetched on demand via scripts/fetch-model.sh (large, upstream-licensed)
 /models
 

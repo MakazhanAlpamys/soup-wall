@@ -193,8 +193,8 @@ impl AgentFirewall {
         }
         // Dedupe before scoring. `score_findings` is noisy-OR
         // (`1 - Π(1 - weight·confidence)`), so N copies of the SAME signal compound
-        // into a high score from nothing new. This is not hypothetical: Task 2's
-        // facet projection is one facet per string leaf (not joined), so a
+        // into a high score from nothing new. Facet projection produces one
+        // facet per string leaf (not joined), so a
         // MultiEdit-shaped payload with many benign 24+-char path-like leaves
         // produces one `secret.generic` finding per leaf and would otherwise score
         // far above the block threshold from repetition alone.
@@ -239,7 +239,7 @@ impl AgentFirewall {
                 }
                 signals.touches_sensitive_path = touches_sensitive_path(args);
                 // Taint check runs over every projected facet text for this call;
-                // the loop breaks on the first match. Task 2's facets() yields one
+                // the loop breaks on the first match. `facets()` yields one
                 // `ToolArgs` facet per string leaf for a `ToolCall`, so this checks
                 // each argument leaf independently and reports the earliest-seq
                 // contributing source across all of them.

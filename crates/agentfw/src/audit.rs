@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
-//! Append-only JSONL audit sink. Also the phase-10 tuning corpus and the phase-12
-//! benign-session benchmark corpus, so completeness matters more than brevity.
+//! Append-only JSONL audit sink for decision review, replay and policy tuning.
+//! Complete decision records matter more than brevity.
 
 use std::fs::File;
 #[cfg(not(windows))]

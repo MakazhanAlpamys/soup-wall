@@ -89,7 +89,7 @@ TCP/curl probes showed variable connection establishment. No reproducible
 client, TLS, or proxy defect was demonstrated, and neither the timeout nor TLS
 checks were weakened. Retain the failures alongside the successful metadata
 evidence as an environment reliability limit. The
-[current roadmap](../ROADMAP.md#remaining-acceptance-gates) keeps the external
+[current roadmap](../ROADMAP.md#phases) keeps the external
 identity gate open. None of these probes exercises an
 interactive OIDC authorization-code exchange, a SAML assertion and ACS callback,
 or vendor SCIM behavior.

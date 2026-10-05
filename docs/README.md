@@ -1,5 +1,6 @@
 # Soup Wall documentation
 
+The canonical repository is [MakazhanAlpamys/soup-wall](https://github.com/MakazhanAlpamys/soup-wall).
 Start with the [project README](../README.md) for the Agent, Gateway and Console
 overview. Choose a guide below for development, operation or evaluation.
 
@@ -44,8 +45,10 @@ overview. Choose a guide below for development, operation or evaluation.
 
 ## Status and retained evidence
 
-[ROADMAP](ROADMAP.md) records current development, release and field-validation
-work. Dated evidence records refer to their original source commit and environment
+[ROADMAP](ROADMAP.md) records the tagged baseline, product principles,
+dependency-ordered phases, open decisions and one final release gate. Internal
+drafts and personal notes stay locally under ignored `local-notes/`.
+Dated evidence records refer to their original source commit and environment
 and may mention historical paths. They are not automatic claims about the latest
 checkout.
 

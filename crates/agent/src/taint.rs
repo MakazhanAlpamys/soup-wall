@@ -60,8 +60,7 @@ const SENSITIVE_PATH_MARKERS: &[&str] = &[
 ///
 /// **Deliberately NOT extracted: bare hostnames without a scheme.** An earlier
 /// revision had a third branch, `\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b`, matching any
-/// dotted lowercase token. Measured against realistic tool-result content (a
-/// README, a stack trace, a requirements file) it extracted `package.json`,
+/// dotted lowercase token. Such a pattern also extracts `package.json`,
 /// `docker-compose.yml`, `self.assertEqual`, `CONTRIBUTING.md`, and
 /// `requirements.txt` — ordinary filenames and code tokens, indistinguishable
 /// from hostnames by shape alone. Because a literal hit needs no `MIN_MATCHES`
@@ -69,12 +68,11 @@ const SENSITIVE_PATH_MARKERS: &[&str] = &[
 /// later tool call that mentions the same filename, which makes the tool
 /// unusable. A denylist of common filenames is endless and brittle; raising
 /// `MIN_LITERAL_LEN` past 18 to dodge the worst offenders would start discarding
-/// real exfil URLs too. An exfil host still gets caught here almost always,
-/// because it appears inside a URL (`https://evil.com/collect`) — the URL branch
-/// below still matches that. A tool call reaching a bare host with no scheme is
-/// covered by a different layer: egress host extraction (Task 6) plus the
-/// unknown-host `ask` policy rule (Task 8), not this tracker. Do not re-add a
-/// bare-hostname branch here without re-measuring the false-positive rate above.
+/// real exfil URLs too. The URL branch still matches a hostname inside a URL
+/// (`https://evil.com/collect`). A tool call reaching a bare host with no scheme
+/// is covered by egress host extraction and the unknown-host `ask` policy rule.
+/// Do not re-add a bare-hostname branch without checking filename and code-token
+/// false positives.
 fn literals(text: &str) -> Vec<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
     let re = RE.get_or_init(|| {
@@ -149,7 +147,7 @@ struct SessionTaint {
     /// This is a known weakness for long sessions: the poisoned page that
     /// starts a session is exactly the entry evicted first as the session
     /// grows, so a long enough session can forget the injection before its
-    /// payload fires. Revisit with real session-length data in phase 10.
+    /// payload fires. Evaluate this limit against real session-length data.
     order: VecDeque<u64>,
     /// distinctive literal -> mark, matched by containment at any length.
     /// Stored lowercase — see `literals()`.
