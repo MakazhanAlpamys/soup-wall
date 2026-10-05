@@ -40,6 +40,15 @@ this boundary until a separate threat review approves an extension.
 The [2026-10-04 provider checkpoint](evidence/SAML_PROVIDER_2026-10-04.md)
 records Windows and Linux fixture results and the limited public metadata probe.
 
+The [manual Keycloak SAML driver](KEYCLOAK_SAML_ACCEPTANCE.md) uses an isolated
+official vendor runtime, a real password login and the production ACS. Its
+[2026-10-05 checkpoint](evidence/KEYCLOAK_SAML_2026-10-05.md) remains incomplete:
+the original run recorded 22 expected functional outcomes but failed private
+profile cleanup; review found driver isolation and negative-check confounds.
+The corrected driver has offline safety tests and awaits a fresh full run
+after the operator resolves the cleanup blocker. This does not close managed
+staging, other vendor protocols/platforms or issue #19.
+
 ## Optional external discovery probes
 
 Record the provider's exact HTTPS issuer, without adding its discovery suffix.

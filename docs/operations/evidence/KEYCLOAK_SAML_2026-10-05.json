@@ -1,0 +1,189 @@
+{
+  "schema_version": 2,
+  "acceptance_complete": false,
+  "status": "incomplete: original teardown failed; corrected driver awaits full reproduction",
+  "historical_record_sha256": "34a350f473f8de4e3dbaeb229647385c167caefa578aa5b4577976f2e5894336",
+  "historical_exit_code": 1,
+  "historical_functional_checks_returning_expected_results": 22,
+  "historical_run": {
+    "schema_version": 1,
+    "scope": "Windows local Keycloak SAML protocol acceptance",
+    "started_at_utc": "2026-10-05T05:50:42.021438+00:00",
+    "artifact_label": "bcf66a01f3559e7cf7cc1ffeb25db45a2b94519f",
+    "gateway_sha256": "147ed23c5b282abd13808d25567460a6f35f60cd6d44e7fd4ee750a2b5d6dc9b",
+    "bootstrap_helper_sha256": "61e8a6bdccafe2595c4758f432daf256eebc0e1d682a7b9397ec3d5bb541665c",
+    "driver_sha256": "079f162db6bf38a99060054d08d8f43f8f28885a1526a7b49575f111f3aec022",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python_version": "3.12.10",
+    "runtimes": {
+      "keycloak": {
+        "version": "26.8.0",
+        "size": 174169645,
+        "sha256": "7ed1de3fda2598369262613bf682aab7e233d80a38c405e91588f7a7454370a1",
+        "url": "https://github.com/keycloak/keycloak/releases/download/26.8.0/keycloak-26.8.0.zip",
+        "license": "Apache-2.0"
+      },
+      "jdk": {
+        "version": "Temurin 25.0.4.1+1",
+        "size": 141167264,
+        "sha256": "00c847d804f4a78e9f04f2683faf14fed898535b177b7fc704486cb0284e9283",
+        "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jdk_x64_windows_hotspot_25.0.4.1_1.zip",
+        "license": "GPL-2.0 WITH Classpath-exception-2.0; bundled notices apply"
+      }
+    },
+    "checks": [
+      {
+        "name": "official-runtime-archive-checksums",
+        "passed": true
+      },
+      {
+        "name": "runtime-license-notices-present",
+        "passed": true
+      },
+      {
+        "name": "vendor-runtime-ready-over-verified-private-ca-https",
+        "passed": true
+      },
+      {
+        "name": "vendor-signed-idp-descriptor",
+        "passed": true
+      },
+      {
+        "name": "preprovisioned-local-membership-without-idp-role-grants",
+        "passed": true
+      },
+      {
+        "name": "unchanged-gateway-ready-through-local-https-edge",
+        "passed": true
+      },
+      {
+        "name": "vendor-default-descriptor-is-unsigned",
+        "passed": true
+      },
+      {
+        "name": "unsigned-metadata-configuration-stored",
+        "passed": true
+      },
+      {
+        "name": "unsigned-vendor-idp-descriptor-rejected-before-login",
+        "passed": true
+      },
+      {
+        "name": "pinned-vendor-signed-metadata-imported",
+        "passed": true
+      },
+      {
+        "name": "real-vendor-signed-plaintext-assertion",
+        "passed": true
+      },
+      {
+        "name": "vendor-nameid-matches-preprovisioned-synthetic-identity",
+        "passed": true
+      },
+      {
+        "name": "real-vendor-assertion-accepted-by-production-acs",
+        "passed": true
+      },
+      {
+        "name": "secure-host-only-httponly-session-cookie",
+        "passed": true
+      },
+      {
+        "name": "session-resolves-preprovisioned-owner-membership",
+        "passed": true
+      },
+      {
+        "name": "vendor-assertion-replay-rejected",
+        "passed": true
+      },
+      {
+        "name": "tampered-vendor-signed-nameid-rejected",
+        "passed": true
+      },
+      {
+        "name": "saml-session-rotation-issues-new-cookie",
+        "passed": true
+      },
+      {
+        "name": "old-session-rejected-after-rotation",
+        "passed": true
+      },
+      {
+        "name": "rotated-session-accepted",
+        "passed": true
+      },
+      {
+        "name": "gateway-session-logout",
+        "passed": true
+      },
+      {
+        "name": "logged-out-session-rejected",
+        "passed": true
+      }
+    ],
+    "passed": false,
+    "limitations": [
+      "No OIDC code exchange or vendor SCIM exercised",
+      "HTTP form driver; no browser UI or MFA acceptance",
+      "No managed staging or customer tenant",
+      "No Linux/macOS vendor runtime acceptance",
+      "Windows rsa advisory and issue #19 remain open",
+      "Gateway logout only; vendor SAML SLO not exercised"
+    ],
+    "vendor_metadata_sha256": "afb4d8d44c6e7e14f118ab480d890af165d13fe870c264914de8208ae3e2e00b",
+    "vendor_signing_certificate_sha256": "48ffb48373f44283fdd8d0699d0e55ce32c90e26db18017da25ab179b4dc033a",
+    "failure_type": "PermissionError",
+    "finished_at_utc": "2026-10-05T05:51:27.587042+00:00"
+  },
+  "historical_gateway_build": {
+    "source_revision": "bcf66a01f3559e7cf7cc1ffeb25db45a2b94519f",
+    "profile": "debug",
+    "rust_version": "1.98.1",
+    "cargo_version": "1.98.1",
+    "saml_source_sha256": "de6f82808445c4187462c948da41501881d5975c7a8636b2d3dc669775a421c1",
+    "bootstrap_and_driver_were_uncommitted_snapshots": true
+  },
+  "historical_review_limitations": [
+    "Original unsigned-descriptor negative also used another realm certificate pin; missing-signature rejection is not isolated.",
+    "Original mutated NameID was unprovisioned; signature rejection is not isolated from authorization rejection.",
+    "Original internal edge could consult ambient proxy/netrc; original child denylist retained unknown secrets and profiles. Intended isolation is not established by that run.",
+    "Initial PermissionError filename, errno, winerror and specific cause were not retained."
+  ],
+  "cleanup": {
+    "passed": false,
+    "initial_failure_type": "PermissionError",
+    "own_gateway_and_java_processes_absent_in_postrun_inventory": true,
+    "automatic_review_rejected_native_removal_attempts": 3,
+    "automatic_review_entire_stated_reason": "blocked by policy",
+    "rejected_commands_executed": false,
+    "operator_directory": "target/keycloak-saml/<failed-run-directory>",
+    "absolute_local_path_and_profile_identifier_redacted": true,
+    "no_retry_via_alternate_tool_or_driver": true,
+    "operator_action": "Resolve this exact private directory through an authorized environment change before a fresh full run. Retain separate portable archives."
+  },
+  "corrected_preparation": {
+    "full_vendor_runtime_rerun": false,
+    "driver_sha256": "945c717660365dfdb058718cc1f2ef8b28f78fd5305a1c400811f5ee99a59ac8",
+    "bootstrap_source_sha256": "f50678e298020f84f99c51b3744b0e41b6c65caea32477ad329e8dab802a362d",
+    "offline_tests": {
+      "passed": 10,
+      "failed": 0,
+      "vendor_runtime_started": false
+    },
+    "corrections": [
+      "Edge uses trust_env=False, refuses non-relative targets and does not automatically follow redirects.",
+      "Children inherit only Windows installation root; generated search paths, profile/temp and JVM home are owned.",
+      "Unsigned realm negative uses its own certificate pin.",
+      "NameID mutation targets a second explicitly authorized synthetic Owner principal.",
+      "Cleanup and failure report publication preserve incomplete status and disclose an operator directory without exception contents."
+    ]
+  },
+  "remaining_acceptance_gates": [
+    "Operator resolution of failed private-profile cleanup and fresh full corrected-driver run",
+    "Managed staging and customer-selected IdP acceptance",
+    "OIDC authorization-code/PKCE/session flow and vendor SCIM",
+    "Browser UI/MFA and vendor SAML single logout",
+    "Linux/macOS vendor-runtime acceptance",
+    "Timing-safe Windows SAML provider and complete rsa dependency removal for issue #19"
+  ]
+}

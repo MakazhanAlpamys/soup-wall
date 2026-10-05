@@ -1,0 +1,167 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Offline safety checks for the manual vendor-runtime driver; no IdP is started."""
+
+import argparse
+import contextlib
+import importlib.util
+import io
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import Mock, patch
+import zipfile
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "keycloak-saml-acceptance.py"
+SPEC = importlib.util.spec_from_file_location("keycloak_acceptance", MODULE_PATH)
+DRIVER = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(DRIVER)
+REQUESTS_AVAILABLE = importlib.util.find_spec("requests") is not None
+
+
+class DriverSafetyTests(unittest.TestCase):
+    def test_bad_archive_hash_is_rejected_before_extraction(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = Path(temporary) / "runtime.zip"
+            archive.write_bytes(b"untrusted archive")
+            destination = Path(temporary) / "extracted"
+            with self.assertRaisesRegex(RuntimeError, "checksum"):
+                DRIVER.unpack(archive, destination, {"size": archive.stat().st_size,
+                                                    "sha256": "0" * 64})
+            self.assertFalse(destination.exists())
+
+    def test_archive_cannot_write_outside_the_new_runtime(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "runtime.zip"
+            with zipfile.ZipFile(archive, "w") as bundle:
+                bundle.writestr("../escaped.txt", "malicious member")
+            with self.assertRaisesRegex(RuntimeError, "escaped"):
+                DRIVER.unpack(archive, root / "extracted", {
+                    "size": archive.stat().st_size, "sha256": DRIVER.sha256(archive)})
+            self.assertFalse((root / "escaped.txt").exists())
+
+    def test_form_action_entities_and_hidden_fields_are_preserved(self):
+        parsed = DRIVER.Forms('<form id="kc-form-login" method="post" '
+                              'action="/login?a=1&amp;b=2"><input name="session_code" '
+                              'value="opaque&amp;value"></form>').forms[0]
+        self.assertEqual(parsed["action"], "/login?a=1&b=2")
+        self.assertEqual(parsed["fields"], {"session_code": "opaque&value"})
+        self.assertEqual(parsed["method"], "post")
+
+    def test_child_environment_is_minimal_and_owns_profiles_and_search_paths(self):
+        environment = {"SYSTEMROOT": "C:/Windows", "LLM_FW_OIDC_STATE_KEY": "do-not-forward",
+                       "OPENAI_API_KEY": "do-not-forward", "HTTPS_PROXY": "do-not-forward",
+                       "KC_BOOTSTRAP_ADMIN_PASSWORD": "do-not-forward",
+                       "JAVA_TOOL_OPTIONS": "do-not-forward", "SSL_CERT_FILE": "do-not-forward",
+                       "GOOGLE_API_KEY": "do-not-forward", "COHERE_API_KEY": "do-not-forward",
+                       "AWS_ACCESS_KEY_ID": "do-not-forward", "AWS_SECRET_ACCESS_KEY": "do-not-forward",
+                       "GITHUB_TOKEN": "do-not-forward", "UNKNOWN_VENDOR_SECRET": "do-not-forward",
+                       "HOME": "ambient-profile", "USERPROFILE": "ambient-profile",
+                       "APPDATA": "ambient-profile", "LOCALAPPDATA": "ambient-profile",
+                       "PATH": "ambient-search-path", "COMSPEC": "ambient-command"}
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.dict(DRIVER.os.environ, environment, clear=True):
+            owned = Path(temporary).resolve()
+            result = DRIVER.child_environment(owned)
+            self.assertEqual(set(result), {"SYSTEMROOT", "WINDIR", "COMSPEC", "PATH", "PATHEXT",
+                                          "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"})
+            for key in ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"]:
+                self.assertTrue(Path(result[key]).is_relative_to(owned))
+                self.assertTrue(Path(result[key]).is_dir())
+            self.assertNotIn("ambient", result["PATH"])
+            self.assertTrue(result["COMSPEC"].endswith("cmd.exe"))
+            self.assertNotIn("do-not-forward", result.values())
+
+    @unittest.skipUnless(REQUESTS_AVAILABLE, "full transport regressions require pinned requests")
+    def test_internal_edge_ignores_ambient_proxy_netrc_and_redirect(self):
+        import requests
+
+        calls = []
+
+        def send(_adapter, prepared, **kwargs):
+            calls.append((prepared, kwargs))
+            response = requests.Response()
+            response.status_code = 303
+            response.headers["Location"] = "https://outside.invalid/never-request"
+            response._content = b"bounded-test"
+            response.url = prepared.url
+            response.request = prepared
+            return response
+
+        environment = {"HTTP_PROXY": "http://outside.invalid:1", "HTTPS_PROXY": "http://outside.invalid:1",
+                       "NETRC": "never-read-this-profile"}
+        with patch.dict(DRIVER.os.environ, environment, clear=True), \
+                patch("requests.sessions.get_netrc_auth", side_effect=AssertionError("netrc consulted")), \
+                patch("requests.sessions.get_environ_proxies", side_effect=AssertionError("proxy consulted")), \
+                patch.object(requests.adapters.HTTPAdapter, "send", send):
+            response = DRIVER.forward_gateway(12345, "/auth/saml/acs?exact=%2F", "POST",
+                                               {"Cookie": "synthetic-cookie"}, b"synthetic-body")
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(len(calls), 1)
+        prepared, kwargs = calls[0]
+        self.assertEqual(prepared.url, "http://127.0.0.1:12345/auth/saml/acs?exact=%2F")
+        self.assertEqual(prepared.body, b"synthetic-body")
+        self.assertNotIn("Authorization", prepared.headers)
+        self.assertEqual(kwargs["proxies"], {})
+
+    def test_internal_edge_rejects_non_loopback_request_targets_before_transport(self):
+        with patch.dict("sys.modules", {"requests": None}):
+            for target in ["https://outside.invalid/", "//outside.invalid/", "relative", "/\\outside", "/#fragment", "/\r\n"]:
+                with self.subTest(target=target), self.assertRaises(RuntimeError):
+                    DRIVER.forward_gateway(12345, target, "POST", {}, b"synthetic-body")
+
+    def test_negative_nameid_mutation_uses_distinct_provisioned_alias(self):
+        assertion = b'<Response><NameID>owner@example.test</NameID><Signed>unchanged</Signed></Response>'
+        mutated = DRIVER.tamper_nameid(assertion, "owner@example.test", "alias@example.test")
+        self.assertEqual(mutated, b'<Response><NameID>alias@example.test</NameID><Signed>unchanged</Signed></Response>')
+        with self.assertRaises(RuntimeError):
+            DRIVER.tamper_nameid(assertion, "owner@example.test", "owner@example.test")
+        with self.assertRaises(RuntimeError):
+            DRIVER.tamper_nameid(assertion + assertion, "owner@example.test", "alias@example.test")
+
+    def test_cleanup_refuses_outside_or_live_child_targets(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            scratch = Path(temporary) / "scratch"
+            scratch.mkdir()
+            outside = Path(temporary) / "soup-wall-keycloak-session-outside"
+            outside.mkdir()
+            with self.assertRaisesRegex(RuntimeError, "not the newly owned"):
+                DRIVER.cleanup_new_directory(outside, scratch, [])
+            inside = scratch / "soup-wall-keycloak-session-new"
+            inside.mkdir()
+            with self.assertRaisesRegex(RuntimeError, "remain active"):
+                DRIVER.cleanup_new_directory(inside, scratch,
+                                             [Mock(poll=Mock(return_value=None), soup_tree_stopped=False)])
+            self.assertTrue(inside.exists())
+            self.assertTrue(outside.exists())
+
+    def test_persistent_cleanup_failure_is_not_silently_ignored(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            scratch = Path(temporary)
+            new_directory = scratch / "soup-wall-keycloak-session-new"
+            new_directory.mkdir()
+            with patch.object(DRIVER.shutil, "rmtree", side_effect=PermissionError), \
+                    patch.object(DRIVER.time, "sleep") as sleep:
+                with self.assertRaises(PermissionError):
+                    DRIVER.cleanup_new_directory(new_directory, scratch, [])
+                self.assertEqual(sleep.call_count, 4)
+            self.assertTrue(new_directory.exists())
+
+    def test_input_failure_publishes_nonzero_report_without_exception_secrets(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = argparse.Namespace(artifact_label="unit-only", gateway=root / "missing.exe",
+                bootstrap_helper=root / "missing-helper.exe", out=root / "result.json")
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = DRIVER.run(args)
+            report = json.loads(args.out.read_text())
+            self.assertEqual(result, 1)
+            self.assertFalse(report["passed"])
+            self.assertFalse(report["cleanup_passed"])
+            self.assertNotIn("missing.exe", args.out.read_text())
+            self.assertNotIn("exception", report)
+
+
+if __name__ == "__main__":
+    unittest.main()
