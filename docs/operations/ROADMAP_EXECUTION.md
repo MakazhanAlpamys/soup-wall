@@ -246,3 +246,8 @@ provider credentials, identity assertions, prompts, or customer data.
   fixture nonce findings are corrected in source without suppressing queries.
   Full-project preview is selection evidence, not a completed autonomous scan.
   [Provenance, finding and boundaries](evidence/OPEN_CODE_REVIEW_2026-10-05.md).
+- Native source integration: [PR #28](https://github.com/MakazhanAlpamys/soup-wall/pull/28)
+  passed all 19 hosted checks on `99c234b`, including actual Rust/Python/actions
+  CodeQL and both storage integrations. It merged as
+  `6c6d3c8365b8f686d12b18d36b2ca9a03c981cc6`. Native semantic coverage and live
+  effectiveness remain explicitly separate from the passing contract fixtures.

@@ -181,10 +181,12 @@ class RestoreRefusals(unittest.TestCase):
                     backend.identities()
 
     def test_windows_fails_closed_before_artifact_or_process_creation(self):
-        with tempfile.TemporaryDirectory() as temporary, patch.object(RESTORE.os, "name", "nt"):
-            with self.assertRaises(RESTORE.AcceptanceError):
-                RESTORE.private_run_directory(Path(temporary))
-            self.assertEqual(list(Path(temporary).iterdir()), [])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with patch.object(RESTORE.os, "name", "nt"):
+                with self.assertRaises(RESTORE.AcceptanceError):
+                    RESTORE.private_run_directory(root)
+            self.assertEqual(list(root.iterdir()), [])
 
     @unittest.skipIf(os.name == "nt", "Unix owner-only mode checks")
     def test_private_artifacts_are_exclusive_and_owner_only(self):

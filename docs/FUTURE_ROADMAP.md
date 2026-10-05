@@ -16,8 +16,8 @@ extend those surfaces without treating manifest checks or a hook verdict as
 control over every tool runtime.
 
 Native PR [#28](https://github.com/MakazhanAlpamys/soup-wall/pull/28) implements
-the reviewed native admission MVP and is pending merge at this planning
-checkpoint. Its 26 passing checks comprise 11 offline tests, 10 checks using
+the reviewed native admission MVP and merged after all 19 hosted checks passed.
+Its 26 passing checks comprise 11 offline tests, 10 checks using
 the pinned AgentDojo runtime and five actual local Agent daemon checks. The
 production CLI path makes seven scripted numeric-loopback HTTP fixture
 requests. The separate 29 passing fallback checks cover pinned-runtime
@@ -93,7 +93,7 @@ content tainted the same send and let the earlier
 `escalate-tainted-side-effect` with `fallback: allow` override
 `ask-unknown-host`. The current security correction orders the unknown-host
 rule before that weaker fallback and adds regressions; it is included in
-Native PR #28, pending merge at this planning update.
+merged Native PR #28.
 Future work expands the combination matrix to no judge, judge allow/ask,
 errors and unavailable judges, and verifies the intended result for each
 overlap. That wider evaluation is separate from correcting this confirmed
