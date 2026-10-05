@@ -35,6 +35,8 @@ remain visible; dependencies are never marked complete to make the plan green.
    Console, provider protocol handling against a disposable fixture, deployment
    configuration, PostgreSQL/Redis integration, dependency failure and restore
    where local tools permit. Record environment and actual results.
+   Real local Prometheus/Alertmanager firing and resolved delivery also pass;
+   managed TLS and staffed notification routing remain separate gates.
 4. [ ] **Security and maintenance.** Review and test the six legacy PRs; resolve
    safe updates. Investigate #19 using current upstream evidence and retain
    encrypted-assertion rejection and portable release builds. Close it only when
@@ -176,3 +178,13 @@ provider credentials, identity assertions, prompts, or customer data.
   tests passed locally (two external integrations ignored), and all 18 hosted
   checks passed on `bcf66a0`. It merged as `934653821f73dd702dfe5b8977c6c5ea751ad28a`.
   Interactive login remains an independent acceptance gate.
+- Local monitoring checkpoint: `7206a35` fixes missing Gateway scrape-target
+  outage coverage and adds official portable tools, configuration examples,
+  meaningful rule regressions and an isolated acceptance harness. The independent
+  Windows run passed all 26 checks with the published v0.4.0 Gateway, real
+  Prometheus 3.15.0 and Alertmanager 0.34.1. It reproduced the old rule gap,
+  observed pending/firing after the two-minute duration, and received matching
+  authenticated firing/resolved notifications after an owned stop and restart.
+  Cleanup succeeded; 13 free Python script tests passed and no model requests
+  or external notifications were sent. Managed TLS, dependency-specific alert
+  delivery and a staffed channel remain open. [Timestamped evidence](evidence/LOCAL_MONITORING_2026-10-05.md).

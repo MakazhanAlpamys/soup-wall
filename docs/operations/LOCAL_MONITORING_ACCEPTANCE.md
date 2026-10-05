@@ -6,6 +6,10 @@ resolved webhooks on a disposable loopback server. It stops and restarts only
 the Gateway process that it started. It sends no model requests or external
 notifications and does not require PostgreSQL or Redis.
 
+The [independent Windows evidence](evidence/LOCAL_MONITORING_2026-10-05.md)
+records a complete 26/26 run against the published v0.4.0 Gateway, including
+matched authenticated firing/resolved receipts and successful cleanup.
+
 This establishes local scrape-outage detection and delivery. Managed TLS,
 deployment routing, receiver ownership, staffed critical notifications and
 dependency-specific alert delivery still require the
