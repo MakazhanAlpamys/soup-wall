@@ -111,9 +111,11 @@ hand-authored regression scorecard remains a separate gate.
 The available live extension points at this revision are
 [`FunctionsRuntime.run_function`](https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/src/agentdojo/functions_runtime.py),
 [`ToolsExecutor`](https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/src/agentdojo/agent_pipeline/tool_execution.py),
-and the original `TaskSuite.run_task_with_pipeline` evaluators. A live Soup Wall
-integration has not been implemented or validated here. An upstream benchmark
-command by itself is not a Soup Wall defended run.
+and the original `TaskSuite.run_task_with_pipeline` evaluators. The separate
+[live fallback adapter](agentdojo-live-fallback.md) now has a free, original-runtime
+fixture check. It retains the existing native-name fallback and has not performed
+an independent live model evaluation. An upstream benchmark command by itself is
+not a Soup Wall defended run.
 
 The next checkpoint requires these concrete inputs and work:
 
