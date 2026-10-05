@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "mode": "fixture",
-  "observed_at_utc": "2026-10-05T05:43:57.421371+00:00",
-  "source_base_revision": "b7c8866",
+  "observed_at_utc": "2026-10-05T05:52:41.274276+00:00",
+  "source_revision": "38de3fda4f7f35e52b0f7fc689dc395780483276",
+  "source_worktree_modified": false,
   "upstream": {
     "revision": "089ed468cf3ed0322acc66b0211f26d9d90dbf60",
     "source_inventory_sha256": "01b0e693841bd26fcb6f699832ff0ec1159a7ee181613adb37a415724ccec088",
@@ -11,10 +12,10 @@
   },
   "agent_binary_sha256": "d11530f7ef93a091dad251708fd8ee3d852c39ed427550d1e6a804e592d6df21",
   "source_file_sha256": {
-    "scripts/agentdojo-live.py": "c9bea54b3c15ec88dd4f7119151195587cfb8fce5a9e94790866f697b0d45561",
-    "scripts/benchmarks/agentdojo_live.py": "7a7539ca77c71e7c1045a5a60377bb75443eaf31bac7ece650e3b797211d72b3",
-    "scripts/benchmarks/test_agentdojo_live.py": "6d2d5ae21b1d5c6889ceba076e31346eb3f4ad98bdea417f3cd86e8c3c4660fd",
-    "scripts/benchmarks/agentdojo-live.requirements.txt": "150b12809b8a84005cb0652e2ab3c6e343a49c3a3826722082110cd66dcce500",
+    "scripts/agentdojo-live.py": "ac3800c6706c85b078034cc1953b12f500c418332409a25e7b2ed77138b4a02a",
+    "scripts/benchmarks/agentdojo_live.py": "0b5fd9094bad5da3e8b1a3d55f202f32cb97222b263f343b9ec6d389f502e506",
+    "scripts/benchmarks/test_agentdojo_live.py": "0f4f40f90b2e7d1edc588e4cdfcd08d8028c8ab4270d8cc8642aac8ffb0a135a",
+    "scripts/benchmarks/agentdojo-live.requirements.txt": "b0e38b3fc400948912d33939b78743d46e79944717cb076a12d4712d49f1dd78",
     "crates/agent/policies/agent-default.yaml": "6bd1b6eb34a1ab943ae8d3b5fd287f9b746c0cf6990fdcc8a3bf1e41eceeb0f2"
   },
   "python_version": "3.12.10",
