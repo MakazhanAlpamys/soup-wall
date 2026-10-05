@@ -46,8 +46,10 @@ Earlier incomplete attempts remain in the aggregate record and ignored private
 artifacts. They exposed literal-address/CIDR comparison, read-only URI encoding
 and platform-mock errors, all corrected before the passing run. An ignored
 diagnostic helper stored the earlier error privately; the final passing helper
-contains no diagnostic modification. Failed fixtures were never reseeded or
-exercised. Diagnostic inspection was read-only; each acceptance used fresh data.
+contains no diagnostic modification. Failed fixture runs were never resumed or
+reseeded; every new acceptance attempt used fresh data. Diagnostic inspection
+was read-only. The earlier run whose tests later failed had already passed the
+restore exercise, as its retained aggregate explicitly records.
 
 The [aggregate evidence](POPULATED_RESTORE_2026-10-05.json) binds source archive and
 executable hashes. Both executables stayed unchanged through the run. Private
