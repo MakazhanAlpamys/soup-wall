@@ -16,6 +16,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  vendor-driver-safety:
+    name: Keycloak driver offline safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare minimal offline test dependencies
+        run: |
+          python3 -m venv target/keycloak-driver-safety
+          target/keycloak-driver-safety/bin/python -m pip install requests==2.34.2
+      - name: Verify driver isolation and failure evidence without starting an IdP
+        run: target/keycloak-driver-safety/bin/python -m unittest discover -s scripts/tests -p 'test_keycloak_saml_acceptance.py' -v
+
   local-idp-evidence:
     name: OIDC SAML SCIM sandbox fixtures
     runs-on: ubuntu-latest

@@ -188,3 +188,29 @@ provider credentials, identity assertions, prompts, or customer data.
   Cleanup succeeded; 13 free Python script tests passed and no model requests
   or external notifications were sent. Managed TLS, dependency-specific alert
   delivery and a staffed channel remain open. [Timestamped evidence](evidence/LOCAL_MONITORING_2026-10-05.md).
+- Live adapter integration: [PR #25](https://github.com/MakazhanAlpamys/soup-wall/pull/25)
+  passed all 18 hosted checks on `a5cb115`, including the automatically discovered
+  free adapter checks, full source suites, four SAML platforms, CodeQL, storage,
+  Docker, advisory review and SBOM. It merged as
+  `e30b0deb7cca3b9443d7911ec7b56ab7886454b3`. The final independent Windows fixture
+  has 29 passing checks and exact source-byte hashes at `38de3fd`, with a clean
+  measured source tree. [Aggregate evidence](../benchmarks/evidence/agentdojo-live-fixture-2026-10-05.json)
+  retains the actual runtime, executable, dependency and policy versions. No
+  independent model effectiveness or managed deployment gate is closed.
+- Vendor identity preparation: the portable Keycloak driver and bootstrap
+  helper preserve actual vendor signatures and production ACS behavior. The
+  initial run recorded 22 functional observations but failed cleanup and has
+  documented isolation/negative-check confounds. The final reviewed driver has 17
+  offline checks, two mandatory native bootstrap regressions, fresh atomic
+  evidence and a real ignored-directory boundary. No corrected full vendor
+  rerun occurred. The automatic cleanup rejection and required operator action
+  remain explicit; no identity/crypto field gate is marked complete.
+  [Historical result and prepared-source evidence](evidence/KEYCLOAK_SAML_2026-10-05.md).
+- Vendor source integration: [PR #26](https://github.com/MakazhanAlpamys/soup-wall/pull/26)
+  passed all 19 hosted checks on `6cda965`, including the mandatory offline
+  driver job, four native SAML targets and actual Rust/Python/actions CodeQL.
+  Source fixes validate response headers before sending any status and require
+  TLS 1.2 or later. The 19 Python script tests and two native bootstrap tests
+  pass; historical evidence is preserved separately. It merged as
+  `9b5267d52c0dff2759c42fa08df94471dc58b2ef`. No corrected vendor runtime or
+  external identity gate is claimed.
