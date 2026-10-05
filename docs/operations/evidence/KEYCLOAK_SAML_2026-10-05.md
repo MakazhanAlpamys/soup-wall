@@ -36,7 +36,9 @@ a broad denylist that retained unknown provider credentials and user profiles.
 The historical run does not establish the intended environment isolation.
 The corrected committed driver uses proxy-free bounded edge sessions, an OS
 root allowlist and owned profiles/JVM home, the unsigned realm's own pin, and a
-second explicitly authorized synthetic principal for NameID mutation. Ten
+second explicitly authorized synthetic principal for NameID mutation. Evidence
+output is now reserved before runtime allocation, rejects existing/input files,
+and atomically preserves incomplete checkpoints on write failure. Thirteen
 offline regressions pass. The corrected driver/bootstrap **have not** been
 rerun against Keycloak, and their hashes are separate preparation evidence.
 

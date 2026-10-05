@@ -153,14 +153,69 @@ class DriverSafetyTests(unittest.TestCase):
             root = Path(temporary)
             args = argparse.Namespace(artifact_label="unit-only", gateway=root / "missing.exe",
                 bootstrap_helper=root / "missing-helper.exe", out=root / "result.json")
-            with contextlib.redirect_stdout(io.StringIO()):
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    patch.object(DRIVER, "start_child") as start:
                 result = DRIVER.run(args)
+            start.assert_not_called()
             report = json.loads(args.out.read_text())
             self.assertEqual(result, 1)
             self.assertFalse(report["passed"])
             self.assertFalse(report["cleanup_passed"])
             self.assertNotIn("missing.exe", args.out.read_text())
             self.assertNotIn("exception", report)
+
+    def test_output_cannot_overwrite_inputs_or_existing_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ["gateway", "bootstrap_helper", "keycloak_zip", "jdk_zip", "existing_report"]:
+                with self.subTest(name=name):
+                    destination = root / name
+                    destination.write_bytes(b"protected original bytes")
+                    args = argparse.Namespace(artifact_label="unit-only", gateway=root / "gateway",
+                        bootstrap_helper=root / "bootstrap_helper", keycloak_zip=root / "keycloak_zip",
+                        jdk_zip=root / "jdk_zip", out=destination)
+                    with contextlib.redirect_stdout(io.StringIO()), \
+                            patch.object(DRIVER, "start_child") as start, \
+                            patch.object(DRIVER, "sha256") as digest:
+                        self.assertEqual(DRIVER.run(args), 1)
+                    self.assertEqual(destination.read_bytes(), b"protected original bytes")
+                    start.assert_not_called()
+                    digest.assert_not_called()
+
+    def test_invalid_output_parent_prevents_runtime_or_input_reads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            parent = root / "regular-file"
+            parent.write_bytes(b"preserved parent")
+            for output in [parent / "report.json", root / "missing-parent" / "report.json"]:
+                args = argparse.Namespace(artifact_label="unit-only", gateway=root / "gateway",
+                    bootstrap_helper=root / "helper", out=output)
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        patch.object(DRIVER, "start_child") as start, \
+                        patch.object(DRIVER, "certificate_files") as certificates, \
+                        patch.object(DRIVER, "sha256") as digest:
+                    self.assertEqual(DRIVER.run(args), 1)
+                start.assert_not_called()
+                certificates.assert_not_called()
+                digest.assert_not_called()
+                self.assertFalse(output.exists())
+            self.assertEqual(parent.read_bytes(), b"preserved parent")
+
+    def test_atomic_output_failure_preserves_incomplete_snapshot_and_rejects_nan(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "report.json"
+            pending = {"passed": False, "checks": [{"name": "already-observed", "passed": True}]}
+            output = DRIVER.ReportOutput(path, [], pending)
+            previous = path.read_bytes()
+            with patch.object(DRIVER.os, "replace", side_effect=OSError("private detail")):
+                with self.assertRaises(OSError):
+                    output.publish({"passed": True})
+            self.assertEqual(path.read_bytes(), previous)
+            self.assertEqual(json.loads(path.read_text()), pending)
+            with self.assertRaises(ValueError):
+                output.publish({"passed": True, "invalid": float("nan")})
+            self.assertEqual(path.read_bytes(), previous)
+            self.assertEqual(list(path.parent.iterdir()), [path])
 
 
 if __name__ == "__main__":

@@ -65,6 +65,49 @@ def sha256(path):
     return digest.hexdigest()
 
 
+class ReportOutput:
+    """Reserve a fresh writable output before allocating any vendor resources."""
+
+    def __init__(self, destination, protected, report):
+        self.path = Path(destination).resolve()
+        if any(self.path == Path(source).resolve() for source in protected if source is not None):
+            raise RuntimeError("evidence output aliases a protected input")
+        if not self.path.parent.is_dir():
+            raise RuntimeError("evidence output needs an existing parent directory")
+        # Refuse every existing output, including hardlinks to source binaries.
+        with self.path.open("xb"):
+            pass
+        self.identity = self.file_identity()
+        self.publish(report)
+
+    def file_identity(self):
+        status = self.path.stat()
+        return status.st_dev, status.st_ino
+
+    def publish(self, report):
+        serialized = json.dumps(report, indent=2, allow_nan=False) + "\n"
+        if self.file_identity() != self.identity:
+            raise RuntimeError("reserved evidence output identity changed")
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n",
+                    prefix="." + self.path.name + ".", suffix=".tmp", dir=self.path.parent,
+                    delete=False) as stream:
+                temporary = Path(stream.name)
+                stream.write(serialized)
+                stream.flush()
+                os.fsync(stream.fileno())
+            if self.file_identity() != self.identity:
+                raise RuntimeError("reserved evidence output identity changed")
+            os.replace(temporary, self.path)
+            temporary = None
+            self.identity = self.file_identity()
+        finally:
+            if temporary is not None:
+                # Only this method's freshly allocated output temporary file.
+                temporary.unlink(missing_ok=True)
+
+
 def unpack(archive, destination, spec):
     if archive.stat().st_size != spec["size"] or sha256(archive) != spec["sha256"]:
         raise RuntimeError("official archive checksum mismatch")
@@ -275,16 +318,24 @@ def run(args):
                               "Windows rsa advisory and issue #19 remain open",
                               "Gateway logout only; vendor SAML SLO not exercised"]}
 
+    output = None
+
     def check(name, condition):
         report["checks"].append({"name": name, "passed": bool(condition)})
+        output.publish(report)
         print(json.dumps({"check": name, "passed": bool(condition)}), flush=True)
         if not condition:
             raise RuntimeError(name)
 
     directory = None
     children = []
-    phase = "input-validation"
+    phase = "evidence-output-reservation"
     try:
+        output = ReportOutput(args.out, [getattr(args, name, None) for name in [
+            "gateway", "bootstrap_helper", "keycloak_zip", "jdk_zip"]]
+            + [Path(__file__), Path(__file__).resolve().parents[1]
+               / "crates" / "proxy" / "src" / "saml_auth.rs"], report)
+        phase = "input-validation"
         if os.name != "nt":
             raise RuntimeError("this pinned runtime checkpoint requires Windows")
         for module in ["requests", "cryptography", "psutil"]:
@@ -587,9 +638,18 @@ def run(args):
             if not report["cleanup_passed"]:
                 report["operator_cleanup_directory"] = str(directory)
     report["finished_at_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"passed": report["passed"], "checks": len(report["checks"])}), flush=True)
+    publication_failed = output is None
+    if output is not None:
+        try:
+            output.publish(report)
+        except Exception:
+            # The previous atomic incomplete snapshot remains intact. Do not
+            # fall back to a destructive in-place write or disclose exceptions.
+            publication_failed = True
+    if publication_failed:
+        report["passed"] = False
+    print(json.dumps({"passed": report["passed"], "checks": len(report["checks"]),
+                      "publication_failed": publication_failed}), flush=True)
     return 0 if report["passed"] else 1
 
 

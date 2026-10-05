@@ -118,6 +118,13 @@ python scripts/keycloak-saml-acceptance.py `
   --out target/keycloak-saml/acceptance.json
 ```
 
+Choose a fresh output filename in an existing writable parent directory. The
+driver reserves it and publishes an atomic incomplete report before reading
+inputs or allocating vendor resources. Existing files and input/source aliases
+are rejected. Each named check saves an atomic incomplete snapshot, so a later
+publication failure preserves the previous evidence. Successful acceptance is
+published only after cleanup succeeds; non-finite JSON numbers are rejected.
+
 `artifact-label` is an operator-supplied label, not independent proof of build
 provenance. Preserve clean build commands and exact binary hashes. The driver
 records its own source hash, both binary hashes and the local SAML source hash
@@ -155,7 +162,7 @@ retained only `PermissionError`, not its filename or OS error number.
 The existing CI script test discovery includes this suite. Driver imports are
 stdlib-only until a transport/runtime path is entered; only the actual requests
 adapter regression skips if requests is unavailable. The `identity-sandbox`
-workflow runs all ten driver checks with pinned `requests==2.34.2`, including
+workflow runs all thirteen driver checks with pinned `requests==2.34.2`, including
 that transport regression. Cryptography and psutil are not installed for the
 offline job. No vendor archive, server, token or paid provider is used:
 
@@ -163,7 +170,9 @@ offline job. No vendor archive, server, token or paid provider is used:
 python -m unittest discover -s scripts/tests -p 'test_keycloak_saml_acceptance.py' -v
 ```
 
-The suite checks archive bounds, proxy/netrc isolation and disabled redirects,
+The suite checks fresh output reservation, rejection of existing input/output
+aliases, invalid parents before startup, atomic failure preservation, archive
+bounds, proxy/netrc isolation and disabled redirects,
 edge destination bounds, owned child profiles and credential exclusion, exact
 negative NameID byte mutation, persistent cleanup failure, and sanitized
 nonzero failure reports. These tests do not substitute for the pending full

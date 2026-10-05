@@ -163,10 +163,10 @@
   },
   "corrected_preparation": {
     "full_vendor_runtime_rerun": false,
-    "driver_sha256": "945c717660365dfdb058718cc1f2ef8b28f78fd5305a1c400811f5ee99a59ac8",
+    "driver_sha256": "7e8fe242b6d5f67611eefdd659fe85b2968f93ab9f42e298e2f4288628dc1936",
     "bootstrap_source_sha256": "f50678e298020f84f99c51b3744b0e41b6c65caea32477ad329e8dab802a362d",
     "offline_tests": {
-      "passed": 10,
+      "passed": 13,
       "failed": 0,
       "vendor_runtime_started": false
     },
@@ -175,7 +175,8 @@
       "Children inherit only Windows installation root; generated search paths, profile/temp and JVM home are owned.",
       "Unsigned realm negative uses its own certificate pin.",
       "NameID mutation targets a second explicitly authorized synthetic Owner principal.",
-      "Cleanup and failure report publication preserve incomplete status and disclose an operator directory without exception contents."
+      "Cleanup and failure report publication preserve incomplete status and disclose an operator directory without exception contents.",
+      "A fresh writable output is reserved before runtime allocation; input aliases and existing output are rejected, and named incomplete snapshots and final success/failure are atomically published with strict JSON."
     ]
   },
   "remaining_acceptance_gates": [
