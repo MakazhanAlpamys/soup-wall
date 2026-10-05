@@ -285,6 +285,7 @@ async fn post_tool_use_cannot_consume_a_pending_action_approval() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
+    let nonce = agentfw::token::generate();
     let grant = agentfw::grant::mint(
         &agentfw::grant::derive_key(TOKEN),
         &agentfw::grant::ActionRef {
@@ -294,7 +295,7 @@ async fn post_tool_use_cannot_consume_a_pending_action_approval() {
         },
         now,
         agentfw::grant::DEFAULT_TTL_MS,
-        "nonce-post-must-not-spend".into(),
+        nonce.clone(),
     );
     agentfw::grant::GrantStore::new(&dir.path().join("grants"))
         .write(&grant)
@@ -316,7 +317,7 @@ async fn post_tool_use_cannot_consume_a_pending_action_approval() {
         audit.contains("\"verdict\":\"ask\""),
         "post fixture must actually reach Ask: {audit}"
     );
-    assert!(!audit.contains("nonce-post-must-not-spend"));
+    assert!(!audit.contains(&nonce));
     let call = serde_json::json!({
         "session_id": "s", "cwd": "/proj", "hook_event_name": "PreToolUse",
         "tool_name": "Bash", "tool_input": args

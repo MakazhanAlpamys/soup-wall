@@ -702,12 +702,13 @@ async fn injection_result_is_withheld_without_redeeming_an_action_grant_or_recor
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
+    let nonce = agentfw::token::generate();
     let grant = agentfw::grant::mint(
         &fixture.state.grant_key,
         &action,
         now,
         agentfw::grant::DEFAULT_TTL_MS,
-        "fixture-action-not-result".into(),
+        nonce.clone(),
     );
     fixture.state.grants.write(&grant).unwrap();
     let (status, reply) = fixture
@@ -728,7 +729,7 @@ async fn injection_result_is_withheld_without_redeeming_an_action_grant_or_recor
     let epoch = audit[0]["session"].as_str().unwrap();
     assert_eq!(fixture.state.firewall.lock().unwrap().taint_len(epoch), 0);
     let log = serde_json::to_string(&audit).unwrap();
-    assert!(!log.contains("fixture-action-not-result"));
+    assert!(!log.contains(&nonce));
     assert!(!log.contains(INJECTION));
     let (status, reply) = fixture
         .post(&fixture.context(
