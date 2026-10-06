@@ -3,7 +3,7 @@ description: Propose a bounded improvement for the team to discuss.
 body:
   - type: markdown
     attributes:
-      value: Use English. Check the [current roadmap](https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/ROADMAP.md) and existing issues first.
+      value: Use English. Check the [current roadmap](https://github.com/SoupTeam/soup-wall/blob/main/docs/ROADMAP.md) and existing issues first.
   - type: textarea
     id: scope
     attributes:

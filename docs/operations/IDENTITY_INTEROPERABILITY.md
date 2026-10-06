@@ -30,7 +30,7 @@ cargo tree --locked -p llm-firewall --target x86_64-pc-windows-msvc -i rsa
 Empty output for a Unix target means no resolved `rsa` dependency for that
 target. The all-target lock still includes Windows' `rsa`, so audit's narrow
 exception remains necessary. See [provenance](../PROVENANCE.md) and
-[issue #19](https://github.com/MakazhanAlpamys/soup-wall/issues/19).
+[issue #19](https://github.com/SoupTeam/soup-wall/issues/19).
 
 Configure the IdP to send signed plaintext assertions. Encrypted assertions
 remain unsupported on every target: the SP neither advertises an encryption

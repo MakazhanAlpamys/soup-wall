@@ -39,7 +39,7 @@ calls a model provider or fetches model weights. Clone the repository, then run
 Cargo commands from its root:
 
 ```sh
-git clone https://github.com/MakazhanAlpamys/soup-wall.git
+git clone https://github.com/SoupTeam/soup-wall.git
 cd soup-wall
 cargo fetch --locked
 cargo build --locked --workspace

@@ -19,4 +19,4 @@ deployment acceptance. Link relevant documentation or sanitized evidence.
 Before requesting review, confirm that the issue's acceptance criteria are
 covered, relevant instructions are updated, and internal drafts remain local.
 
-See [CONTRIBUTING.md](https://github.com/MakazhanAlpamys/soup-wall/blob/main/CONTRIBUTING.md) for the contribution workflow. Use synthetic examples; report vulnerabilities privately through [SECURITY.md](https://github.com/MakazhanAlpamys/soup-wall/blob/main/SECURITY.md).
+See [CONTRIBUTING.md](https://github.com/SoupTeam/soup-wall/blob/main/CONTRIBUTING.md) for the contribution workflow. Use synthetic examples; report vulnerabilities privately through [SECURITY.md](https://github.com/SoupTeam/soup-wall/blob/main/SECURITY.md).

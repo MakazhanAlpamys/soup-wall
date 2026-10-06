@@ -4,15 +4,15 @@
 
 **Open-source protection for AI apps and agents.** Soup Wall inspects model traffic and the actions an agent takes, applies local policy, and records decisions for review. The complete source for the agent, gateway, and self-hosted control plane is available under Apache-2.0.
 
-[![CI](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml)
-[![Supply chain](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml)
+[![CI](https://github.com/SoupTeam/soup-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/SoupTeam/soup-wall/actions/workflows/ci.yml)
+[![Supply chain](https://github.com/SoupTeam/soup-wall/actions/workflows/supply-chain.yml/badge.svg)](https://github.com/SoupTeam/soup-wall/actions/workflows/supply-chain.yml)
 ![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)
 
 ## Choose where to start
 
 Joining the development team? Start with the [development guide](docs/DEVELOPMENT.md), then read [CONTRIBUTING.md](CONTRIBUTING.md). The [documentation index](docs/README.md) links setup, architecture, operator procedures, and verification evidence.
 
-Development starts from the `baseline/team-handoff` source tag. The [product roadmap](docs/ROADMAP.md) orders work by dependencies and acceptance criteria, with one final release after the complete product passes its gates. The canonical repository is [MakazhanAlpamys/soup-wall](https://github.com/MakazhanAlpamys/soup-wall).
+Development starts from the `baseline/team-handoff` source tag. The [product roadmap](docs/ROADMAP.md) orders work by dependencies and acceptance criteria, with one final release after the complete product passes its gates. The canonical repository is [SoupTeam/soup-wall](https://github.com/SoupTeam/soup-wall).
 
 | Surface | What it does | Runs as |
 | --- | --- | --- |

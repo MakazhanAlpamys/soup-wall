@@ -4,7 +4,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use English and minimal synthetic examples. Report vulnerabilities through [private security reporting](https://github.com/MakazhanAlpamys/soup-wall/security/advisories/new).
+        Use English and minimal synthetic examples. Report vulnerabilities through [private security reporting](https://github.com/SoupTeam/soup-wall/security/advisories/new).
   - type: dropdown
     id: surface
     attributes:

@@ -9,8 +9,8 @@ legitimate task completion.
 
 The source baseline is the annotated tag `baseline/team-handoff`, pointing to
 commit `2304818b6f461ecbef97fe68bfad50be55c17ec0`. It includes the pending MCP
-implementation in [PR #30](https://github.com/MakazhanAlpamys/soup-wall/pull/30)
-and contributor preparation in [PR #31](https://github.com/MakazhanAlpamys/soup-wall/pull/31).
+implementation in [PR #30](https://github.com/SoupTeam/soup-wall/pull/30)
+and contributor preparation in [PR #31](https://github.com/SoupTeam/soup-wall/pull/31).
 Main was `c6045d30341dbc784cb219472c93f5b35921c928` when this baseline was frozen.
 The tag records source state; it is not a product release or field certification.
 Existing releases remain historical artifacts. This plan has one final release,
@@ -249,7 +249,7 @@ candidate builds.
   Staged activation, offline/stale hosts and rollback are visible; post-rollback
   behavior and application acknowledgements match the restored version.
 - The complete release graph passes advisory review without the RSA exception.
-  [Issue #19](https://github.com/MakazhanAlpamys/soup-wall/issues/19) has reviewed
+  [Issue #19](https://github.com/SoupTeam/soup-wall/issues/19) has reviewed
   portable crypto, native signature/tampering evidence and real-IdP assertion
   interoperability; encrypted assertions remain rejected without decryption keys.
 - Managed TLS, real OIDC/SAML/SCIM lifecycle and negative authorization cases,

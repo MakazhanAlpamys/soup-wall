@@ -1,6 +1,6 @@
 # Soup Wall documentation
 
-The canonical repository is [MakazhanAlpamys/soup-wall](https://github.com/MakazhanAlpamys/soup-wall).
+The canonical repository is [SoupTeam/soup-wall](https://github.com/SoupTeam/soup-wall).
 Start with the [project README](../README.md) for the Agent, Gateway and Console
 overview. Choose a guide below for development, operation or evaluation.
 
