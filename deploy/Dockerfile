@@ -16,6 +16,7 @@ RUN addgroup --system --gid 65532 soupwall \
 WORKDIR /app
 COPY --from=build /src/target/release/llm-firewall /usr/local/bin/soup-wall-gateway
 COPY LICENSE NOTICE /usr/share/doc/soup-wall/
+COPY vendor/kryptering/LICENSE /usr/share/doc/soup-wall/third-party/kryptering/LICENSE
 # Preserve the config layout the app expects: firewall.yaml resolves
 # policy_file "policies/default.yaml" relative to WORKDIR (/app).
 COPY firewall.yaml ./

@@ -1,0 +1,116 @@
+[package]
+name = "kryptering"
+version = "0.6.0"
+edition = "2021"
+license = "BSD-2-Clause"
+description = "Cryptographic operations library with software (RustCrypto) and HSM (PKCS#11) backends"
+repository = "https://github.com/kushaldas/kryptering"
+homepage = "https://github.com/kushaldas/kryptering"
+keywords = ["cryptography", "pkcs11", "hsm", "rustcrypto", "signing"]
+categories = ["cryptography", "authentication"]
+rust-version = "1.88"
+
+[features]
+default = ["rustcrypto", "pkcs11"]
+# Exactly one document provider must be selected.  The RustCrypto feature owns
+# its whole primitive dependency family so AWS-LC builds never acquire
+# RustCrypto implementations through the orthogonal legacy/PQ switches.
+rustcrypto = [
+    "dep:digest", "dep:sha1", "dep:sha2", "dep:sha3", "dep:hmac",
+    "dep:rsa", "dep:ecdsa", "dep:dsa", "dep:p256", "dep:p384", "dep:p521",
+    "dep:aes", "dep:cbc", "dep:aes-gcm", "dep:aes-kw", "dep:ed25519-dalek",
+    "dep:ed448-goldilocks", "dep:x25519-dalek", "dep:hkdf", "dep:pbkdf2",
+    "dep:signature", "dep:rand",
+    "dep:crypto-bigint", "dep:crypto-primes", "dep:md-5", "dep:ripemd", "dep:des", "dep:ml-dsa",
+    "dep:slh-dsa", "dep:ml-kem", "dep:pkcs8-pq", "dep:getrandom",
+    "dep:generic-array",
+]
+aws-lc = ["dep:aws-lc-rs"]
+legacy = []
+post-quantum = []
+pkcs11 = ["dep:cryptoki"]
+tls-ring = ["dep:rustls", "rustls/ring"]
+tls-aws-lc = ["dep:rustls", "dep:aws-lc-rs", "rustls/aws_lc_rs"]
+# FIPS is currently provided exclusively by AWS-LC. Enabling it selects the
+# AWS-LC document provider; networking, when enabled, must use `tls-aws-lc`.
+fips = ["aws-lc", "aws-lc-rs/fips", "rustls?/fips"]
+
+[dependencies]
+thiserror = "2"
+digest = { version = "0.10", optional = true }
+sha1 = { version = "0.10", features = ["oid"], optional = true }
+sha2 = { version = "0.10", features = ["oid"], optional = true }
+sha3 = { version = "0.10", features = ["oid"], optional = true }
+hmac = { version = "0.12", optional = true }
+rsa = { version = "0.9", optional = true }
+ecdsa = { version = "0.16", optional = true }
+dsa = { version = "0.6", optional = true }
+p256 = { version = "0.13", features = ["ecdsa", "ecdh"], optional = true }
+p384 = { version = "0.13", features = ["ecdsa", "ecdh"], optional = true }
+p521 = { version = "0.13", features = ["ecdsa", "ecdh", "pkcs8"], optional = true }
+aes = { version = "0.9", optional = true }
+cbc = { version = "0.2", optional = true }
+aes-gcm = { version = "0.11", optional = true }
+aes-kw = { version = "0.3", optional = true }
+ed25519-dalek = { version = "2.1", features = ["pkcs8", "rand_core"], optional = true }
+# Ed448 is needed by draft-ietf-jose-pq-composite-sigs. This pre-release
+# RustCrypto implementation is pinned so draft-vector behavior cannot move
+# underneath the composite algorithms without an explicit dependency review.
+ed448-goldilocks = { version = "=0.14.0-pre.15", default-features = false, features = ["alloc", "signing"], optional = true }
+x25519-dalek = { version = "2.0", features = ["static_secrets"], optional = true }
+hkdf = { version = "0.12", optional = true }
+pbkdf2 = { version = "0.12", optional = true }
+signature = { version = "2", optional = true }
+rand = { version = "0.8", optional = true }
+zeroize = "1.7"
+# Provider-neutral PKCS#8 structure parsing (format only, no primitives).
+pkcs8 = { version = "0.10", default-features = false, features = ["alloc"] }
+crypto-bigint = { version = "0.7", features = ["alloc", "zeroize"], optional = true }
+crypto-primes = { version = "0.7.2", optional = true }
+aws-lc-rs = { version = "1.18", optional = true }
+rustls = { version = "0.23.45", default-features = false, features = ["std", "tls12"], optional = true }
+
+# Legacy (optional)
+md-5 = { version = "0.10", features = ["oid"], optional = true }
+ripemd = { version = "0.1", features = ["oid"], optional = true }
+des = { version = "0.9", optional = true }
+
+# Post-quantum (optional)
+ml-dsa = { version = "0.1.0", features = ["pkcs8", "rand_core", "zeroize"], optional = true }
+slh-dsa = { version = "0.2.0-rc.5", features = ["zeroize"], optional = true }
+# `hazmat` is an empty feature that only un-hides encapsulate_deterministic
+# in the docs; we call it with fresh OS entropy because kem 0.3's
+# Encapsulate trait only accepts an infallible CryptoRng (see ADR 0001).
+ml-kem = { version = "0.3.2", features = ["pkcs8", "zeroize", "hazmat"], optional = true }
+pkcs8-pq = { package = "pkcs8", version = "0.11.0", optional = true }
+# DH primality checks and ML-DSA's randomized sign path use
+# `getrandom::SysRng` (rand_core 0.10 TryCryptoRng). RSA-PSS
+# uses `rand::rngs::OsRng` (rand_core 0.6) which does not need this
+# dependency. Both RNG dependencies belong to the RustCrypto provider.
+getrandom = { version = "0.4", features = ["sys_rng"], optional = true }
+# 0.14.9 deprecates the entire compatibility crate even though the current
+# p256/p384/p521 release line still exposes its types publicly.
+generic-array = { version = "=0.14.7", optional = true }
+
+# PKCS#11 (optional, default on; not available on wasm32 because
+# cryptoki-sys -> libloading is unix/windows-only).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cryptoki = { version = "0.12.1", optional = true }
+
+[dev-dependencies]
+hex = "0.4"
+# Provider interoperability fixtures are generated by test-only RustCrypto
+# crates, then imported through Kryptering's neutral PKCS#8/SPKI/raw APIs.
+# They are dev-only and therefore absent from ordinary AWS-LC feature
+# trees (which CI asserts separately).
+rand = "0.8"
+rsa = "0.9"
+p256 = { version = "0.13", features = ["ecdsa", "ecdh", "pkcs8"] }
+p384 = { version = "0.13", features = ["ecdsa", "ecdh", "pkcs8"] }
+p521 = { version = "0.13", features = ["ecdsa", "ecdh", "pkcs8"] }
+ed25519-dalek = { version = "2.1", features = ["pkcs8", "rand_core"] }
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+# SoftHSM2 tests use C_InitPIN for raw-byte PINs; matches cryptoki 0.12.
+cryptoki-sys = "0.5"

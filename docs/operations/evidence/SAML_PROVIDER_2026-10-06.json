@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "scope": "Windows local Keycloak SAML protocol acceptance",
+  "started_at_utc": "2026-10-06T14:08:22.722038+00:00",
+  "artifact_label": "issue-19-windows-aws-lc",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python_version": "3.12.10",
+  "runtimes": {
+    "keycloak": {
+      "version": "26.8.0",
+      "size": 174169645,
+      "sha256": "7ed1de3fda2598369262613bf682aab7e233d80a38c405e91588f7a7454370a1",
+      "url": "https://github.com/keycloak/keycloak/releases/download/26.8.0/keycloak-26.8.0.zip",
+      "license": "Apache-2.0"
+    },
+    "jdk": {
+      "version": "Temurin 25.0.4.1+1",
+      "size": 141167264,
+      "sha256": "00c847d804f4a78e9f04f2683faf14fed898535b177b7fc704486cb0284e9283",
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jdk_x64_windows_hotspot_25.0.4.1_1.zip",
+      "license": "GPL-2.0 WITH Classpath-exception-2.0; bundled notices apply"
+    }
+  },
+  "checks": [
+    {
+      "name": "official-runtime-archive-checksums",
+      "passed": true
+    },
+    {
+      "name": "runtime-license-notices-present",
+      "passed": true
+    },
+    {
+      "name": "vendor-runtime-ready-over-verified-private-ca-https",
+      "passed": true
+    },
+    {
+      "name": "vendor-signed-idp-descriptor",
+      "passed": true
+    },
+    {
+      "name": "preprovisioned-local-membership-without-idp-role-grants",
+      "passed": true
+    },
+    {
+      "name": "unchanged-gateway-ready-through-local-https-edge",
+      "passed": true
+    },
+    {
+      "name": "vendor-default-descriptor-is-unsigned",
+      "passed": true
+    },
+    {
+      "name": "unsigned-metadata-configuration-stored",
+      "passed": true
+    },
+    {
+      "name": "unsigned-vendor-idp-descriptor-rejected-before-login",
+      "passed": true
+    },
+    {
+      "name": "pinned-vendor-signed-metadata-imported",
+      "passed": true
+    },
+    {
+      "name": "real-vendor-signed-plaintext-assertion",
+      "passed": true
+    },
+    {
+      "name": "vendor-nameid-matches-preprovisioned-synthetic-identity",
+      "passed": true
+    },
+    {
+      "name": "real-vendor-assertion-accepted-by-production-acs",
+      "passed": true
+    },
+    {
+      "name": "secure-host-only-httponly-session-cookie",
+      "passed": true
+    },
+    {
+      "name": "session-resolves-preprovisioned-owner-membership",
+      "passed": true
+    },
+    {
+      "name": "vendor-assertion-replay-rejected",
+      "passed": true
+    },
+    {
+      "name": "tampered-vendor-signed-nameid-rejected",
+      "passed": true
+    },
+    {
+      "name": "saml-session-rotation-issues-new-cookie",
+      "passed": true
+    },
+    {
+      "name": "old-session-rejected-after-rotation",
+      "passed": true
+    },
+    {
+      "name": "rotated-session-accepted",
+      "passed": true
+    },
+    {
+      "name": "gateway-session-logout",
+      "passed": true
+    },
+    {
+      "name": "logged-out-session-rejected",
+      "passed": true
+    },
+    {
+      "name": "own-child-processes-and-disposable-runtime-cleaned",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "cleanup_passed": true,
+  "limitations": [
+    "No OIDC code exchange or vendor SCIM exercised",
+    "HTTP form driver; no browser UI or MFA acceptance",
+    "No managed staging or customer tenant",
+    "No Linux/macOS vendor runtime acceptance",
+    "Dependency/advisory status requires separate locked audit; live vendor acceptance covers Windows only",
+    "Gateway logout only; vendor SAML SLO not exercised"
+  ],
+  "gateway_sha256": "a95481733e566c6796ac8308b8b9bea19763688d8a2aabe045aaebbf6bc368eb",
+  "bootstrap_helper_sha256": "dd8133d59e279c9e6ea336e28692ded2247965f19ac487686411c832c4805355",
+  "driver_sha256": "3505455f8ea30786e5fa1867bfe3935e193adeb5e7c68756927437eb63c897da",
+  "saml_source_sha256": "b370d25b7462726dd8a118689061b26daf4c9c9e1dd0dbfb43b6964a846418fe",
+  "vendor_metadata_sha256": "50098dec7719e827a68bcf238385dedd205d802ba89726437797bcee39f88fda",
+  "vendor_signing_certificate_sha256": "7e47c8ec5610cf5b37311450f01c0bdce009465420a1918941bc50894595ba09",
+  "finished_at_utc": "2026-10-06T14:09:10.505452+00:00"
+}

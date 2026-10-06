@@ -62,10 +62,9 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - run: cargo test --workspace --locked
       - run: cargo test --workspace --all-features --locked
-      # The all-target lock still includes Windows' RustCrypto RSA provider.
-      # XML-Enc decryption is disabled and tested on all release targets; see
-      # docs/PROVENANCE.md. Issue #19 remains open. Other vulnerabilities block.
-      - run: cargo audit --ignore RUSTSEC-2023-0071
+      # All SAML release targets use AWS-LC; the complete lock excludes rsa.
+      # No vulnerability is excepted. XML decryption remains disabled and tested.
+      - run: cargo audit
 
   build:
     name: ${{ matrix.target }}
@@ -124,6 +123,8 @@ jobs:
           cp firewall.yaml "$d/"
           cp -R policies "$d/"
           cp LICENSE NOTICE README.md "$d/"
+          mkdir -p "$d/third-party/kryptering"
+          cp vendor/kryptering/LICENSE "$d/third-party/kryptering/"
           tar -czf "staging/$d.tar.gz" "$d"
 
       - name: Stage (windows)
@@ -141,6 +142,8 @@ jobs:
           cp firewall.yaml "$d/"
           cp -R policies "$d/"
           cp LICENSE NOTICE README.md "$d/"
+          mkdir -p "$d/third-party/kryptering"
+          cp vendor/kryptering/LICENSE "$d/third-party/kryptering/"
           7z a -tzip "staging/$d.zip" "$d" > /dev/null
 
       - uses: actions/upload-artifact@v7

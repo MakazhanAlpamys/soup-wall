@@ -59,12 +59,8 @@ if ($Quick) {
     exit 0
 }
 
-Step 'cargo audit --ignore RUSTSEC-2023-0071' {
-    # The complete lock includes Windows' RustCrypto rsa dependency even though
-    # Linux/macOS release graphs use AWS-LC. Soup Wall configures no XML
-    # decryption key and rejects encrypted assertions. Only this advisory is
-    # excepted; issue #19 remains open. See docs/PROVENANCE.md.
-    cargo audit --ignore RUSTSEC-2023-0071
+Step 'cargo audit' {
+    cargo audit
 }
 
 Step 'agent scorecard byte-compare (benchmark.yml regression gate)' {

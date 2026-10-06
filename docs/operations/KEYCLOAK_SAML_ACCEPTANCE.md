@@ -1,17 +1,24 @@
 # Manual Keycloak SAML acceptance
 
 This manual Windows check starts the official Keycloak distribution and drives
-its password login and SAML POST flow against an unchanged Soup Wall Gateway.
+its password login and SAML POST flow against the production Soup Wall Gateway.
 It provides a way to collect local vendor evidence without a customer tenant.
-The [first checkpoint](evidence/KEYCLOAK_SAML_2026-10-05.md) is incomplete:
-22 named functional checks returned their expected results, but disposable
-profile cleanup failed. Review also identified isolation and negative-check
-defects in that original driver. The corrected driver has offline regression
-coverage and has **not** had a fresh full vendor run.
+The [2026-10-06 checkpoint](evidence/SAML_PROVIDER_2026-10-06.md) passed all
+23 named checks, including cleanup, in a new disposable profile under the
+current public checkout. Its optional public corpus contains genuine
+vendor-signed documents for native regression tests. The live vendor flow was
+exercised on Windows only; native genuine-vendor corpus CI validates the four
+release targets. Exact-head hosted results belong to the candidate PR.
+
+The [2026-10-05 checkpoint](evidence/KEYCLOAK_SAML_2026-10-05.md) remains
+incomplete: 22 functional observations preceded failed cleanup, and review
+found isolation and negative-check defects in that original driver. The new
+run is independent; it does not adopt, inspect or remove that historical
+profile, and its success does not change the earlier record.
 
 ## Scope and isolation
 
-The original Python driver imports two disposable realms, a synthetic user,
+The Python driver imports two disposable realms, a synthetic user,
 and a SAML client into a freshly unpacked Keycloak runtime. The signed realm
 sets `saml.signature.algorithm=RSA_SHA256`. Keycloak itself signs the IdP
 descriptor and login response/assertion using its freshly generated realm key.
@@ -29,11 +36,12 @@ signed descriptor with its pin. A new SQLite database pre-provisions two
 synthetic local principals with Owner membership. The real vendor subject maps
 to one; a negative assertion mutation changes only NameID to the other allowed
 subject. This removes unknown-identity authorization as an explanation for
-rejection. Existing production SAML unit fixtures remain the executed isolated
-signature-negative evidence until a fresh vendor run passes.
+rejection. The fresh Windows run exercised this isolated negative check with
+a genuine vendor assertion; native corpus tests also check metadata and
+NameID tampering against the original signed documents.
 
 Both Keycloak and the Gateway bind to `127.0.0.1`. A local HTTPS edge forwards
-to the unchanged Gateway's loopback HTTP listener. Fresh one-day certificates
+to the Gateway's loopback HTTP listener. Fresh one-day certificates
 use an ephemeral CA trusted only by the Python driver's explicit CA file;
 certificate verification stays enabled. There is no OS trust installation or
 Gateway CA extension. The edge server explicitly requires TLS 1.2 or later.
@@ -44,21 +52,37 @@ forwarded values are preserved. Both outbound driver and internal edge HTTP sess
 new local services. The edge rejects absolute/authority request targets.
 
 Children receive only the Windows installation root plus generated Windows
-runtime/search paths, an owned profile and temporary directory, and fresh
-fixture settings. Provider keys, deployment settings, ambient profiles,
+runtime/search paths, the controlled literal `OS=Windows_NT`, an owned profile
+and temporary directory, and fresh fixture settings. The controlled OS value
+lets the vendor batch launcher resolve its jar relative to its own `bin`
+directory even when the process working directory differs. Provider keys,
+deployment settings, ambient profiles,
 proxies and Java overrides are excluded. The vendor receives an explicitly
-owned Java `user.home`. Credentials, certificates, database state, raw XML,
-assertions and runtime logs remain in the disposable directory. Do not publish
-that directory or raw execution artifacts.
+owned Java `user.home`. Credentials, private keys, cookies, database state and
+runtime logs stay private until owned teardown removes the disposable
+directory. Do not publish that directory or raw execution artifacts. The
+optional public corpus described below exports only synthetic vendor-signed
+documents, their public IdP certificate and bounded correlation/provenance.
 
 The driver verifies login/ACS, secure session cookie attributes, provisioned
 membership, replay rejection, the bounded negative mutation, session rotation,
 and Gateway logout. It does not exercise OIDC authorization-code/PKCE login,
 vendor SCIM, a browser UI, MFA, vendor SAML single logout, managed staging,
 customer infrastructure, or Linux/macOS vendor runtimes. Signed plaintext
-assertions are required; XML decryption remains unsupported. Windows still uses
-RustCrypto, so the `rsa` advisory and
-[issue #19](https://github.com/SoupTeam/soup-wall/issues/19) remain open.
+assertions are required; XML decryption remains unsupported. The current
+source selects AWS-LC on all four release targets. A
+[pinned kryptering platform patch](../../vendor/kryptering/PATCH.md) admits
+non-FIPS Windows x86_64 MSVC; its source delta is limited to the platform guard
+and error message, with cryptographic operations unchanged. Windows ARM,
+Windows GNU and Windows FIPS remain outside that patch. There is no
+RustCrypto fallback. The recorded locked audit covered 442 dependencies with
+zero vulnerabilities and no advisory exception; the complete application
+lock and release graphs exclude `rsa`. Those dependency results are separate
+from the live protocol run. Closing
+[issue #19](https://github.com/SoupTeam/soup-wall/issues/19) requires the
+complete provider, dependency and interoperability criteria, including
+native genuine-vendor corpus checks on all four release platforms and review
+of the provider change. This checkpoint makes no release claim.
 The ignored `target` and runtime scratch path must be real checkout directories;
 symlink/junction redirection is rejected before private runtime files are written.
 
@@ -93,7 +117,7 @@ Keycloak deployment. See its official
 [ZIP startup guide](https://www.keycloak.org/getting-started/getting-started-zip)
 and [TLS configuration](https://www.keycloak.org/server/enabletls).
 
-## Reproduction after the cleanup blocker is resolved
+## Reproduction in a new disposable profile
 
 Use Windows x64, Python 3.12+, and a disposable checkout. The tested Python
 runtime was 3.12.10 with `requests==2.34.2`, `cryptography==50.0.1` and
@@ -108,9 +132,8 @@ cargo build --locked -p llm-firewall --example keycloak-saml-bootstrap
 cargo build --locked -p llm-firewall
 ```
 
-Store the downloaded archives at the paths below, verify their official
-checksums, and invoke the driver only after the existing cleanup blocker is
-resolved by the operator:
+Store the downloaded archives at the paths below and verify their official
+checksums. Use fresh report and optional corpus filenames for each run:
 
 ```powershell
 $checkpointRevision = (git rev-parse HEAD).Trim()
@@ -120,7 +143,8 @@ python scripts/keycloak-saml-acceptance.py `
   --gateway target/debug/llm-firewall.exe `
   --bootstrap-helper target/debug/examples/keycloak-saml-bootstrap.exe `
   --artifact-label $checkpointRevision `
-  --out target/keycloak-saml/acceptance.json
+  --out target/keycloak-saml/acceptance.json `
+  --fixture-out target/keycloak-saml/keycloak-corpus.json
 ```
 
 Choose a fresh output filename in an existing writable parent directory. The
@@ -136,6 +160,33 @@ records its own source hash, both binary hashes and the local SAML source hash
 dynamically; that local source hash alone does not prove the binary was built
 from it. Reports contain named checks and hashes, with no raw protocol content.
 Review and sanitize a report before copying it out of ignored `target/`.
+
+### Optional public synthetic corpus
+
+Omit `--fixture-out` when only a sanitized report is needed. When supplied,
+the corpus destination is reserved as an atomic incomplete schema-version-1
+record before inputs are read or vendor resources are allocated. It must be
+a fresh file and cannot alias the report, binaries, archives or source inputs.
+Usable corpus publication requires all vendor checks, successful owned
+cleanup and successful report publication; a failure leaves no usable raw
+corpus.
+
+The complete export contains the first positive vendor-signed metadata and
+base64 response unchanged, the public IdP certificate, synthetic entity and
+NameID values, the capture instant, original request ID and RelayState, and
+source/binary/archive SHA-256 hashes. The request ID and RelayState are read
+from the original outgoing SP AuthnRequest before contacting the IdP, never
+inferred from the response being validated. No signing key, password, cookie,
+database or log is exported. Review the synthetic labels and hashes before
+publishing a corpus; it is test data, never deployment configuration.
+
+The [reviewed corpus](../../crates/proxy/tests/fixtures/saml/keycloak-corpus.json)
+feeds production SSO validation under a fixed clock only in tests. Its
+recorded integer capture time falls within the original signed assertion's
+validity window; the signed bytes are not renewed or rewritten. Production
+validation keeps the real clock and replay cache. Cross-platform corpus
+verification is genuine vendor-document interoperability, not a new live
+Keycloak password/ACS flow on each platform.
 
 Teardown terminates only the invocation's live child PID trees, waits for them,
 closes owned servers/logs, and deletes only its newly allocated contained
@@ -156,20 +207,24 @@ target/keycloak-saml/<failed-run-directory>
 Automatic approval review rejected three subsequent native removal attempts
 before execution, with the stated reason `blocked by policy`. The Gateway and
 Java processes had stopped; the directory remains and contains disposable
-private material. The operator must resolve removal of this exact directory
-through an authorized environment change before a fresh full checkpoint. The
-portable archives outside it must be retained. The failure does not establish
+private material. Removal of that exact directory requires an authorized
+environment change and must not be retried through another tool or adopted
+by a new invocation. A separately authorized independent run may allocate
+its own fresh profile in another checkout without accessing the retained
+directory. The portable archives outside it must be retained. The failure does not establish
 a particular Windows file attribute or open-handle cause: the original driver
 retained only `PermissionError`, not its filename or OS error number.
 
 ## Offline review checks
 
 The existing CI script test discovery includes this suite. Driver imports are
-stdlib-only until a transport/runtime path is entered; only the actual requests
-adapter regression skips if requests is unavailable. The `identity-sandbox`
-workflow runs all seventeen driver checks with pinned `requests==2.34.2`, including
-that transport regression. Cryptography and psutil are not installed for the
-offline job. No vendor archive, server, token or paid provider is used:
+stdlib-only until a transport/runtime path is entered. The requests adapter
+regressions skip if requests is unavailable; the actual batch-launcher
+regression requires native Windows and skips elsewhere. The current suite
+passed all 26 tests on Windows. The `identity-sandbox` workflow runs the
+suite on Ubuntu with pinned `requests==2.34.2`; its Windows batch probe is
+skipped there. Cryptography and psutil are not installed for that offline
+job. No vendor archive, server, token or paid provider is used:
 
 ```powershell
 python -m unittest discover -s scripts/tests -p 'test_keycloak_saml_acceptance.py' -v
@@ -179,6 +234,22 @@ The suite checks fresh output reservation, rejection of existing input/output
 aliases, invalid parents before startup, atomic failure preservation, archive
 bounds, proxy/netrc isolation and disabled redirects,
 edge destination bounds, owned child profiles and credential exclusion, exact
-negative NameID byte mutation, persistent cleanup failure, and sanitized
-nonzero failure reports. These tests do not substitute for the pending full
-vendor run and clean teardown.
+negative NameID byte mutation, persistent cleanup failure, sanitized nonzero
+failure reports, original outbound correlation capture and gated public
+corpus publication. The Windows regression executes an owned batch probe
+from an unrelated working directory and proves that malicious ambient `OS`
+cannot replace the controlled launcher setting. These safety tests complement
+the recorded live vendor run; they do not themselves exercise an IdP.
+
+Run the native SAML suite, including the genuine-vendor corpus, with:
+
+```powershell
+cargo test --locked -p llm-firewall --lib saml_auth::tests
+```
+
+The recorded 2026-10-06 Windows result is 16 passed, zero failed and zero ignored. Six
+corpus checks cover the original signed documents, metadata endpoint and
+NameID tampering, original request/RelayState correlation, expiry and replay.
+Missing or incomplete corpus data fails those tests explicitly. Native
+four-platform CI must verify the same provider and corpus before its status
+can be reported as green.

@@ -298,7 +298,7 @@ scope, rationale, alternatives and acceptance consequences in English.
 | Judge use | Use the shipped no-judge baseline first. Keep judges advisory/tightening only and native judge configuration rejected until its extension is reviewed. | Phase 3 |
 | Live benchmark and thresholds | Use pinned original evaluators and matched runs, preregister numeric limits and sampling/uncertainty rules, and retain failed runs. Select model access and an explicit budget before execution. | Phase 4 |
 | Distributed policy trust | Verify signed bundles with reviewed cryptography and enrolled host identities; test key lifecycle, offline cache rules, atomic activation and applied acknowledgements. | Phase 6 |
-| Windows SAML crypto | Review a portable timing-safe provider or signing-only integration that removes vulnerable RSA from the complete graph. Preserve encrypted-assertion rejection and verify real interoperability. | Phase 6 |
+| SAML provider maintenance | Keep the pinned Windows platform patch until an upstream release passes the same native signature and genuine vendor-document checks. Keep the complete graph free of vulnerable RSA and preserve encrypted-assertion rejection. | Phase 6 |
 | Deployment, identity and recovery scope | Keep existing SQLite/PostgreSQL boundaries, select actual IdPs and supported SCIM operations, and agree recovery, retention and notification responsibilities by role. | Phase 6 |
 | Compatibility and publication | Preserve existing interfaces until a tested migration is accepted. Keep the baseline tag separate from semver release triggers and gate all publication on the final candidate. | Foundation / Phase 7 |
 

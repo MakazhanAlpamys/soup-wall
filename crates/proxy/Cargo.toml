@@ -51,13 +51,10 @@ deadpool-postgres = "0.14"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 webpki-roots = "1"
 
-# kryptering's AWS-LC provider supports Linux and non-FIPS macOS on these CPUs.
-# Other targets keep RustCrypto until upstream supports AWS-LC there.
-[target.'cfg(all(any(target_os = "linux", target_os = "macos"), any(target_arch = "x86_64", target_arch = "aarch64")))'.dependencies]
+# The pinned platform patch adds non-FIPS Windows x64 MSVC to kryptering's
+# existing Linux/macOS support. All release targets use the same provider;
+# unsupported targets fail at its guard instead of acquiring a RustCrypto fallback.
 saml-rs = { version = "0.5.3", default-features = false, features = ["crypto-aws-lc"] }
-
-[target.'cfg(not(all(any(target_os = "linux", target_os = "macos"), any(target_arch = "x86_64", target_arch = "aarch64"))))'.dependencies]
-saml-rs = { version = "0.5.3", default-features = false, features = ["crypto-rustcrypto"] }
 
 [dev-dependencies]
 wiremock = "0.6"
