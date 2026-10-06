@@ -6,3 +6,9 @@ carbon-evolution/llm-firewall, licensed under the Apache License, Version 2.0.
 The upstream project is available at:
 https://github.com/carbon-evolution/llm-firewall
 
+This product includes kryptering 0.6.0 by Kushal Das and contributors, licensed
+under BSD-2-Clause, with a local Windows platform-support patch. The upstream
+project is https://github.com/kushaldas/kryptering.
+See vendor/kryptering/LICENSE in source distributions and
+third-party/kryptering/LICENSE in binary distributions.
+

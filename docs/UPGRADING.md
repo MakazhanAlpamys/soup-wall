@@ -19,6 +19,14 @@ The public Soup Wall workspace now contains the Agent, Gateway, and self-hosted 
 
 The supplied Compose image now starts `soup-wall-gateway` directly. With `deploy/docker-compose.production.yaml`, pass subcommands as `docker compose ... run --rm firewall preflight` and `docker compose ... run --rm firewall migrate`; do not repeat a binary name after the service name. See the [production runbook](operations/PRODUCTION_RUNBOOK.md) for the exact sequence and failure drills.
 
+## Unreleased SAML provider change
+
+The current source uses AWS-LC for SAML on every release target, including non-FIPS Windows x86_64 MSVC. The complete application lock excludes `rsa`, and advisory checks run without a vulnerability exception. This change is unreleased; [the provider checkpoint](operations/evidence/SAML_PROVIDER_2026-10-06.md) records Windows checks and live Keycloak acceptance. The candidate pull request must also pass native verification on all four release platforms.
+
+Source builds must retain `vendor/kryptering`, its license, the root path override and its exclusion from the application workspace. Follow [the patch maintenance rules](../vendor/kryptering/PATCH.md) when updating dependencies or replacing the patch with an upstream release. Windows ARM, Windows GNU and Windows FIPS remain unsupported by this patch; unsupported targets fail at the provider guard. AWS-LC non-FIPS builds require a C/C++ compiler. Windows x64 builds use NASM or the configured `prebuilt-nasm` feature.
+
+Keep existing SP signing credentials, pinned IdP metadata certificates, entity IDs and HTTPS ACS configuration. Test the candidate against your sandbox IdP before switching a deployment: AWS-LC requires RSA keys of at least 2048 bits and RSA-PSS salts equal to the digest length. Signed plaintext assertions remain required. The SP still advertises no encryption certificate, loads no XML decryption key and rejects encrypted assertions. No database migration is introduced by this provider change.
+
 ## Agent check
 
 Replace the `agentfw` executable while preserving `~/.agentfw/config.yaml` and its token. Run `agentfw preflight` before a session. If you require blocking, verify `agentfw preflight --require-enforce` and review the replay evidence. The Claude Code hook still fails open when the daemon is unavailable; a successful binary upgrade alone does not make that hook fail closed.

@@ -456,34 +456,63 @@ fn finish_sso(
     state_value: &str,
     fields: Vec<(String, String)>,
 ) -> anyhow::Result<saml_rs::SsoSession> {
-    let sp = runtime.sp()?;
-    let idp = idp_descriptor(&connection)?;
-    let relay = RelayStateParam::try_from_option(Some(state_value.to_owned()))?;
-    let snapshot = PendingSnapshot::<saml_rs::AuthnRequest>::authn_request(
-        pending.request_id,
-        relay,
-        pending.idp_entity_id,
-        pending.expected_binding,
-        pending.acs_url,
-        pending.acs_binding,
-    );
-    let pending = PendingAuthnRequest::from_snapshot(snapshot)?;
-    let fields = fields
-        .into_iter()
-        .map(|(name, value)| FormField::new(name, value))
-        .collect();
+    let prepared = PreparedSso::new(runtime, connection, pending, state_value, fields)?;
     let mut replay = replay_cache()
         .lock()
         .expect("SAML replay cache mutex poisoned");
     let validation =
         SamlValidationContext::new(SystemTime::now(), ReplayPolicy::RequireCache(&mut *replay))
             .with_replay_retention(Duration::from_secs(SAML_STATE_TTL_SECONDS as u64));
-    Ok(sp.finish_sso(
-        &idp,
-        &pending,
-        BrowserInput::<SsoResponse>::post(fields),
-        validation,
-    )?)
+    prepared.finish(validation)
+}
+
+struct PreparedSso {
+    sp: Saml<saml_rs::Sp>,
+    idp: IdpDescriptor,
+    pending: PendingAuthnRequest,
+    fields: Vec<FormField>,
+}
+
+impl PreparedSso {
+    fn new(
+        runtime: &SamlRuntimeConfig,
+        connection: OrganizationSamlConnection,
+        pending: SamlAuthorizationPending,
+        state_value: &str,
+        fields: Vec<(String, String)>,
+    ) -> anyhow::Result<Self> {
+        let sp = runtime.sp()?;
+        let idp = idp_descriptor(&connection)?;
+        let relay = RelayStateParam::try_from_option(Some(state_value.to_owned()))?;
+        let snapshot = PendingSnapshot::<saml_rs::AuthnRequest>::authn_request(
+            pending.request_id,
+            relay,
+            pending.idp_entity_id,
+            pending.expected_binding,
+            pending.acs_url,
+            pending.acs_binding,
+        );
+        let pending = PendingAuthnRequest::from_snapshot(snapshot)?;
+        let fields = fields
+            .into_iter()
+            .map(|(name, value)| FormField::new(name, value))
+            .collect();
+        Ok(Self {
+            sp,
+            idp,
+            pending,
+            fields,
+        })
+    }
+
+    fn finish(self, validation: SamlValidationContext<'_>) -> anyhow::Result<saml_rs::SsoSession> {
+        Ok(self.sp.finish_sso(
+            &self.idp,
+            &self.pending,
+            BrowserInput::<SsoResponse>::post(self.fields),
+            validation,
+        )?)
+    }
 }
 
 fn idp_descriptor(connection: &OrganizationSamlConnection) -> anyhow::Result<IdpDescriptor> {
@@ -639,6 +668,422 @@ mod tests {
 
     fn validation() -> SamlValidationContext<'static> {
         SamlValidationContext::new(SystemTime::now(), ReplayPolicy::DisabledForCompatibility)
+    }
+
+    struct FixedReplayCache {
+        now: SystemTime,
+        entries: BTreeMap<String, SystemTime>,
+    }
+
+    impl FixedReplayCache {
+        fn new(now: SystemTime) -> Self {
+            Self {
+                now,
+                entries: BTreeMap::new(),
+            }
+        }
+
+        fn validation(&mut self) -> SamlValidationContext<'_> {
+            SamlValidationContext::new(self.now, ReplayPolicy::RequireCache(self))
+                .with_replay_retention(Duration::from_secs(SAML_STATE_TTL_SECONDS as u64))
+        }
+    }
+
+    impl ReplayCache for FixedReplayCache {
+        fn check_and_store(
+            &mut self,
+            key: ReplayKey,
+            expires_at: SystemTime,
+        ) -> Result<(), SamlError> {
+            self.entries.retain(|_, expiry| *expiry > self.now);
+            let key = format!("{}:{}", key.kind(), key.value());
+            if self.entries.contains_key(&key) {
+                return Err(SamlError::ReplayDetected { key });
+            }
+            self.entries.insert(key, expires_at);
+            Ok(())
+        }
+    }
+
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct KeycloakVendor {
+        name: String,
+        version: String,
+        archive_sha256: String,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct KeycloakProvenance {
+        driver_sha256: String,
+        saml_source_sha256: String,
+        gateway_sha256: String,
+        bootstrap_helper_sha256: String,
+        keycloak_archive_sha256: String,
+        jdk_archive_sha256: String,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct KeycloakCorpus {
+        schema_version: u32,
+        acceptance_complete: bool,
+        synthetic_fixture: bool,
+        vendor: KeycloakVendor,
+        captured_at_unix: u64,
+        sp_entity_id: String,
+        acs_url: String,
+        idp_entity_id: String,
+        idp_signing_cert_pem: String,
+        request_id: String,
+        relay_state: String,
+        expected_name_id: String,
+        metadata_xml: String,
+        saml_response: String,
+        provenance: KeycloakProvenance,
+    }
+
+    impl KeycloakCorpus {
+        fn load() -> anyhow::Result<Self> {
+            // Runtime loading keeps ordinary Gateway builds independent of
+            // fixture generation. Missing or incomplete corpus is a test failure.
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/saml/keycloak-corpus.json");
+            let bytes = std::fs::read(path).map_err(|error| {
+                anyhow::anyhow!("required fresh Keycloak corpus unavailable: {error}")
+            })?;
+            let corpus: Self = serde_json::from_slice(&bytes)?;
+            anyhow::ensure!(
+                corpus.schema_version == 1,
+                "unsupported Keycloak corpus schema"
+            );
+            anyhow::ensure!(
+                corpus.acceptance_complete && corpus.synthetic_fixture,
+                "Keycloak corpus requires complete synthetic vendor acceptance"
+            );
+            anyhow::ensure!(
+                corpus.vendor.name == "Keycloak" && corpus.vendor.version == "26.8.0",
+                "Keycloak corpus vendor provenance is unsupported"
+            );
+            anyhow::ensure!(
+                corpus.vendor.archive_sha256
+                    == "7ed1de3fda2598369262613bf682aab7e233d80a38c405e91588f7a7454370a1",
+                "Keycloak corpus does not identify the pinned official archive"
+            );
+            anyhow::ensure!(
+                corpus.vendor.archive_sha256 == corpus.provenance.keycloak_archive_sha256,
+                "Keycloak corpus archive provenance differs"
+            );
+            for digest in [
+                &corpus.provenance.driver_sha256,
+                &corpus.provenance.saml_source_sha256,
+                &corpus.provenance.gateway_sha256,
+                &corpus.provenance.bootstrap_helper_sha256,
+                &corpus.provenance.keycloak_archive_sha256,
+                &corpus.provenance.jdk_archive_sha256,
+            ] {
+                anyhow::ensure!(
+                    digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()),
+                    "Keycloak corpus lacks a SHA-256 provenance digest"
+                );
+            }
+            anyhow::ensure!(
+                !corpus.request_id.is_empty()
+                    && !corpus.relay_state.is_empty()
+                    && !corpus.expected_name_id.is_empty(),
+                "Keycloak corpus correlation is absent"
+            );
+            Ok(corpus)
+        }
+
+        fn now(&self) -> SystemTime {
+            UNIX_EPOCH + Duration::from_secs(self.captured_at_unix)
+        }
+
+        fn runtime(&self) -> SamlRuntimeConfig {
+            // Published local test credentials satisfy the strict SP builder;
+            // plaintext response verification needs no captured private key.
+            SamlRuntimeConfig {
+                sp_entity_id: self.sp_entity_id.clone(),
+                acs_url: self.acs_url.clone(),
+                sp_private_key_pem: FIXTURE_KEY.into(),
+                sp_certificate_pem: FIXTURE_CERT.into(),
+            }
+        }
+
+        fn connection(&self) -> OrganizationSamlConnection {
+            OrganizationSamlConnection {
+                organization_id: "keycloak-corpus".into(),
+                entity_id: self.idp_entity_id.clone(),
+                metadata_xml: self.metadata_xml.clone(),
+                metadata_signing_cert_pem: self.idp_signing_cert_pem.clone(),
+                active: true,
+                created_at_unix: 0,
+                updated_at_unix: 0,
+            }
+        }
+
+        fn pending(&self) -> SamlAuthorizationPending {
+            // These expectations were captured from the original outgoing SP
+            // request, independently of the vendor response under validation.
+            SamlAuthorizationPending {
+                organization_id: "keycloak-corpus".into(),
+                workspace_id: "corpus-workspace".into(),
+                invitation_id: None,
+                request_id: self.request_id.clone(),
+                idp_entity_id: self.idp_entity_id.clone(),
+                expected_binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST".into(),
+                request_binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect".into(),
+                acs_url: self.acs_url.clone(),
+                acs_binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST".into(),
+            }
+        }
+
+        fn fields(&self) -> Vec<(String, String)> {
+            vec![
+                ("SAMLResponse".into(), self.saml_response.clone()),
+                ("RelayState".into(), self.relay_state.clone()),
+            ]
+        }
+
+        fn verify(&self, replay: &mut FixedReplayCache) -> anyhow::Result<saml_rs::SsoSession> {
+            PreparedSso::new(
+                &self.runtime(),
+                self.connection(),
+                self.pending(),
+                &self.relay_state,
+                self.fields(),
+            )?
+            .finish(replay.validation())
+        }
+
+        fn assert_valid(&self) -> anyhow::Result<()> {
+            let session = self.verify(&mut FixedReplayCache::new(self.now()))?;
+            assert_eq!(session.issuer().as_str(), self.idp_entity_id);
+            assert_eq!(session.name_id().value(), self.expected_name_id);
+            assert!(!session.verified_xml_signatures().is_empty());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn keycloak_corpus_accepts_original_vendor_signed_documents() -> anyhow::Result<()> {
+        KeycloakCorpus::load()?.assert_valid()
+    }
+
+    #[test]
+    fn keycloak_corpus_rejects_tampered_metadata_endpoint() -> anyhow::Result<()> {
+        let corpus = KeycloakCorpus::load()?;
+        corpus.assert_valid()?;
+        let mut connection = corpus.connection();
+        let service = connection
+            .metadata_xml
+            .find("SingleSignOnService")
+            .ok_or_else(|| anyhow::anyhow!("vendor corpus lacks an SSO endpoint"))?;
+        let start = service
+            + connection.metadata_xml[service..]
+                .find("Location=\"")
+                .ok_or_else(|| anyhow::anyhow!("vendor corpus lacks a quoted SSO location"))?
+            + "Location=\"".len();
+        let end = start
+            + connection.metadata_xml[start..]
+                .find('"')
+                .ok_or_else(|| anyhow::anyhow!("vendor corpus has an unterminated SSO location"))?;
+        connection
+            .metadata_xml
+            .replace_range(start..end, "https://attacker.example.test/sso");
+        assert!(idp_descriptor(&connection).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn keycloak_corpus_rejects_tampered_name_id() -> anyhow::Result<()> {
+        let corpus = KeycloakCorpus::load()?;
+        corpus.assert_valid()?;
+        let mut xml = String::from_utf8(
+            base64::engine::general_purpose::STANDARD.decode(&corpus.saml_response)?,
+        )?;
+        let positions: Vec<usize> = xml
+            .match_indices(&corpus.expected_name_id)
+            .filter_map(|(offset, _)| {
+                let (_, prefix) = xml[..offset].rsplit_once('<')?;
+                let tag = prefix.split_whitespace().next()?.trim_end_matches('>');
+                (prefix.ends_with('>') && tag.rsplit(':').next() == Some("NameID"))
+                    .then_some(offset)
+            })
+            .collect();
+        assert_eq!(
+            positions.len(),
+            1,
+            "vendor corpus must have exactly one expected NameID"
+        );
+        let start = positions[0];
+        xml.replace_range(
+            start..start + corpus.expected_name_id.len(),
+            "tampered-synthetic@example.test",
+        );
+        let mut fields = corpus.fields();
+        fields[0].1 = base64::engine::general_purpose::STANDARD.encode(xml);
+        let mut replay = FixedReplayCache::new(corpus.now());
+        assert!(PreparedSso::new(
+            &corpus.runtime(),
+            corpus.connection(),
+            corpus.pending(),
+            &corpus.relay_state,
+            fields,
+        )?
+        .finish(replay.validation())
+        .is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn keycloak_corpus_rejects_wrong_original_request_correlation() -> anyhow::Result<()> {
+        let corpus = KeycloakCorpus::load()?;
+        corpus.assert_valid()?;
+        for mutation in ["request_id", "relay_state", "acs_url"] {
+            let mut pending = corpus.pending();
+            let mut fields = corpus.fields();
+            match mutation {
+                "request_id" => pending.request_id = "_different_original_request".into(),
+                "relay_state" => fields[1].1 = "different-original-relay".into(),
+                "acs_url" => {
+                    pending.acs_url = "https://different.example.test/auth/saml/acs".into()
+                }
+                _ => unreachable!(),
+            }
+            let mut replay = FixedReplayCache::new(corpus.now());
+            assert!(
+                PreparedSso::new(
+                    &corpus.runtime(),
+                    corpus.connection(),
+                    pending,
+                    &corpus.relay_state,
+                    fields,
+                )?
+                .finish(replay.validation())
+                .is_err(),
+                "accepted incorrect {mutation}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn keycloak_corpus_rejects_expired_vendor_assertion() -> anyhow::Result<()> {
+        let corpus = KeycloakCorpus::load()?;
+        corpus.assert_valid()?;
+        let mut replay = FixedReplayCache::new(corpus.now() + Duration::from_secs(24 * 60 * 60));
+        assert!(corpus.verify(&mut replay).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn keycloak_corpus_rejects_replayed_vendor_assertion() -> anyhow::Result<()> {
+        let corpus = KeycloakCorpus::load()?;
+        let mut replay = FixedReplayCache::new(corpus.now());
+        let session = corpus.verify(&mut replay)?;
+        assert_eq!(session.name_id().value(), corpus.expected_name_id);
+        let error = corpus
+            .verify(&mut replay)
+            .err()
+            .ok_or_else(|| anyhow::anyhow!("replayed vendor assertion was accepted"))?;
+        assert!(
+            matches!(
+                error.downcast_ref::<SamlError>(),
+                Some(SamlError::ReplayDetected { .. })
+            ),
+            "expected replay rejection, got {error}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn historical_signed_response_is_accepted_at_its_validation_time() -> anyhow::Result<()> {
+        let runtime = fixture_runtime();
+        let connection = OrganizationSamlConnection {
+            organization_id: "context-fixture".into(),
+            entity_id: IDP_ENTITY_ID.into(),
+            metadata_xml: signed_idp_metadata(&fixture_idp()?)?,
+            metadata_signing_cert_pem: FIXTURE_CERT.into(),
+            active: true,
+            created_at_unix: 0,
+            updated_at_unix: 0,
+        };
+        let pending = SamlAuthorizationPending {
+            organization_id: "context-fixture".into(),
+            workspace_id: "context-workspace".into(),
+            invitation_id: None,
+            request_id: "_context_request".into(),
+            idp_entity_id: IDP_ENTITY_ID.into(),
+            expected_binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST".into(),
+            request_binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect".into(),
+            acs_url: SP_ACS_URL.into(),
+            acs_binding: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST".into(),
+        };
+        let unsigned = format!(
+            r#"<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_context_response" Version="2.0" IssueInstant="2020-01-01T00:00:00Z" Destination="{SP_ACS_URL}" InResponseTo="_context_request"><saml:Issuer>{IDP_ENTITY_ID}</saml:Issuer><samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status><saml:Assertion ID="_context_assertion" Version="2.0" IssueInstant="2020-01-01T00:00:00Z"><saml:Issuer>{IDP_ENTITY_ID}</saml:Issuer><saml:Subject><saml:NameID>alice@example.test</saml:NameID><saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"><saml:SubjectConfirmationData InResponseTo="_context_request" Recipient="{SP_ACS_URL}" NotOnOrAfter="2020-01-01T00:05:00Z"/></saml:SubjectConfirmation></saml:Subject><saml:Conditions NotBefore="2020-01-01T00:00:00Z" NotOnOrAfter="2020-01-01T00:05:00Z"><saml:AudienceRestriction><saml:Audience>{SP_ENTITY_ID}</saml:Audience></saml:AudienceRestriction></saml:Conditions><saml:AuthnStatement AuthnInstant="2020-01-01T00:00:00Z" SessionIndex="_context_session"><saml:AuthnContext><saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport</saml:AuthnContextClassRef></saml:AuthnContext></saml:AuthnStatement></saml:Assertion></samlp:Response>"#
+        );
+        let key = load_private_key(FIXTURE_KEY, None)?;
+        let signed =
+            construct_saml_signature(&unsigned, false, &key, FIXTURE_CERT, RSA_SHA256, &[], None)?;
+        let fields = vec![
+            (
+                "SAMLResponse".into(),
+                base64::engine::general_purpose::STANDARD.encode(signed),
+            ),
+            ("RelayState".into(), "context-relay".into()),
+        ];
+        // Establish that the real signed response is valid at this independent
+        // instant before exercising the application's shared verifier.
+        let captured_at = UNIX_EPOCH + Duration::from_secs(1_577_836_801);
+        let snapshot = PendingSnapshot::<saml_rs::AuthnRequest>::authn_request(
+            pending.request_id.clone(),
+            RelayStateParam::try_from_option(Some("context-relay"))?,
+            pending.idp_entity_id.clone(),
+            pending.expected_binding.clone(),
+            pending.acs_url.clone(),
+            pending.acs_binding.clone(),
+        );
+        let verified = runtime
+            .sp()?
+            .finish_sso(
+                &idp_descriptor(&connection)?,
+                &PendingAuthnRequest::from_snapshot(snapshot)?,
+                BrowserInput::<SsoResponse>::post(
+                    fields
+                        .iter()
+                        .map(|(name, value)| FormField::new(name, value))
+                        .collect(),
+                ),
+                SamlValidationContext::new(captured_at, ReplayPolicy::DisabledForCompatibility),
+            )
+            .map_err(|error| {
+                anyhow::anyhow!("fixed-time signed fixture control failed: {error}")
+            })?;
+        assert_eq!(verified.name_id().value(), "alice@example.test");
+        assert!(finish_sso(
+            &runtime,
+            connection.clone(),
+            pending.clone(),
+            "context-relay",
+            fields.clone()
+        )
+        .is_err());
+        let mut replay = FixedReplayCache::new(captured_at);
+        let session = PreparedSso::new(&runtime, connection, pending, "context-relay", fields)?
+            .finish(replay.validation())?;
+        assert_eq!(session.name_id().value(), "alice@example.test");
+        Ok(())
+    }
+
+    #[test]
+    fn saml_initializes_the_timing_safe_document_provider() -> anyhow::Result<()> {
+        let provider = saml_rs::initialize_crypto_provider()?;
+        assert_eq!(provider.provider(), saml_rs::CryptoProvider::AwsLc);
+        assert_eq!(provider.fips_status(), saml_rs::CryptoFipsStatus::Disabled);
+        Ok(())
     }
 
     #[test]

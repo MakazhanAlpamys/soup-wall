@@ -2,16 +2,19 @@
 """Offline safety checks for the manual vendor-runtime driver; no IdP is started."""
 
 import argparse
+import base64
 import contextlib
 import importlib.util
 import io
 import json
 from pathlib import Path
 import ssl
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
 import zipfile
+import zlib
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "keycloak-saml-acceptance.py"
 SPEC = importlib.util.spec_from_file_location("keycloak_acceptance", MODULE_PATH)
@@ -21,6 +24,148 @@ REQUESTS_AVAILABLE = importlib.util.find_spec("requests") is not None
 
 
 class DriverSafetyTests(unittest.TestCase):
+    def fixture_arguments(self, root, fixture_out):
+        return argparse.Namespace(artifact_label="unit-only", gateway=root / "missing.exe",
+            bootstrap_helper=root / "missing-helper.exe", keycloak_zip=root / "missing-keycloak.zip",
+            jdk_zip=root / "missing-jdk.zip", out=root / "acceptance.json", fixture_out=fixture_out)
+
+    def fixture_capture(self):
+        return {"captured_at_unix": 1800000001,
+                "sp_entity_id": "urn:soup-wall:keycloak:synthetic-unit",
+                "acs_url": "https://127.0.0.1:12345/auth/saml/acs",
+                "idp_entity_id": "https://127.0.0.1:23456/realms/soup-synthetic-unit",
+                "idp_signing_cert_pem": "-----BEGIN CERTIFICATE-----\nQUJD\n-----END CERTIFICATE-----\n",
+                "request_id": "_original-first-request", "relay_state": "synthetic-state",
+                "expected_name_id": "synthetic-unit@example.test",
+                "metadata_xml": '<EntityDescriptor entityID="original"><Signature>bytes</Signature></EntityDescriptor>',
+                "saml_response": base64.b64encode(b'<Response ID="first-response"><Signature>original bytes</Signature></Response>').decode()}
+
+    def fixture_report(self):
+        return {"passed": True, "cleanup_passed": True,
+                "checks": [{"name": "vendor-assertion-accepted", "passed": True},
+                           {"name": "own-runtime-cleaned", "passed": True}],
+                "runtimes": {"keycloak": {"version": "26.8.0", "sha256": "a" * 64},
+                             "jdk": {"sha256": "b" * 64}},
+                "driver_sha256": "c" * 64, "saml_source_sha256": "d" * 64,
+                "gateway_sha256": "e" * 64, "bootstrap_helper_sha256": "f" * 64}
+
+    def test_fixture_output_is_reserved_incomplete_before_missing_input_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = self.fixture_arguments(root, root / "fixture.json")
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(DRIVER.run(args), 1)
+            self.assertTrue(args.fixture_out.is_file(), "requested fixture output must be reserved before input reads")
+            self.assertEqual(json.loads(args.fixture_out.read_text()), {
+                "schema_version": 1, "acceptance_complete": False, "synthetic_fixture": True})
+            self.assertNotIn("saml_response", args.fixture_out.read_text())
+
+    def test_fixture_output_aliases_cannot_replace_report_or_protected_inputs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ["out", "gateway", "bootstrap_helper", "keycloak_zip", "jdk_zip"]:
+                with self.subTest(name=name):
+                    case = root / name
+                    case.mkdir()
+                    args = self.fixture_arguments(case, case / "placeholder")
+                    args.fixture_out = getattr(args, name)
+                    args.fixture_out.write_bytes(b"original protected bytes")
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        self.assertEqual(DRIVER.run(args), 1)
+                    self.assertEqual(args.fixture_out.read_bytes(), b"original protected bytes")
+                    if name != "out":
+                        report = json.loads(args.out.read_text())
+                        self.assertEqual(report["failure_phase"], "fixture-output-reservation")
+
+    def test_invalid_fixture_parent_fails_before_any_input_validation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = self.fixture_arguments(root, root / "missing-parent" / "fixture.json")
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(DRIVER.run(args), 1)
+            report = json.loads(args.out.read_text())
+            self.assertEqual(report["failure_phase"], "fixture-output-reservation")
+            self.assertFalse(args.fixture_out.exists())
+
+    def test_outgoing_request_id_and_relay_are_captured_without_response_input(self):
+        self.assertTrue(callable(getattr(DRIVER, "capture_sp_request", None)), "outgoing request capture is missing")
+        xml = (b'<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" '
+               b'ID="_independently-original-request"/>')
+        compressed = zlib.compress(xml)[2:-4]
+        url = "https://127.0.0.1:23456/auth?" + DRIVER.urllib.parse.urlencode({
+            "SAMLRequest": base64.b64encode(compressed).decode(),
+            "RelayState": "original+state", "SigAlg": "algorithm", "Signature": "opaque"})
+        self.assertEqual(DRIVER.capture_sp_request(url), {
+            "request_id": "_independently-original-request", "relay_state": "original+state"})
+        for bad in [url + "&RelayState=second", url.replace("SAMLRequest=", "SAMLResponse="),
+                    url.replace("RelayState=", "UnknownState=")]:
+            with self.subTest(bad=bad), self.assertRaises(RuntimeError):
+                DRIVER.capture_sp_request(bad)
+
+    def test_fixture_corpus_waits_for_all_checks_and_owned_cleanup(self):
+        self.assertTrue(callable(getattr(DRIVER, "SyntheticFixtureOutput", None)), "fixture publisher is missing")
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "fixture.json"
+            output = DRIVER.SyntheticFixtureOutput(path, [])
+            for changed in [{"passed": False}, {"cleanup_passed": False}, {"checks": []},
+                            {"checks": [{"name": "vendor-negative", "passed": False}]}]:
+                with self.subTest(changed=changed):
+                    report = self.fixture_report()
+                    report.update(changed)
+                    self.assertFalse(output.publish_capture(self.fixture_capture(), report))
+                    saved = json.loads(path.read_text())
+                    self.assertFalse(saved["acceptance_complete"])
+                    self.assertNotIn("metadata_xml", saved)
+                    self.assertNotIn("saml_response", saved)
+
+    def test_fixture_corpus_preserves_original_public_bytes_and_hash_provenance(self):
+        self.assertTrue(callable(getattr(DRIVER, "SyntheticFixtureOutput", None)), "fixture publisher is missing")
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "fixture.json"
+            output = DRIVER.SyntheticFixtureOutput(path, [])
+            capture = self.fixture_capture()
+            self.assertTrue(output.publish_capture(capture, self.fixture_report()))
+            saved = json.loads(path.read_text())
+            self.assertEqual(set(saved), set(capture) | {
+                "schema_version", "acceptance_complete", "synthetic_fixture", "vendor", "provenance"})
+            self.assertEqual(saved["vendor"], {"name": "Keycloak", "version": "26.8.0", "archive_sha256": "a" * 64})
+            self.assertEqual(saved["provenance"], {"driver_sha256": "c" * 64, "saml_source_sha256": "d" * 64,
+                "gateway_sha256": "e" * 64, "bootstrap_helper_sha256": "f" * 64,
+                "keycloak_archive_sha256": "a" * 64, "jdk_archive_sha256": "b" * 64})
+            self.assertEqual(saved["metadata_xml"], capture["metadata_xml"])
+            self.assertEqual(saved["saml_response"], capture["saml_response"])
+            self.assertEqual(saved["request_id"], "_original-first-request")
+            self.assertTrue(saved["acceptance_complete"])
+
+    def test_fixture_corpus_refuses_private_extra_fields_and_non_synthetic_subject(self):
+        self.assertTrue(callable(getattr(DRIVER, "SyntheticFixtureOutput", None)), "fixture publisher is missing")
+        with tempfile.TemporaryDirectory() as temporary:
+            for number, changes in enumerate([{"password": "must-never-export"},
+                    {"expected_name_id": "customer@real.invalid"},
+                    {"idp_signing_cert_pem": "-----BEGIN PRIVATE KEY-----\nsecret\n-----END PRIVATE KEY-----"}]):
+                path = Path(temporary) / (str(number) + ".json")
+                output = DRIVER.SyntheticFixtureOutput(path, [])
+                capture = self.fixture_capture()
+                capture.update(changes)
+                with self.assertRaises(RuntimeError):
+                    output.publish_capture(capture, self.fixture_report())
+                saved = path.read_text()
+                self.assertNotIn("must-never-export", saved)
+                self.assertNotIn("metadata_xml", saved)
+                self.assertFalse(json.loads(saved)["acceptance_complete"])
+
+    def test_fixture_atomic_publication_failure_keeps_incomplete_snapshot(self):
+        self.assertTrue(callable(getattr(DRIVER, "SyntheticFixtureOutput", None)), "fixture publisher is missing")
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "fixture.json"
+            output = DRIVER.SyntheticFixtureOutput(path, [])
+            pending = path.read_bytes()
+            with patch.object(DRIVER.os, "replace", side_effect=OSError("private detail")):
+                with self.assertRaises(OSError):
+                    output.publish_capture(self.fixture_capture(), self.fixture_report())
+            self.assertEqual(path.read_bytes(), pending)
+            self.assertEqual(list(path.parent.iterdir()), [path])
+
     def test_edge_rejects_header_injection_before_sending_status_or_headers(self):
         invalid = [("X-Name\r\nInjected", "value"), ("X-Name\n", "value"),
                    ("Bad Name", "value"), ("Bad:Name", "value"), ("", "value"),
@@ -116,19 +261,46 @@ class DriverSafetyTests(unittest.TestCase):
                        "GITHUB_TOKEN": "do-not-forward", "UNKNOWN_VENDOR_SECRET": "do-not-forward",
                        "HOME": "ambient-profile", "USERPROFILE": "ambient-profile",
                        "APPDATA": "ambient-profile", "LOCALAPPDATA": "ambient-profile",
-                       "PATH": "ambient-search-path", "COMSPEC": "ambient-command"}
+                       "PATH": "ambient-search-path", "COMSPEC": "ambient-command",
+                       "OS": "attacker-selected-platform"}
         with tempfile.TemporaryDirectory() as temporary, \
                 patch.dict(DRIVER.os.environ, environment, clear=True):
             owned = Path(temporary).resolve()
             result = DRIVER.child_environment(owned)
-            self.assertEqual(set(result), {"SYSTEMROOT", "WINDIR", "COMSPEC", "PATH", "PATHEXT",
+            self.assertEqual(set(result), {"SYSTEMROOT", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "OS",
                                           "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"})
+            self.assertEqual(result["OS"], "Windows_NT")
             for key in ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"]:
                 self.assertTrue(Path(result[key]).is_relative_to(owned))
                 self.assertTrue(Path(result[key]).is_dir())
             self.assertNotIn("ambient", result["PATH"])
             self.assertTrue(result["COMSPEC"].endswith("cmd.exe"))
             self.assertNotIn("do-not-forward", result.values())
+
+    @unittest.skipUnless(DRIVER.os.name == "nt", "official batch launcher regression requires native Windows")
+    def test_owned_batch_launcher_resolves_vendor_jar_from_bin_with_untrusted_ambient_os(self):
+        windows = Path(DRIVER.os.environ["SYSTEMROOT"]).resolve()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            vendor_bin = root / "vendor" / "bin"
+            vendor_lib = root / "vendor" / "lib"
+            unrelated_cwd = root / "owned-cwd"
+            for folder in [vendor_bin, vendor_lib, unrelated_cwd]:
+                folder.mkdir(parents=True)
+            (vendor_lib / "quarkus-run.jar").write_bytes(b"owned-entrypoint-marker")
+            probe = vendor_bin / "probe.bat"
+            probe.write_text('@echo off\nif "%OS%"=="Windows_NT" (\n'
+                '  set "DIRNAME=%~dp0"\n) else (\n  set "DIRNAME=.\\"\n)\n'
+                'if not exist "%DIRNAME%..\\lib\\quarkus-run.jar" exit /b 17\n'
+                'type "%DIRNAME%..\\lib\\quarkus-run.jar"\n', encoding="ascii")
+            with patch.dict(DRIVER.os.environ, {"SYSTEMROOT": str(windows),
+                            "OS": "attacker-selected-platform"}, clear=True):
+                environment = DRIVER.child_environment(root / "owned-profile")
+            child = subprocess.run([environment["COMSPEC"], "/d", "/c", str(probe)],
+                cwd=unrelated_cwd, env=environment, capture_output=True, timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW)
+            self.assertEqual(child.returncode, 0, child.stderr.decode(errors="replace"))
+            self.assertEqual(child.stdout, b"owned-entrypoint-marker")
 
     @unittest.skipUnless(REQUESTS_AVAILABLE, "full transport regressions require pinned requests")
     def test_internal_edge_ignores_ambient_proxy_netrc_and_redirect(self):

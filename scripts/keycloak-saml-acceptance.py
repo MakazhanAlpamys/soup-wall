@@ -3,8 +3,10 @@
 """Manual Windows SAML acceptance against an isolated, genuine Keycloak runtime.
 
 Requires the pinned official runtime archives, Python cryptography/requests/psutil, an
-unchanged Gateway binary, and the disposable database bootstrap example. No
-upstream source, metadata, assertions, credentials, or runtime logs are published.
+unchanged Gateway binary, and the disposable database bootstrap example. Credentials,
+private keys, database state and runtime logs are never exported. Optional fixture
+output retains only this run's synthetic public vendor protocol material after
+complete acceptance and successful owned cleanup.
 """
 
 import argparse
@@ -16,6 +18,7 @@ from html.parser import HTMLParser
 import http.server
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -32,6 +35,7 @@ import urllib.parse
 import uuid
 import xml.etree.ElementTree as ET
 import zipfile
+import zlib
 
 import ipaddress
 
@@ -123,6 +127,78 @@ class ReportOutput:
                 temporary.unlink(missing_ok=True)
 
 
+class SyntheticFixtureOutput(ReportOutput):
+    """Export only this driver's public synthetic vendor data after acceptance."""
+
+    CAPTURE_FIELDS = {"captured_at_unix", "sp_entity_id", "acs_url", "idp_entity_id",
+                      "idp_signing_cert_pem", "request_id", "relay_state", "expected_name_id",
+                      "metadata_xml", "saml_response"}
+
+    def __init__(self, destination, protected):
+        super().__init__(destination, protected, {
+            "schema_version": 1, "acceptance_complete": False, "synthetic_fixture": True})
+
+    def publish_capture(self, capture, report):
+        checks = report.get("checks", [])
+        if (report.get("passed") is not True or report.get("cleanup_passed") is not True
+                or not checks or any(check.get("passed") is not True for check in checks)):
+            return False
+        if not isinstance(capture, dict) or set(capture) != self.CAPTURE_FIELDS:
+            raise RuntimeError("synthetic fixture has unexpected fields")
+        stamp = capture["captured_at_unix"]
+        if type(stamp) is not int or not 0 <= stamp < 2 ** 64:
+            raise RuntimeError("synthetic fixture capture time is invalid")
+        for name in self.CAPTURE_FIELDS - {"captured_at_unix"}:
+            value = capture[name]
+            limit = 3 * 1024 * 1024 if name in {"metadata_xml", "saml_response"} else 16384
+            if not isinstance(value, str) or not value or len(value.encode("utf-8")) > limit:
+                raise RuntimeError("synthetic fixture field is empty or oversized")
+        if (not re.fullmatch(r"synthetic-[A-Za-z0-9_-]+@example\.test", capture["expected_name_id"])
+                or not capture["sp_entity_id"].startswith("urn:soup-wall:keycloak:")):
+            raise RuntimeError("fixture identity is not this driver's synthetic scope")
+        certificate = capture["idp_signing_cert_pem"]
+        if (not certificate.startswith("-----BEGIN CERTIFICATE-----\n")
+                or not certificate.rstrip().endswith("-----END CERTIFICATE-----")
+                or "PRIVATE KEY" in certificate):
+            raise RuntimeError("fixture requires a public IdP certificate")
+        base64.b64decode(capture["saml_response"], validate=True)
+        keycloak, jdk = report["runtimes"]["keycloak"], report["runtimes"]["jdk"]
+        provenance = {name: report[name] for name in ["driver_sha256", "saml_source_sha256",
+                     "gateway_sha256", "bootstrap_helper_sha256"]}
+        provenance.update(keycloak_archive_sha256=keycloak["sha256"], jdk_archive_sha256=jdk["sha256"])
+        if any(not re.fullmatch(r"[0-9a-f]{64}", value) for value in provenance.values()):
+            raise RuntimeError("fixture provenance hash is invalid")
+        self.publish({"schema_version": 1, "acceptance_complete": True, "synthetic_fixture": True,
+                      "vendor": {"name": "Keycloak", "version": keycloak["version"],
+                                 "archive_sha256": keycloak["sha256"]},
+                      **capture, "provenance": provenance})
+        return True
+
+
+def capture_sp_request(url):
+    """Read correlation from the original outbound request before any IdP reply."""
+    query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+    if any(len(query.get(name, [])) != 1 for name in ["SAMLRequest", "RelayState"]):
+        raise RuntimeError("outbound request correlation is missing or duplicated")
+    encoded, relay = query["SAMLRequest"][0], query["RelayState"][0]
+    if len(encoded) > 3 * 1024 * 1024 or not relay or len(relay) > 16384:
+        raise RuntimeError("outbound request correlation is oversized or empty")
+    try:
+        inflater = zlib.decompressobj(-zlib.MAX_WBITS)
+        xml = inflater.decompress(base64.b64decode(encoded, validate=True), 2 * 1024 * 1024 + 1)
+        if (len(xml) > 2 * 1024 * 1024 or not inflater.eof
+                or inflater.unused_data or inflater.unconsumed_tail):
+            raise ValueError("invalid bounded redirect request")
+        request = ET.fromstring(xml)
+        request_id = request.attrib.get("ID", "")
+        if (request.tag != "{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest"
+                or not request_id or len(request_id) > 16384):
+            raise ValueError("missing AuthnRequest identity")
+    except (ValueError, zlib.error, ET.ParseError) as error:
+        raise RuntimeError("outbound SP request cannot supply correlation") from error
+    return {"request_id": request_id, "relay_state": relay}
+
+
 def unpack(archive, destination, spec):
     if archive.stat().st_size != spec["size"] or sha256(archive) != spec["sha256"]:
         raise RuntimeError("official archive checksum mismatch")
@@ -155,7 +231,7 @@ def child_environment(directory):
                  "TEMP": directory / "tmp", "TMP": directory / "tmp"}
     for location in locations.values():
         location.mkdir(parents=True, exist_ok=True)
-    return {"SYSTEMROOT": str(windows), "WINDIR": str(windows),
+    return {"SYSTEMROOT": str(windows), "WINDIR": str(windows), "OS": "Windows_NT",
             "COMSPEC": str(windows / "System32" / "cmd.exe"),
             "PATH": os.pathsep.join(str(path) for path in [
                 windows / "System32", windows, windows / "System32" / "Wbem"]),
@@ -365,10 +441,13 @@ def run(args):
                               "HTTP form driver; no browser UI or MFA acceptance",
                               "No managed staging or customer tenant",
                               "No Linux/macOS vendor runtime acceptance",
-                              "Windows rsa advisory and issue #19 remain open",
+                              "Dependency/advisory status requires separate locked audit; live vendor acceptance covers Windows only",
                               "Gateway logout only; vendor SAML SLO not exercised"]}
 
     output = None
+    fixture_output = None
+    fixture_capture = None
+    fixture_destination = getattr(args, "fixture_out", None)
 
     def check(name, condition):
         report["checks"].append({"name": name, "passed": bool(condition)})
@@ -381,10 +460,14 @@ def run(args):
     children = []
     phase = "evidence-output-reservation"
     try:
-        output = ReportOutput(args.out, [getattr(args, name, None) for name in [
+        protected = ([getattr(args, name, None) for name in [
             "gateway", "bootstrap_helper", "keycloak_zip", "jdk_zip"]]
             + [Path(__file__), Path(__file__).resolve().parents[1]
-               / "crates" / "proxy" / "src" / "saml_auth.rs"], report)
+               / "crates" / "proxy" / "src" / "saml_auth.rs"])
+        output = ReportOutput(args.out, protected + [fixture_destination], report)
+        if fixture_destination is not None:
+            phase = "fixture-output-reservation"
+            fixture_output = SyntheticFixtureOutput(fixture_destination, protected + [args.out])
         phase = "input-validation"
         if os.name != "nt":
             raise RuntimeError("this pinned runtime checkpoint requires Windows")
@@ -595,7 +678,7 @@ def run(args):
             check("pinned-vendor-signed-metadata-imported", request("PUT", connection_url,
                   json=connection, headers=admin_headers).status_code == 200)
 
-            def obtain_assertion():
+            def obtain_assertion(original_request=None):
                 redirect = request("GET", start_url)
                 if redirect.status_code != 303:
                     raise RuntimeError("SP login did not redirect")
@@ -603,6 +686,8 @@ def run(args):
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(auth_url).query)
                 if "Signature" not in query or "SigAlg" not in query:
                     raise RuntimeError("SP request was not signed")
+                if original_request is not None:
+                    original_request.update(capture_sp_request(auth_url))
                 response = request("GET", auth_url)
                 for _ in range(8):
                     if response.status_code in {302, 303}:
@@ -623,7 +708,16 @@ def run(args):
                 raise RuntimeError("vendor browser flow exceeded the bounded redirect count")
 
             phase = "vendor-saml-login-and-session"
-            assertion_fields = obtain_assertion()
+            original_request = {} if fixture_output is not None else None
+            assertion_fields = obtain_assertion(original_request)
+            if fixture_output is not None:
+                # The integer verification instant follows fractional NotBefore,
+                # while preserving the original signed bytes and first login.
+                fixture_capture = {"captured_at_unix": math.ceil(time.time()),
+                    "sp_entity_id": sp_entity, "acs_url": acs, "idp_entity_id": issuer,
+                    "idp_signing_cert_pem": pinned_certificate, **original_request,
+                    "expected_name_id": subject, "metadata_xml": metadata,
+                    "saml_response": assertion_fields["SAMLResponse"]}
             assertion_bytes = base64.b64decode(assertion_fields["SAMLResponse"], validate=True)
             assertion_tree = ET.fromstring(assertion_bytes)
             check("real-vendor-signed-plaintext-assertion",
@@ -693,6 +787,18 @@ def run(args):
             publication_failed = True
     if publication_failed:
         report["passed"] = False
+    elif fixture_output is not None:
+        try:
+            fixture_output.publish_capture(fixture_capture, report)
+        except Exception as error:
+            publication_failed = True
+            report["passed"] = False
+            report["failure_type"] = type(error).__name__
+            report["failure_phase"] = "synthetic-fixture-publication"
+            try:
+                output.publish(report)
+            except Exception:
+                pass
     print(json.dumps({"passed": report["passed"], "checks": len(report["checks"]),
                       "publication_failed": publication_failed}), flush=True)
     return 0 if report["passed"] else 1
@@ -703,6 +809,8 @@ def main():
     for name in ["keycloak-zip", "jdk-zip", "gateway", "bootstrap-helper", "out"]:
         parser.add_argument("--" + name, required=True, type=lambda value: Path(value).resolve())
     parser.add_argument("--artifact-label", required=True)
+    parser.add_argument("--fixture-out", type=lambda value: Path(value).resolve(),
+                        help="Fresh optional synthetic public vendor corpus, published only after clean acceptance")
     return run(parser.parse_args())
 
 

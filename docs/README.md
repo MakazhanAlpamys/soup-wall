@@ -60,7 +60,8 @@ Reviewed aggregates and explanatory records are retained under
 [benchmark evidence](benchmarks/evidence). Useful entry points include the
 [Claude Code stdio MCP proof](benchmarks/evidence/CLAUDE_MCP_STDIO_2026-10-05.md),
 [native runtime checkpoint](benchmarks/evidence/agentdojo-native-fixture-2026-10-05.md),
-[Keycloak checkpoint](operations/evidence/KEYCLOAK_SAML_2026-10-05.md) and
+[Windows AWS-LC and Keycloak checkpoint](operations/evidence/SAML_PROVIDER_2026-10-06.md),
+[historical Keycloak checkpoint](operations/evidence/KEYCLOAK_SAML_2026-10-05.md) and
 [populated restore checkpoint](operations/evidence/POPULATED_RESTORE_2026-10-05.md).
 Keep these records separate from onboarding instructions so their versions,
 failures and limitations remain reviewable.
