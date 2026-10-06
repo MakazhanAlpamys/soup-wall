@@ -512,7 +512,7 @@ default: allow
         );
     }
 
-    // --- phase 10: the escalate action ---
+    // The escalate action and its declared fallback.
 
     const ESCALATE_YAML: &str = r#"
 agent_policies:

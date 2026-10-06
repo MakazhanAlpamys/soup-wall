@@ -11,7 +11,7 @@ groups:
         annotations:
           summary: Soup Wall Gateway metrics target is unavailable
           description: Prometheus has failed to scrape the named Gateway target for at least two minutes.
-          runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#health-and-monitoring
+          runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#health-and-monitoring
 
       - alert: LLMFirewallControlPlaneUnavailable
         expr: min_over_time(llm_firewall_control_plane_ready[2m]) == 0
@@ -22,7 +22,7 @@ groups:
         annotations:
           summary: Soup Wall control plane is unavailable
           description: PostgreSQL or SQLite readiness has remained unavailable for at least two minutes.
-          runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#dependency-failure-drills
+          runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#dependency-failure-drills
 
       - alert: LLMFirewallRedisLimitsUnavailable
         expr: (llm_firewall_redis_limits_enabled == 1) and (llm_firewall_redis_limits_ready == 0)
@@ -33,7 +33,7 @@ groups:
         annotations:
           summary: Soup Wall shared Redis limits are unavailable
           description: Distributed rate/spend admission state is configured but cannot be reached.
-          runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#dependency-failure-drills
+          runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#dependency-failure-drills
 
       - alert: LLMFirewallAuditQueueDisabled
         expr: max_over_time(llm_firewall_audit_queue_enabled[5m]) == 0
@@ -44,7 +44,7 @@ groups:
         annotations:
           summary: Soup Wall asynchronous audit queue is disabled
           description: The hosted production profile expects asynchronous control-plane audit persistence.
-          runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#health-and-monitoring
+          runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#health-and-monitoring
 
   - name: llm-firewall-evidence-loss
     interval: 30s
@@ -57,7 +57,7 @@ groups:
         annotations:
           summary: Soup Wall dropped audit events
           description: At least one privacy-safe audit event was dropped before durable persistence.
-          runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#incident-response
+          runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#incident-response
 
       - alert: LLMFirewallAuditPersistenceFailed
         expr: increase(llm_firewall_audit_queue_failed_events[5m]) > 0
@@ -67,7 +67,7 @@ groups:
         annotations:
           summary: Soup Wall audit persistence failed
           description: At least one queued audit event failed durable persistence.
-          runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#incident-response
+          runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#incident-response
 
       - alert: LLMFirewallUsagePersistenceFailed
         expr: increase(llm_firewall_usage_ledger_failed_events[5m]) > 0
@@ -77,4 +77,4 @@ groups:
         annotations:
           summary: Soup Wall usage persistence failed
           description: At least one terminal provider usage event failed durable persistence.
-          runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#incident-response
+          runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#incident-response

@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
 //! Output moderation wiring: off-by-default passthrough. The verdict logic and the
-//! disabled no-op are unit-tested in `moderation.rs`; the live model (block/flag) is
-//! exercised by the phase-13 scorecard run under `--features ml`.
+//! disabled no-op are unit-tested in `moderation.rs`. Live block/flag inference
+//! needs a separate model-asset and runtime check under `--features ml`.
 
 use std::sync::Arc;
 

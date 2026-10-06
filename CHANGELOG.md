@@ -1,6 +1,6 @@
 # Changelog
 
-Changes to the public Soup Wall source distribution are recorded here. Release artifacts and their checksums are published on [GitHub Releases](https://github.com/MakazhanAlpamys/soup-wall/releases).
+Changes to the public Soup Wall source distribution are recorded here. Release artifacts and their checksums are published on [GitHub Releases](https://github.com/SoupTeam/soup-wall/releases).
 
 ## Unreleased
 
@@ -50,7 +50,7 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
   live effectiveness.
 - Added a checkpointed roadmap execution record. Managed staging, real-IdP,
   live-model evaluation, and shadow soaking remain open acceptance gates.
-- Updated the SAML stack to `saml-rs 0.5.3`, `bergshamra 0.9.2`, and the `kryptering 0.6.0` security backport. Linux and macOS use AWS-LC; Windows retains RustCrypto because upstream's AWS-LC provider still rejects Windows. The `rsa` advisory remains in the complete release lock and [issue #19](https://github.com/MakazhanAlpamys/soup-wall/issues/19) stays open.
+- Updated the SAML stack to `saml-rs 0.5.3`, `bergshamra 0.9.2`, and the `kryptering 0.6.0` security backport. Linux and macOS use AWS-LC; Windows retains RustCrypto because upstream's AWS-LC provider still rejects Windows. The `rsa` advisory remains in the complete release lock and [issue #19](https://github.com/SoupTeam/soup-wall/issues/19) stays open.
 - Added SAML signature and metadata tampering checks and CI verification on all four archive targets. Encrypted assertions remain rejected and the SP does not advertise assertion encryption. Real-IdP acceptance still requires operator evidence.
 
 ## v0.4.0 — full-source Soup Wall
@@ -63,6 +63,6 @@ Changes to the public Soup Wall source distribution are recorded here. Release a
 
 See the [roadmap](docs/ROADMAP.md) for field validation work and the [upgrade guide](docs/UPGRADING.md) for existing installations. Release artifacts and checksums are published with the v0.4.0 release after verification.
 
-## [v0.3.0](https://github.com/MakazhanAlpamys/soup-wall/releases/tag/v0.3.0) — Agent release
+## [v0.3.0](https://github.com/SoupTeam/soup-wall/releases/tag/v0.3.0) — Agent release
 
 First public binary release of Soup Wall Agent, including the local `agentfw` daemon and CLI, Claude Code hooks, MCP proxy, policy and audit path, guarded execution, and the `soup-wall-bench` regression corpus. Its default was shadow mode. The Gateway and Console source were not in that tag.

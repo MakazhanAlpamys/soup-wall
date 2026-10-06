@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
 //! Decide where a tool result came from. Every taint verdict downstream depends on
-//! this being right, and it is the one judgment the phase-08 library could not make
-//! for itself.
+//! this being right. The collector supplies the tool and working-directory
+//! context that the policy library cannot infer for itself.
 
 use std::path::{Component, Path, PathBuf};
 
@@ -193,8 +193,7 @@ mod tests {
     #[test]
     fn bash_and_unknown_tools_are_local_system_not_untrusted() {
         // Conservative but NOT untrusted: marking every unknown tool untrusted would
-        // flood the taint set and reproduce the prompt-fatigue failure phase 08 spent
-        // its measurement effort avoiding.
+        // flood the taint set and interrupt ordinary follow-up work.
         assert_eq!(
             decide("Bash", &args(serde_json::json!({})), Some("/p")),
             Provenance::LocalSystem
@@ -237,8 +236,8 @@ mod tests {
     #[test]
     fn a_relative_path_in_project_is_local_project() {
         // Hooks may hand a relative `file_path`. Previously this fell through to
-        // LocalSystem, mislabelling an ordinary in-project read in the audit log
-        // (the phase-10 tuning corpus / phase-12 benchmark). `decide` now resolves
+        // LocalSystem, mislabelling an ordinary in-project read in the audit log.
+        // `decide` resolves
         // the relative path against `cwd` before the containment check.
         let p = decide(
             "Read",

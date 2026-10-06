@@ -98,6 +98,12 @@ applies. Other processes running as the same Windows user can decrypt these file
 this fixture storage is not a production secrets vault. Incomplete attempts retain
 encrypted diagnostics; earlier retained attempts predate this storage correction.
 
+Run on native Windows with Python 3.10 or later, an installed Claude Code
+executable supporting `--restricted`, `--strict-mcp-config` and
+`--no-session-persistence`, and Git for Windows with Git Bash. The harness uses
+these existing installations. For custom locations, pass `--claude-binary` and
+`--git-bash` with absolute paths.
+
 ```powershell
 cargo build --locked -p agentfw --bin agentfw
 python scripts/windows-claude-mcp-acceptance.py --run --evidence target/claude-mcp-new.json

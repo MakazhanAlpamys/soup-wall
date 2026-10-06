@@ -3,7 +3,7 @@
 The 2026-10-04 checkpoint tests released binaries and isolated services. It does
 not establish a managed deployment, real-provider behavior, customer-IdP
 interoperability or alert delivery. Keep those gates in the
-[roadmap execution record](ROADMAP_EXECUTION.md) open until their own evidence
+[current roadmap](../ROADMAP.md#phases) open until their own evidence
 exists.
 
 The separate [local monitoring acceptance](LOCAL_MONITORING_ACCEPTANCE.md)

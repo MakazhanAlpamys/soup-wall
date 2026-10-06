@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn an_empty_session_id_maps_to_none_rather_than_a_shared_bucket() {
-        // Found in Task 4: `session_id` is required to be PRESENT but serde does not
+        // `session_id` is required to be PRESENT but serde does not
         // require it to be non-empty. Everything — taint, sequence numbers, session
         // isolation — is keyed by it, so an empty id would collapse unrelated
         // sessions into one shared taint pool. That is exactly the cross-session
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn oversized_content_is_truncated_at_the_cap() {
-        // Measured: record() on 10 MB costs 532 ms, far past the hook budget.
+        // Bound synchronous taint recording work for oversized tool results.
         let big = "x".repeat(5000);
         let p = payload(&format!(
             r#"{{"session_id":"s","hook_event_name":"PostToolUse","tool_name":"Bash","tool_response":"{big}"}}"#

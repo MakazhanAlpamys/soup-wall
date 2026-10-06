@@ -40,8 +40,7 @@ fn ml_injection_blocks_on_the_input_path() {
 
 /// The prompt-injection classifier is trained on *user prompts that try to hijack
 /// a model*. A model's own reply is not such a prompt, and applying the classifier
-/// there is a category error: measured on the phase-13 corpus it caught 0% of
-/// harmful replies while over-blocking 16% of legitimate security answers
+/// there can interrupt legitimate security answers
 /// (defensive phishing guidance, password-policy advice, authorized-pentest
 /// methodology). Indirect injection is unaffected — retrieved content and tool
 /// results are projected as `Direction::Input` and are still covered.

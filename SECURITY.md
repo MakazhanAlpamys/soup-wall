@@ -2,7 +2,7 @@
 
 ## Report a vulnerability
 
-Use GitHub's private [Report a vulnerability](https://github.com/MakazhanAlpamys/soup-wall/security/advisories/new) form. Please do not post an exploitable report in a public issue. Include the affected version or commit, configuration, steps to reproduce, expected and observed result, and a minimal proof of concept where possible. We aim to acknowledge reports within a few days.
+Use GitHub's private [Report a vulnerability](https://github.com/SoupTeam/soup-wall/security/advisories/new) form. Please do not post an exploitable report in a public issue. Include the affected version or commit, configuration, steps to reproduce, expected and observed result, and a minimal proof of concept where possible. We aim to acknowledge reports within a few days.
 
 ## Scope
 

@@ -4,11 +4,15 @@
 
 **Open-source protection for AI apps and agents.** Soup Wall inspects model traffic and the actions an agent takes, applies local policy, and records decisions for review. The complete source for the agent, gateway, and self-hosted control plane is available under Apache-2.0.
 
-[![CI](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/ci.yml)
-[![Supply chain](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml/badge.svg)](https://github.com/MakazhanAlpamys/soup-wall/actions/workflows/supply-chain.yml)
+[![CI](https://github.com/SoupTeam/soup-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/SoupTeam/soup-wall/actions/workflows/ci.yml)
+[![Supply chain](https://github.com/SoupTeam/soup-wall/actions/workflows/supply-chain.yml/badge.svg)](https://github.com/SoupTeam/soup-wall/actions/workflows/supply-chain.yml)
 ![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)
 
 ## Choose where to start
+
+Joining the development team? Start with the [development guide](docs/DEVELOPMENT.md), then read [CONTRIBUTING.md](CONTRIBUTING.md). The [documentation index](docs/README.md) links setup, architecture, operator procedures, and verification evidence.
+
+Development starts from the `baseline/team-handoff` source tag. The [product roadmap](docs/ROADMAP.md) orders work by dependencies and acceptance criteria, with one final release after the complete product passes its gates. The canonical repository is [SoupTeam/soup-wall](https://github.com/SoupTeam/soup-wall).
 
 | Surface | What it does | Runs as |
 | --- | --- | --- |
@@ -20,7 +24,7 @@ The `llm-firewall` binary and `LLM_FW_*` settings retain their established names
 
 ## Build
 
-Install the current stable Rust toolchain with `rustfmt` and `clippy`, then run from the repository root:
+Install the current stable Rust toolchain with `rustfmt` and `clippy`, a platform C/C++ build toolchain, and Python 3.10+ for integration tests. See the [platform prerequisites](docs/DEVELOPMENT.md#prerequisites), then run from the repository root:
 
 ```sh
 cargo build --locked --release --workspace
@@ -98,7 +102,7 @@ The customer workspace at `/customer` requires configured OIDC or SAML federatio
 
 Security reports, including Gateway and control-plane bypasses, belong in [SECURITY.md](SECURITY.md). Contributions are described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-The [public roadmap](docs/ROADMAP.md) lists the remaining full-workspace release checks and field validation; the [changelog](CHANGELOG.md) records released changes.
+The [public roadmap](docs/ROADMAP.md) lists development priorities, remaining release gates, and field validation; the [changelog](CHANGELOG.md) records released changes.
 The [architecture guide](docs/ARCHITECTURE.md) maps the three product surfaces to their crates and decision boundaries. The [upgrade guide](docs/UPGRADING.md) covers existing installations, and the [production runbook](docs/operations/PRODUCTION_RUNBOOK.md) covers readiness and alerts. Operators can also use the [Agent sandbox guide](docs/operations/SANDBOX.md), [identity checks](docs/operations/IDENTITY_INTEROPERABILITY.md), and [manual staging drills](docs/operations/STAGING_DRILLS.md).
 
 ## Provenance and license

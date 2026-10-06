@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible behavior problem using a safe example.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use English and minimal synthetic examples. Report vulnerabilities through [private security reporting](https://github.com/SoupTeam/soup-wall/security/advisories/new).
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Agent
+        - Gateway
+        - Console / identity
+        - Benchmark / policy
+        - Documentation / deployment
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Version and environment
+      description: Commit or release, OS, relevant settings, and active policy or mode. Omit credentials and customer data.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal safe example and commands.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and observed behavior
+      description: Include sanitized errors or evidence where useful.
+    validations:
+      required: true

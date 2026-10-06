@@ -8,7 +8,7 @@
 //! does when **no judge is configured** — the default install. So a tainted
 //! side-effecting action (the `escalate-tainted-side-effect` rule, `fallback: allow`)
 //! is *not* an interruption here, which is the honest no-judge behavior. The judge tier
-//! is measured separately (phase 10).
+//! requires separate live-model evaluation.
 
 use soup_wall_agent::{AgentFirewall, AgentPolicySet, Verdict, DEFAULT_TAINT_CAP};
 

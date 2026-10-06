@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Arthur Lin (carbon-evolution)
 
-//! Judge evaluation corpus — Task 6b. Measures the two numbers the whole project
-//! is held to: detection rate on real injection content and false-positive rate on
-//! real benign content, plus eleven follow-up experiments (E2–E12) that each change
-//! the design or a documented limit.
+//! Judge evaluation corpus. Measures classification outcomes on labelled injection
+//! and benign content, plus follow-up experiments (E2–E12) for prompt, transport
+//! and configuration limits.
 //!
 //! Deliberately reuses the **production** [`build_prompt`], [`parse_answer`], and
 //! [`SYSTEM`] so the numbers describe the shipped code, not a copy of it. Only the
@@ -332,7 +331,7 @@ async fn judge_corpus_evaluation() {
         );
     }
 
-    println!("# Judge evaluation corpus — Task 6b");
+    println!("# Judge evaluation corpus");
     println!(
         "\nEndpoint `{url}`, headline model `{model}`. Corpus: {} injection + {} benign = {}.",
         n_inj,

@@ -133,8 +133,8 @@ pub struct Config {
     /// prompts, file contents, or other sensitive material.
     #[serde(default)]
     pub capture_unknown_raw: bool,
-    /// Cap on content handed to the taint recorder. Measured: 10 MB costs 532 ms,
-    /// far past the budget for a synchronous hook. 256 KB costs roughly 13 ms.
+    /// Cap on content handed to the taint recorder. Bounds synchronous recording
+    /// work instead of scaling with an arbitrary tool-result size.
     #[serde(default = "default_max_record_bytes")]
     pub max_record_bytes: usize,
     #[serde(default = "default_timeout_ms")]
@@ -348,7 +348,7 @@ mod tests {
         }
     }
 
-    // --- phase 10: judge configuration ---
+    // Optional judge configuration.
 
     #[test]
     fn the_judge_is_disabled_by_default() {
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn a_config_without_a_judge_block_still_parses() {
-        // A phase-09 config must keep working untouched.
+        // Existing configurations without a judge block must keep working.
         let c = Config::from_yaml("enforce: true\n").unwrap();
         assert!(!c.judge.enabled);
     }

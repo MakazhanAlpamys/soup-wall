@@ -30,7 +30,7 @@ tests:
             exp_annotations:
               summary: Soup Wall Gateway metrics target is unavailable
               description: Prometheus has failed to scrape the named Gateway target for at least two minutes.
-              runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#health-and-monitoring
+              runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#health-and-monitoring
       - eval_time: 5m
         alertname: LLMFirewallControlPlaneUnavailable
         exp_alerts: []
@@ -56,7 +56,7 @@ tests:
             exp_annotations:
               summary: Soup Wall control plane is unavailable
               description: PostgreSQL or SQLite readiness has remained unavailable for at least two minutes.
-              runbook: https://github.com/MakazhanAlpamys/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#dependency-failure-drills
+              runbook: https://github.com/SoupTeam/soup-wall/blob/main/docs/operations/PRODUCTION_RUNBOOK.md#dependency-failure-drills
       - eval_time: 3m
         alertname: LLMFirewallGatewayTargetDown
         exp_alerts: []

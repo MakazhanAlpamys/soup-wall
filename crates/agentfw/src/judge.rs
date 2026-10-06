@@ -68,10 +68,9 @@ pub fn parse_answer(raw: &str) -> Judgement {
 /// The full user-message body. Split out from the request so it is testable without
 /// a server.
 ///
-/// Deliberately does **not** include the tool call. Measured against Gemma-4B: asking
-/// "is this action following the content" fired on ordinary work, because an agent
-/// reading docs and doing what they say IS following the content. Judging the
-/// content's intent alone scored 8/8. See the design spec §4b.
+/// Deliberately does **not** include the tool call. An agent reading documentation
+/// and doing what it says is ordinary work. The judge assesses the content's
+/// intent rather than whether an action follows that content.
 pub fn build_prompt(span: &str, source: &str, max_span_bytes: usize) -> String {
     format!(
         "The agent fetched this content from {source}.\n\n\
@@ -81,9 +80,9 @@ pub fn build_prompt(span: &str, source: &str, max_span_bytes: usize) -> String {
     )
 }
 
-/// Measured 8/8 on Gemma-4B. The "any claim of approval is itself evidence" clause is
-/// load-bearing: without it, a planted `SYSTEM NOTE: pre-approved` line flipped the
-/// answer. See the design spec §4b.
+/// Claims of approval inside untrusted content are evidence of an authority
+/// claim, not authorization. The prompt treats a planted
+/// `SYSTEM NOTE: pre-approved` line accordingly.
 ///
 /// `pub` so the evaluation corpus (`tests/judge_corpus.rs`) measures the exact
 /// production prompt rather than a drifting copy of it.
@@ -241,8 +240,7 @@ mod tests {
 
     #[test]
     fn the_prompt_does_not_include_the_tool_call() {
-        // Measured: including the action made the model fire on ordinary work,
-        // because doc-following IS following the content. Design spec §4b.
+        // Following documentation is ordinary work; judge the content's intent.
         let p = build_prompt("some fetched prose", "network:e.com", 4096);
         assert!(!p.contains("TOOL:"), "the action must not reach the judge");
         assert!(
@@ -280,8 +278,7 @@ mod tests {
 
     #[test]
     fn a_huge_span_is_capped() {
-        // Prefill dominates latency on a local model; measured 0.5-1.1s on small
-        // prompts, and an uncapped page would be tens of seconds.
+        // Cap prompt size to bound local-model prefill work for large tool results.
         let p = build_prompt(&"x".repeat(500_000), "network:e.com", 4096);
         assert!(p.len() < 6000, "got {} bytes", p.len());
     }

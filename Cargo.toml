@@ -5,7 +5,7 @@ members = ["crates/core", "crates/proxy", "crates/bench", "crates/agent", "crate
 [workspace.package]
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/MakazhanAlpamys/soup-wall"
+repository = "https://github.com/SoupTeam/soup-wall"
 
 [workspace.dependencies]
 regex = "1"

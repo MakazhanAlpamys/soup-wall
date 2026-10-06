@@ -17,6 +17,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  documentation:
+    name: Documentation links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify the documentation checker
+        run: python3 -m unittest discover -s scripts/tests -p 'test_check_docs.py' -v
+      - name: Check versioned local links and heading anchors
+        run: python3 scripts/check_docs.py
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
