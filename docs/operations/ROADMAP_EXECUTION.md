@@ -263,5 +263,32 @@ provider credentials, identity assertions, prompts, or customer data.
   Managed/customer recovery and actual webhook delivery remain open.
 - Future scope record: [FUTURE_ROADMAP](../FUTURE_ROADMAP.md) records the requested
   six priorities, acceptance gates and first Claude Code/MCP sham-secret proof.
-  It is planning only. The current execution stops after integrating the current
-  native, restore and review corrections; no future implementation is started.
+  It was planning only at that checkpoint; the next execution decision is
+  recorded separately below.
+- Restored integration context: on 2026-10-05, public main was clean at
+  `c6045d30341dbc784cb219472c93f5b35921c928`, matching the remote. Populated
+  restore [PR #29](https://github.com/MakazhanAlpamys/soup-wall/pull/29) passed
+  all 19 hosted checks on `ae866c9` and merged at that main commit. The corrected
+  local restore record contains 33 Python tests, 11 Rust helper tests and the
+  actual PostgreSQL integration; Docker PostgreSQL 16 also passed in CI.
+  Existing native/fallback fixture evidence and external field limits remain
+  distinct. Issue #19 is still open: the locked Windows graph retains RSA
+  0.9.10 and [RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071.html)
+  has no patched release. The selected
+  [XML crypto wrapper](https://github.com/kushaldas/kryptering/blob/1cb2c1d64a5ecf78bb0d69abaac22e19d30081c2/src/lib.rs#L15)
+  still restricts its AWS-LC backend to Linux/macOS, even though
+  [AWS-LC itself supports Windows](https://aws.github.io/aws-lc-rs/platform_support.html).
+  No safe small dependency substitution was found;
+  supported Windows XML crypto and real-IdP acceptance remain separate work.
+- Scoped MCP checkpoint: `421da78` adds opt-in sequential stdio admission before
+  original call execution and before original text/error result release to the
+  MCP host. Actual Claude Code 2.1.289 completes the matched scripted pair: the
+  control sends the synthetic secret; protected send execution and receiver
+  counts are zero; the native audit records one secret-egress Deny; both
+  independent utility checks pass. The final measured source is `9530017`, after
+  CI follow-up corrections for protected Windows fixture bootstrap and encrypted
+  private artifact storage. All 792 default Rust tests, required Clippy/
+  formatting, 79 script tests and the unchanged 19-attack/21-benign corpus pass.
+  The six loopback Messages requests are scripted, with no real model/provider
+  traffic. Broad MCP authority, model-context attestation and live effectiveness
+  remain open. [Exact source, retained failures and cleanup limits](../benchmarks/evidence/CLAUDE_MCP_STDIO_2026-10-05.md).

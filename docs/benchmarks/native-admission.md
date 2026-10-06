@@ -82,6 +82,13 @@ are errors. The collector supplies no authoritative action or trust fields.
 | `result` | `call_id`, `tool`, `args`, `result_kind`, `delivery`, `content` | Exact original formatted value or error before returning to its caller |
 | `context` | `call_id`, `tool`, `args`, `content` | Exact serialized original tool-result message before release to the model |
 
+The bounded [stdio MCP collector](../operations/MCP_STDIO_ADMISSION.md) uses
+`result` delivery `mcp_host` for the exact original JSON-RPC response. The
+daemon inspects decoded original text blocks or error text independently and
+hashes the entire envelope. Unsupported content is refused. Successful release
+records declared provenance like a parent return and completes the invocation;
+it does not invent a model `context` event or attest later host serialization.
+
 An admitted call receives an unpredictable daemon-generated invocation ID bound
 to the session epoch, registry, tool, schema and canonical arguments. Result
 and context stages must match that binding and occur once in order. Records

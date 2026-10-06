@@ -75,6 +75,10 @@ enum Cmd {
         /// hash of the command.
         #[arg(long)]
         id: Option<String>,
+        /// Admit supported stdio calls and text results using the installed native registry.
+        /// This opt-in path fails closed; result release is to the MCP host, not model context.
+        #[arg(long)]
+        native_admission: bool,
         /// The real server command and its args, after `--`.
         #[arg(last = true, required = true)]
         command: Vec<String>,
@@ -272,7 +276,11 @@ fn main() -> anyhow::Result<()> {
             );
             Ok(())
         }
-        Cmd::Mcp { id, command } => {
+        Cmd::Mcp {
+            id,
+            native_admission,
+            command,
+        } => {
             let (cmd, args) = command
                 .split_first()
                 .ok_or_else(|| anyhow::anyhow!("no server command given after --"))?;
@@ -281,13 +289,48 @@ fn main() -> anyhow::Result<()> {
                 Ok(s) => Config::from_yaml(&s)?,
                 Err(_) => Config::default(),
             };
-            let token = agentfw::token::load_or_create(&home.join("token"))?;
             let server_id = id.unwrap_or_else(|| {
                 use sha2::{Digest, Sha256};
                 let mut h = Sha256::new();
                 h.update(command.join(" ").as_bytes());
                 format!("srv-{:x}", h.finalize()).chars().take(12).collect()
             });
+            if native_admission {
+                let installed = cfg.native.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("MCP native admission needs an operator-installed registry")
+                })?;
+                let token_path = home.join("native-token");
+                anyhow::ensure!(
+                    token_path.is_file(),
+                    "MCP native admission needs the existing daemon native token"
+                );
+                let token = agentfw::token::load_or_create(&token_path)?;
+                let native = agentfw::native::NativeState::load(installed, token)?;
+                let manifest_token_path = home.join("token");
+                anyhow::ensure!(
+                    manifest_token_path.is_file(),
+                    "MCP native admission needs the existing daemon manifest token"
+                );
+                let manifest_token = agentfw::token::load_or_create(&manifest_token_path)?;
+                let admission = agentfw::mcp::admission::AdmissionCfg {
+                    daemon_url: cfg.endpoint_url("/native/v1"),
+                    manifest_url: cfg.endpoint_url("/mcp"),
+                    manifest_token,
+                    server_id,
+                    native,
+                    command: cmd.clone(),
+                    args: args.to_vec(),
+                };
+                let runtime = tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()?;
+                let result = runtime.block_on(agentfw::mcp::admission::run(admission));
+                // Tokio's stdin uses a blocking thread. A closed admission path must
+                // exit even when the MCP host keeps its stdin handle open.
+                runtime.shutdown_timeout(Duration::from_millis(100));
+                return result;
+            }
+            let token = agentfw::token::load_or_create(&home.join("token"))?;
             let proxy_cfg = agentfw::mcp::proxy::ProxyCfg {
                 server_id,
                 daemon_url: cfg.endpoint_url("/mcp"),

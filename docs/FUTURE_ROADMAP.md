@@ -1,12 +1,18 @@
 # Future Soup Wall roadmap
 
 Planning record: 2026-10-05. These proposals describe work after the current
-release checkpoints. They authorize no implementation, deployment or live
-evaluation. The current [roadmap](ROADMAP.md) and
+release checkpoints. The proposals authorize no implementation, deployment or
+live evaluation; separate execution decisions are recorded below. The current [roadmap](ROADMAP.md) and
 [execution record](operations/ROADMAP_EXECUTION.md) remain the status records.
-Finish the current native admission, populated restore and open review
-corrections, then stop the current execution. Banking remains a separate
-proposal.
+The initial execution stopped after the native admission, populated restore
+and open review corrections. Banking remains a separate proposal.
+
+Execution update: the separately authorized first bounded Claude Code/MCP
+proof now has an [opt-in stdio implementation](operations/MCP_STDIO_ADMISSION.md)
+and [matched scripted integration evidence](benchmarks/evidence/CLAUDE_MCP_STDIO_2026-10-05.md).
+It prevents the sham-secret send and preserves the independently evaluated
+ordinary task. This does not complete the broader semantics/authority steps
+or the live-effectiveness gate in the proposed order below.
 
 ## Starting point
 
@@ -126,5 +132,5 @@ managed pilot work require their stated operator dependencies. If a runtime
 cannot control result release or a provider budget is absent, record the
 specific missing gate instead of broadening the claim.
 
-This document is the requested plan. It adds no MCP adapter, policy change,
-installer, rollout mechanism or pilot execution to the current work.
+This document remains the proposed broader plan. The separately recorded first
+bounded proof does not start the installer, rollout or pilot proposals.

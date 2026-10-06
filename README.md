@@ -52,6 +52,12 @@ Then set `enforce: true` in `~/.agentfw/config.yaml`, restart the daemon, and co
 
 On Windows, `install` prints a PowerShell token command and uses `%USERPROFILE%\.agentfw`. See [Windows Agent installation and acceptance](docs/operations/WINDOWS_AGENT_ACCEPTANCE.md) for native setup and a disposable check of installation, ACLs, shadow/enforcement decisions, audit, and offline preflight.
 
+For a reviewed stdio MCP server, [opt-in MCP admission](docs/operations/MCP_STDIO_ADMISSION.md)
+gates supported calls before execution and text results before release to the
+client. Enable it explicitly with `agentfw mcp --native-admission -- ...` and
+an operator-installed native registry. Its bounded contract fails closed;
+the legacy manifest proxy and Claude HTTP hooks retain their existing behavior.
+
 ## Gateway: inspect provider traffic
 
 The checked-in `firewall.yaml` binds to `127.0.0.1:8080` by default. With its default settings, your application sends its existing provider authorization header through the Gateway, which forwards it upstream. From the repository root:

@@ -4,6 +4,7 @@
 //! The MCP collector: a transparent stdio proxy that pins each server's tool
 //! manifest at handshake. See the phase-11a design spec.
 
+pub mod admission;
 pub mod jsonrpc;
 pub mod manifest;
 pub mod proxy;
