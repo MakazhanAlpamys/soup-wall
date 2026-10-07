@@ -81,6 +81,71 @@ Transport uncertainty ends the collector rather than silently switching to
 the legacy relay. Explicitly inspect the retained evidence and refusal behavior
 before attaching another server or runtime.
 
+## Portable local execution check
+
+The deterministic MCP client in
+[mcp-local-acceptance.py](../../scripts/mcp-local-acceptance.py) exercises the
+actual Agent executable, stdio admission proxy and
+[synthetic local server](../../scripts/fixtures/local_mcp_server.py).
+It needs the built Agent and Python 3.10+ with its standard library.
+It needs no Claude installation, provider account, model or paid API.
+From the repository root on macOS or Linux:
+
+```sh
+cargo build --locked -p agentfw --bin agentfw
+python3 scripts/mcp-local-acceptance.py --run --evidence target/mcp-local-acceptance.json
+```
+
+On Windows, use the same build command and replace `python3` with `python`.
+For a release binary, add `--agent-binary /absolute/path/to/agentfw`
+(or an absolute Windows executable path). Omit `--run` to print prerequisites
+without starting processes. Every run requires a fresh evidence destination;
+the driver refuses to overwrite previous results.
+
+The driver reserves a disposable profile and resolves its temporary root before
+writing the registry. This handles macOS's ordinary `/var` to `/private/var`
+alias while keeping production registry symlink checks intact.
+The real `agentfw install` bootstraps only that profile; no user hooks or existing
+configuration are changed. Child environments exclude provider keys, proxy
+settings and inherited Agent credentials. The server can send only to the
+driver's exact numeric-loopback receiver, without redirects.
+
+The custom demo policy denies synthetic credential egress, requires confirmation
+for email egress, and requires confirmation for injected result text. It is
+identified by a digest and does not replace the shipped policy. Its email rule
+uses `pii.email` so the receiver's loopback IP alone does not request confirmation.
+
+| Check | Required observation |
+| --- | --- |
+| Control send | The original valid request executes and reaches the local receiver |
+| Allowed read and send | Original request hashes, IDs and result bytes match; the send is received |
+| Denied send | Same request as the control, zero executor entries and receiver deliveries |
+| Confirmation-required call and retry | Both are audited as Ask, with zero executor entries or deliveries |
+| Rejected result | The read executes; decoded injection text is refused before client release |
+| Ordinary error and follow-up | Original JSON-RPC error bytes survive; a benign task still completes |
+
+The executor records entry before validation and effects. The receiver independently
+records actual deliveries, and the Agent audit confirms policy decisions.
+Missing transport, unrelated tool errors and incomplete runs cannot count as
+successful prevention. Reports include observed counts, binary/source, policy
+and registry hashes; they exclude tokens, raw arguments, response content and
+receiver addresses. The driver stops its processes and removes its owned runtime;
+cleanup failure prevents a passing report. The output reserved before startup
+remains marked incomplete if the run cannot finish.
+
+There is no native human approval/resume path. Ask remains blocked; the
+existing hook-specific `agentfw approve` command cannot authorize these MCP
+calls. A subprocess regression explicitly checks that a matching signed hook
+grant is not redeemed and that subsequent benign calls still work.
+
+This client proves the selected protocol and execution boundaries. It does
+not prove compatibility with every Claude Code, Codex or other MCP host.
+Some requests exercise the already supported Claude correlation metadata;
+that is a protocol test, not an actual Claude-host run. The full CI matrix
+includes Linux, both macOS release architectures and Windows; passing evidence
+from one machine does not establish another platform's result.
+Use the real-host procedure below when actual Claude integration is required.
+
 ## Reproducible Claude Code check
 
 The isolated Windows check uses the installed Claude Code, two original local

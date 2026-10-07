@@ -56,6 +56,42 @@ jobs:
           path: target/local-gateway-evidence.json
           if-no-files-found: ignore
 
+  mcp-local-acceptance:
+    name: Local MCP acceptance (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: python3
+          - os: macos-15
+            python: python3
+          - os: macos-15-intel
+            python: python3
+          - os: windows-latest
+            python: python
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify native admission and the real stdio process boundary
+        run: cargo test --locked -p agentfw --test mcp_admission --test native_endpoint
+      - name: Verify portable harness failure paths
+        run: ${{ matrix.python }} -m unittest discover -s scripts/tests -p 'test_mcp_local_acceptance.py' -v
+      - name: Build the Agent executable for disposable acceptance
+        run: cargo build --locked -p agentfw --bin agentfw
+      - name: Prove allowed, denied, confirmation and result behavior
+        run: ${{ matrix.python }} scripts/mcp-local-acceptance.py --run --evidence target/mcp-local-acceptance.json
+      - name: Retain sanitized MCP acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-mcp-acceptance-${{ matrix.os }}
+          path: target/mcp-local-acceptance.json
+          if-no-files-found: ignore
+
   # The optional ML stack is not compiled by the default-feature job.
   all-features:
     runs-on: ubuntu-latest

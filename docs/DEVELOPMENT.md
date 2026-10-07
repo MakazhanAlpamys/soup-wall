@@ -102,6 +102,13 @@ features, platform targets, service integrations, release assets and security
 checks. On Windows, [ci-local.ps1](../scripts/ci-local.ps1) provides a configurable
 wrapper for selected Rust, advisory and scorecard checks.
 
+For a repeatable local MCP execution demonstration, build the Agent and run the
+[portable acceptance check](operations/MCP_STDIO_ADMISSION.md#portable-local-execution-check).
+It uses a deterministic client and an owned loopback server to prove allowed,
+denied, confirmation-required and result-release behavior on the actual binaries.
+It does not need Claude Code or a model account; real-host compatibility has
+separate acceptance.
+
 Check local documentation links and heading anchors without network access:
 
 ```sh

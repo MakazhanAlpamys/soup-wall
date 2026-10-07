@@ -4,7 +4,7 @@
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use agentfw::audit::AuditSink;
 use agentfw::handlers::{AppState, Sessions};
@@ -17,7 +17,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 
 const TOKEN: &str = "fixture-native-mcp-token-9876543210";
-const POLICY: &str = "agent_policies:\n  - name: fixture-secret-egress\n    when: { detector: secret, facet: tool_args, min_action_class: network }\n    action: deny\n  - name: fixture-manifest-injection\n    when: { detector: injection, facet: tool_description }\n    action: ask\n  - name: fixture-result-injection\n    when: { detector: injection, facet: tool_result }\n    action: ask\ndefault: allow\n";
+const POLICY: &str = "agent_policies:\n  - name: fixture-secret-egress\n    when: { detector: secret, facet: tool_args, min_action_class: network }\n    action: deny\n  - name: fixture-pii-egress\n    when: { detector: pii.email, facet: tool_args, min_action_class: network }\n    action: ask\n  - name: fixture-manifest-injection\n    when: { detector: injection, facet: tool_description }\n    action: ask\n  - name: fixture-result-injection\n    when: { detector: injection, facet: tool_result }\n    action: ask\ndefault: allow\n";
 const READ_RESULT: &str = "{ \"jsonrpc\": \"2.0\", \"id\": 3, \"result\": {\"content\":[{\"type\":\"text\",\"text\":\"Inventory: 7 red widgets.\"}]} }";
 const SERVER: &str = r#"
 import json, sys, os, time
@@ -373,6 +373,68 @@ async fn native_mcp_allows_real_read_but_denies_secret_send_before_server_execut
             .contains("7 red widgets"),
         "a denied call must not terminate ordinary work"
     );
+}
+
+#[tokio::test]
+async fn native_mcp_ask_never_executes_or_redeems_a_hook_approval() {
+    let mut fixture = Fixture::new("normal", true).await;
+    fixture.ready().await;
+    let args = json!({"url":"http://127.0.0.1:9/collect","body":"Contact alice@acme.com"});
+    let request = json!({"jsonrpc":"2.0","id":"needs-confirmation","method":"tools/call","params":{"name":"send_http","arguments":args}});
+    let refusal = fixture.exchange(&request.to_string()).await.unwrap();
+    let reply: Value = serde_json::from_str(&refusal).unwrap();
+    assert_eq!(reply["id"], request["id"]);
+    assert_eq!(reply["result"]["isError"], true);
+    assert!(refusal.contains("fixture-pii-egress"));
+    assert!(executed(&fixture.ledger).is_empty());
+
+    let home = fixture.ledger.parent().unwrap().join(".agentfw");
+    let audit = executed(&home.join("audit.jsonl"));
+    let decision = audit
+        .iter()
+        .find(|line| line["event"] == "native_call")
+        .unwrap();
+    assert_eq!(decision["verdict"], "ask");
+    assert_eq!(decision["released"], false);
+    assert!(decision["call_id"].is_null());
+
+    // Hook approvals are not a native continuation channel. Even a signed grant
+    // matching the mapped session and arguments must not release this invocation.
+    let action = agentfw::grant::ActionRef {
+        session: decision["session"].as_str().unwrap().into(),
+        tool: "send_http".into(),
+        args_fingerprint: agentfw::grant::action_fingerprint("send_http", &args),
+    };
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let grant = agentfw::grant::mint(
+        &agentfw::grant::derive_key("fixture-hook-token"),
+        &action,
+        now,
+        agentfw::grant::DEFAULT_TTL_MS,
+        agentfw::token::generate(),
+    );
+    let store = agentfw::grant::GrantStore::new(&home.join("grants"));
+    store.write(&grant).unwrap();
+    let mut retry = request.clone();
+    retry["id"] = json!("still-needs-confirmation");
+    let refusal = fixture.exchange(&retry.to_string()).await.unwrap();
+    let reply: Value = serde_json::from_str(&refusal).unwrap();
+    assert_eq!(reply["id"], retry["id"]);
+    assert_eq!(reply["result"]["isError"], true);
+    assert!(refusal.contains("fixture-pii-egress"));
+    assert!(executed(&fixture.ledger).is_empty());
+    assert_eq!(store.pending(), vec![grant]);
+
+    let followup = r#"{"jsonrpc":"2.0","id":"ordinary-followup","method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    assert!(fixture
+        .exchange(followup)
+        .await
+        .unwrap()
+        .contains("7 red widgets"));
+    assert_eq!(executed(&fixture.ledger).len(), 1);
 }
 
 #[tokio::test]
