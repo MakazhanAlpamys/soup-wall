@@ -489,20 +489,50 @@ fn initialization(value: &Value) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The observed Claude Code pair is host correlation only. It never supplies
-/// native arguments, registry semantics, an approval, or result provenance.
+fn correlation_id(value: &Value) -> bool {
+    value.as_str().is_some_and(|id| {
+        !id.is_empty()
+            && id.len() <= 128
+            && id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"_-".contains(&byte))
+    })
+}
+
+fn progress_token(value: &Value) -> bool {
+    // Keep tokens integral and exactly representable across JSON consumers.
+    value
+        .as_u64()
+        .is_some_and(|token| token <= 9_007_199_254_740_991)
+}
+
+fn discovery_params(value: &Value) -> anyhow::Result<()> {
+    keys(value, &["_meta"])?;
+    if let Some(metadata) = value.get("_meta") {
+        keys(metadata, &["progressToken"])?;
+        ensure!(
+            progress_token(&metadata["progressToken"]),
+            "unsupported MCP discovery correlation metadata"
+        );
+    }
+    Ok(())
+}
+
+/// Observed Claude and Codex identifiers are transport correlation only. They
+/// never supply native session identity, arguments, authority or provenance.
 fn call_metadata(value: &Value) -> anyhow::Result<()> {
-    keys(value, &["claudecode/toolUseId", "progressToken"])?;
+    keys(
+        value,
+        &["claudecode/toolUseId", "threadId", "progressToken"],
+    )?;
+    let host_id = match (value.get("claudecode/toolUseId"), value.get("threadId")) {
+        (Some(id), None) | (None, Some(id)) => id,
+        _ => bail!("unsupported MCP call correlation metadata"),
+    };
     ensure!(
         value.as_object().is_some_and(|map| map.len() == 2)
-            && value["claudecode/toolUseId"].as_str().is_some_and(|id| {
-                !id.is_empty()
-                    && id.len() <= 128
-                    && id.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"_-".contains(&byte))
-            })
-            // The selected host uses JavaScript numbers; keep correlation tokens
-            // integral and exactly representable across both JSON consumers.
-            && value["progressToken"].as_u64().is_some_and(|token| token <= 9_007_199_254_740_991),
+            && correlation_id(host_id)
+            && progress_token(&value["progressToken"]),
         "unsupported MCP call correlation metadata"
     );
     Ok(())
@@ -557,6 +587,16 @@ fn withheld(id: &Value, phase: &str, reasons: &Value) -> Vec<u8> {
     raw
 }
 
+fn unsupported_resource_inventory(id: &Value) -> Vec<u8> {
+    let mut raw = json!({"jsonrpc":"2.0","id":id,"error":{
+        "code":-32601,"message":"Native MCP admission does not support resource inventory"
+    }})
+    .to_string()
+    .into_bytes();
+    raw.push(b'\n');
+    raw
+}
+
 async fn relay<R, W, S, T>(
     collector: &Collector<'_>,
     client: &mut R,
@@ -600,7 +640,19 @@ where
                 ensure!(params.is_object(), "unsupported MCP parameters");
                 let next = match method {
                     "initialize" => { ensure!(!initialized, "MCP session already initialized"); Pending::Handshake(request_id.clone()) }
-                    "tools/list" => { ensure!(initialized, "MCP manifest before initialization"); keys(&params, &[])?; Pending::Manifest(request_id.clone()) }
+                    "tools/list" => {
+                        ensure!(initialized, "MCP manifest before initialization");
+                        discovery_params(&params)?;
+                        Pending::Manifest(request_id.clone())
+                    }
+                    "resources/list" | "resources/templates/list" => {
+                        ensure!(ready, "MCP resource inventory before operator-pinned manifest");
+                        discovery_params(&params)?;
+                        // Hosts may probe inventory even though initialization advertises
+                        // tools only. No request or resource content reaches the server.
+                        write(host, &unsupported_resource_inventory(request_id)).await?;
+                        continue;
+                    }
                     "ping" => { keys(&params, &[])?; Pending::Ping(request_id.clone()) }
                     "tools/call" => {
                         ensure!(ready, "MCP call before operator-pinned manifest");

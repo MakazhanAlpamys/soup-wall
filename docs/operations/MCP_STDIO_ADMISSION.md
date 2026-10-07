@@ -64,12 +64,25 @@ schema before admission. Complex schemas, defaults and implicit destinations
 are outside this contract. Results contain only original text blocks and an
 optional Boolean `isError`; JSON-RPC errors contain an integer code and message.
 
-When present, supported Claude call metadata contains exactly a nonempty
-`claudecode/toolUseId` string of at most 128 ASCII letters, digits, `_` or `-`, and a nonnegative integer
-`progressToken` no greater than 2^53 - 1. These host correlation fields
-grant no authority and do not change argument inspection. The accepted original
-request bytes, including those fields, reach the server unchanged. Other call
-metadata and server progress notifications are outside the supported contract.
+`tools/list` accepts empty parameters or the observed Codex discovery metadata
+`_meta: {progressToken: <integer>}`. Call metadata, when present, contains exactly
+one host identifier (`claudecode/toolUseId` for Claude Code or `threadId` for
+Codex) and `progressToken`. Identifiers must be nonempty strings of at most 128
+ASCII letters, digits, `_` or `-`; progress tokens must be nonnegative integers
+no greater than 2^53 - 1. Mixed host identifiers and other metadata fields are
+rejected. These shapes include those emitted by Codex CLI 0.148.0.
+
+Host identifiers and progress tokens grant no authority, supply no native
+session identity and do not change argument inspection. Accepted original
+request bytes, including metadata, reach the server unchanged. Other metadata
+and server progress notifications remain outside the supported contract.
+
+Codex also probes `resources/list` and `resources/templates/list` during full
+inventory discovery, even for servers advertising only tools. After the pinned
+manifest is admitted, the collector answers these probes locally with JSON-RPC
+`-32601` (method not supported) and the original request ID. It accepts the same
+bounded discovery parameters, forwards no resource request or content, and
+keeps the tool connection available. Resource reads remain unsupported.
 
 Batched calls, tool-call notifications, duplicate/replayed identifiers,
 unrecognized content paths, server-initiated requests, multimedia, embedded
