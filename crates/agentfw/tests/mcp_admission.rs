@@ -125,7 +125,12 @@ fn protected_dacl(path: &Path) -> bool {
 
 impl Fixture {
     async fn new(mode: &str, enforce: bool) -> Self {
-        let dir = tempfile::tempdir().unwrap();
+        // macOS places the default temp directory under the /var -> /private/var
+        // symlink, which the native registry guard correctly refuses.
+        let root = std::env::temp_dir();
+        #[cfg(unix)]
+        let root = root.canonicalize().unwrap();
+        let dir = tempfile::tempdir_in(root).unwrap();
         let home = dir.path().join(".agentfw");
         let stderr = dir.path().join("gateway-stderr.log");
         // The real bootstrap assigns current-user ownership and a protected DACL
