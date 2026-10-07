@@ -10,6 +10,9 @@
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt};
 
+pub mod tool_call;
+pub use tool_call::*;
+
 /// The first negotiated adapter contract version.
 pub const CONTRACT_VERSION: &str = "sw-adapter/0.1";
 
