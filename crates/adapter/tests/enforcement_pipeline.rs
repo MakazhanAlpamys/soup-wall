@@ -46,7 +46,10 @@ fn mock_classifier(event: &ToolCallEvent) -> ToolClassification {
             uncertainty: 0.05,
             reason: Some("File read operation detected".into()),
         }
-    } else if name.contains("curl") || args_str.contains("http://") || args_str.contains("https://")
+    } else if name.contains("curl")
+        || args_str.contains("https://")
+        || args_str.contains("leak")
+        || args_str.contains("attacker")
     {
         ToolClassification {
             categories: vec![ToolActionCategory::SendData],
