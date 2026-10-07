@@ -144,10 +144,29 @@ Each check and the daemon's own audit decisions are written to
 contain linked components, so the script uses the resolved `target/` directory
 rather than macOS `/tmp` or `/var`.
 
-The harness frames are scripted, not an actual Claude Code process, and the
-policy is a fixture. This establishes the admission boundaries and their
-witnesses, not live-model or shipped-policy effectiveness. The actual-host
-check below remains the Claude Code evidence.
+The default harness frames are scripted, and the policy is a fixture. This
+establishes the admission boundaries and their witnesses, not live-model or
+shipped-policy effectiveness.
+
+On macOS and Linux, `--claude` runs the same scenarios through an actual Claude
+Code process instead of scripted frames. A local Messages API stand-in proposes
+the fixed tool calls and records every request Claude Code sends to the model;
+no real model, provider account or credential is used. Claude Code runs with an
+isolated profile, a fixture API key, restricted built-in tools and a strict MCP
+configuration that launches the admission collector. Outbound proxies point at a
+closed loopback port.
+
+```sh
+npm install --prefix target/claude-code @anthropic-ai/claude-code
+python3 scripts/mcp-admission-demo.py --claude target/claude-code/node_modules/.bin/claude
+```
+
+In addition to the server ledger, receiver and note file, this mode checks that
+executed frames carry Claude's own `tool_use` ids, that Claude returned each
+refusal to the model, and that the injected marker never appeared in any model
+request. The report records the Claude Code version and the observed call
+metadata keys. The Windows actual-host check below remains the separate
+Windows evidence.
 
 ## Reproducible Claude Code check
 
