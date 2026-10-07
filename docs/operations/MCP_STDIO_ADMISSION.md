@@ -81,6 +81,61 @@ Transport uncertainty ends the collector rather than silently switching to
 the legacy relay. Explicitly inspect the retained evidence and refusal behavior
 before attaching another server or runtime.
 
+## Selected harness and event contract
+
+The initial harness is Claude Code acting as a stdio MCP client, where the
+existing execution proof is strongest. The collector maps its native frames onto
+the [`sw-native/1` events](../benchmarks/native-admission.md#admission-stages)
+without translating tools into another format:
+
+| Harness frame | Collector | Native event | Classification and policy | Outcome |
+| --- | --- | --- | --- | --- |
+| `initialize`, `tools/list` | Checks the initialization result and pins each tool schema against the registry | Manifest inspection | Tool-description rules | Release the manifest, or close before tools reach the host |
+| `tools/call` | Validates arguments against the pinned schema; `_meta` stays transport correlation | `call` with `tool`, `args`, `schema_sha256` | Registry `action_class` and egress hosts form a `ToolCall` event for the agent policy | `allow` writes the original frame to the server; `deny` and `ask` return a correlated `isError` refusal and the server never receives the frame |
+| Server response | Binds the response to the pending call | `result` with `call_id`, `result_kind`, `delivery: mcp_host`, `content` | Decoded text blocks form `ToolResult` events with the declared provenance | `allow` writes the original bytes to the host; otherwise a correlated `isError` refusal |
+
+The JSON-RPC id, tool name, arguments and `_meta` stay in the original bytes,
+and a refusal reuses the original id. There is no approval channel in this
+contract, so `ask` is enforced exactly like a denial until a reviewed
+single-use approval path exists.
+
+## Cross-platform local demonstration
+
+The demonstration runs on Linux, macOS and Windows without a model, provider or
+Claude Code installation. Linux CI runs it on every pull request:
+
+```sh
+cargo build --locked -p agentfw
+python3 scripts/mcp-admission-demo.py
+```
+
+It creates a disposable Agent home under `target/`, starts `agentfw serve` in
+enforcing mode with a demonstration registry and fixture policy, and wraps the
+harmless [demonstration server](../../scripts/fixtures/mcp_admission_demo_server.py)
+with `agentfw mcp --native-admission`. The script then sends Claude Code's
+stdio frames, including the `_meta` correlation pair. Decisions are checked
+against witnesses the firewall does not control:
+
+| Scenario | Policy outcome | Independent witness |
+| --- | --- | --- |
+| `read_document` | Allow | The server ledger holds the exact original frame; the harness receives the server's response byte-for-byte |
+| `send_http` with a benign body | Allow | The loopback receiver records exactly one delivery |
+| `send_http` with a synthetic secret | Deny before execution | Server ledger and receiver unchanged |
+| `delete_note` (`destructive`) | Ask, held without an approval path | Server ledger unchanged; the note still exists |
+| `read_document` returning an injection | Call allowed, result withheld | The server executed it; the harness never receives its marker |
+| Follow-up `read_document` | Allow | Ordinary work continues after the refusals |
+
+Each check and the daemon's own audit decisions are written to
+`target/mcp-admission-demo.json` with the binary, registry and policy hashes;
+`--keep` retains the workspace for inspection. The registry path must not
+contain linked components, so the script uses the resolved `target/` directory
+rather than macOS `/tmp` or `/var`.
+
+The harness frames are scripted, not an actual Claude Code process, and the
+policy is a fixture. This establishes the admission boundaries and their
+witnesses, not live-model or shipped-policy effectiveness. The actual-host
+check below remains the Claude Code evidence.
+
 ## Reproducible Claude Code check
 
 The isolated Windows check uses the installed Claude Code, two original local

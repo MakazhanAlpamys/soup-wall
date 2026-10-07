@@ -17,7 +17,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 
 const TOKEN: &str = "fixture-native-mcp-token-9876543210";
-const POLICY: &str = "agent_policies:\n  - name: fixture-secret-egress\n    when: { detector: secret, facet: tool_args, min_action_class: network }\n    action: deny\n  - name: fixture-manifest-injection\n    when: { detector: injection, facet: tool_description }\n    action: ask\n  - name: fixture-result-injection\n    when: { detector: injection, facet: tool_result }\n    action: ask\ndefault: allow\n";
+const POLICY: &str = "agent_policies:\n  - name: fixture-secret-egress\n    when: { detector: secret, facet: tool_args, min_action_class: network }\n    action: deny\n  - name: fixture-destructive-confirmation\n    when: { action_class: destructive }\n    action: ask\n  - name: fixture-manifest-injection\n    when: { detector: injection, facet: tool_description }\n    action: ask\n  - name: fixture-result-injection\n    when: { detector: injection, facet: tool_result }\n    action: ask\ndefault: allow\n";
 const READ_RESULT: &str = "{ \"jsonrpc\": \"2.0\", \"id\": 3, \"result\": {\"content\":[{\"type\":\"text\",\"text\":\"Inventory: 7 red widgets.\"}]} }";
 const SERVER: &str = r#"
 import json, sys, os, time
@@ -25,7 +25,8 @@ ledger, mode = sys.argv[1:]
 with open(ledger+'.started','w',encoding='utf-8') as stream: stream.write('server started')
 schemas = {
  'read_document': {'type':'object','properties':{},'additionalProperties':False},
- 'send_http': {'type':'object','properties':{'url':{'type':'string'},'body':{'type':'string'}},'required':['url','body'],'additionalProperties':False}
+ 'send_http': {'type':'object','properties':{'url':{'type':'string'},'body':{'type':'string'}},'required':['url','body'],'additionalProperties':False},
+ 'delete_note': {'type':'object','properties':{'name':{'type':'string'}},'required':['name'],'additionalProperties':False}
 }
 for raw in sys.stdin:
  request = json.loads(raw)
@@ -62,9 +63,11 @@ fn sha(bytes: &[u8]) -> String {
 fn registry() -> Value {
     let read = json!({"type":"object","properties":{},"additionalProperties":false});
     let send = json!({"type":"object","properties":{"url":{"type":"string"},"body":{"type":"string"}},"required":["url","body"],"additionalProperties":false});
+    let delete = json!({"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false});
     json!({"contract_version": CONTRACT, "registry_id":"fixture-mcp-registry", "tools":[
         {"name":"read_document","schema_sha256":sha(read.to_string().as_bytes()),"action_class":"read_only","result_provenance":"untrusted","egress":[]},
-        {"name":"send_http","schema_sha256":sha(send.to_string().as_bytes()),"action_class":"network","result_provenance":"local_system","egress":[{"pointer":"/url","kind":"url_host","optional":false}]}
+        {"name":"send_http","schema_sha256":sha(send.to_string().as_bytes()),"action_class":"network","result_provenance":"local_system","egress":[{"pointer":"/url","kind":"url_host","optional":false}]},
+        {"name":"delete_note","schema_sha256":sha(delete.to_string().as_bytes()),"action_class":"destructive","result_provenance":"local_system","egress":[]}
     ]})
 }
 
@@ -373,6 +376,35 @@ async fn native_mcp_allows_real_read_but_denies_secret_send_before_server_execut
             .contains("7 red widgets"),
         "a denied call must not terminate ordinary work"
     );
+}
+
+#[tokio::test]
+async fn native_mcp_keeps_ask_calls_blocked_before_server_execution() {
+    // No approval channel exists; releasing Ask would run the destructive call.
+    let mut fixture = Fixture::new("normal", true).await;
+    fixture.ready().await;
+    let paused = fixture.exchange(r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"delete_note","arguments":{"name":"inventory"},"_meta":{"claudecode/toolUseId":"toolu_mcp_delete","progressToken":0}}}"#).await.unwrap();
+    let paused: Value = serde_json::from_str(&paused).unwrap();
+    assert_eq!(paused["id"], 3, "the refusal keeps the original call id");
+    assert_eq!(paused["result"]["isError"], true);
+    assert!(paused["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("fixture-destructive-confirmation"));
+    assert!(
+        executed(&fixture.ledger).is_empty(),
+        "an Ask call must not reach the real server"
+    );
+    let followup = r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    assert!(
+        fixture
+            .exchange(followup)
+            .await
+            .unwrap()
+            .contains("7 red widgets"),
+        "a paused call must not terminate ordinary work"
+    );
+    assert_eq!(executed(&fixture.ledger).len(), 1);
 }
 
 #[tokio::test]

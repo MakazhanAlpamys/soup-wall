@@ -55,6 +55,17 @@ jobs:
           name: local-gateway-acceptance
           path: target/local-gateway-evidence.json
           if-no-files-found: ignore
+      - name: Stdio MCP admission demonstration
+        run: |
+          cargo build --locked -p agentfw
+          python3 scripts/mcp-admission-demo.py --out target/mcp-admission-demo.json
+      - name: Retain MCP admission demonstration evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-admission-demo
+          path: target/mcp-admission-demo.json
+          if-no-files-found: ignore
 
   # The optional ML stack is not compiled by the default-feature job.
   all-features:
