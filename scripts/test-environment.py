@@ -39,6 +39,7 @@ LIMITATIONS = [
     "MCP call execution is witnessed by the fixture server ledger; result release by client stdout.",
     "No general OS sandbox, native macOS/Windows host acceptance or bubblewrap positive-path proof.",
     "Docker on macOS runs Linux containers; a container pass is not native macOS acceptance.",
+    "Windows uses Linux Python inside WSL2; a Linux CI pass is not WSL2/Docker Desktop acceptance.",
     "Per-test elapsed time includes fixture startup/cleanup, not classifier or request latency.",
     "Accuracy, uncertainty, false-block rate and request latency require the team's labelled scenarios.",
 ]
@@ -233,17 +234,40 @@ def write_report(out, report):
     (out / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
+def host_environment():
+    """Describe the launcher host separately from the Docker container platform."""
+    kernel = platform.release()
+    wsl = sys.platform == "linux" and (
+        "microsoft" in kernel.lower() or "wsl" in kernel.lower()
+        or bool(os.environ.get("WSL_DISTRO_NAME"))
+        or bool(os.environ.get("WSL_INTEROP"))
+    )
+    result = {"host_os": platform.system(), "host_architecture": platform.machine(),
+              "host_python": platform.python_version(), "host_kernel": kernel,
+              "wsl_detected": wsl}
+    if wsl:
+        # Detection is not proof of WSL generation; record `wsl --list --verbose`
+        # separately on Windows. Do not collect the rest of the host environment.
+        result["wsl_distribution"] = os.environ.get("WSL_DISTRO_NAME", "unknown")
+    return result
+
+
 def host_run(args):
+    if sys.platform == "win32":
+        raise ValueError(
+            "Windows: open your WSL2 Linux distribution (for example Ubuntu) and run "
+            "python3 scripts/test-environment.py using Linux Python. Enable Docker Desktop's "
+            "WSL integration for that distribution. Native Windows Python is not supported; "
+            "see docs/DEVELOPMENT.md#running-from-windows-with-wsl2")
     if sys.platform not in {"linux", "darwin"}:
-        raise ValueError("the host launcher supports Linux and macOS")
+        raise ValueError("the host launcher requires Linux (including WSL2) or macOS")
     if os.getuid() == 0:
         raise ValueError("run the launcher as a normal user with Docker access, not through sudo")
     base = Path(args.output).resolve()
     base.mkdir(parents=True, exist_ok=True)
     out = Path(tempfile.mkdtemp(prefix=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-"), dir=base))
     report = {"schema_version": 1, "scope": "local-fixture-baseline", "status": "error",
-              "started_at": utc_now(), "environment": {"host_os": platform.system(),
-              "host_architecture": platform.machine(), "host_python": platform.python_version()},
+              "started_at": utc_now(), "environment": host_environment(),
               "steps": [], "limitations": LIMITATIONS}
     name = "soup-wall-fixtures-" + out.name.lower()
     container_attempted = False
@@ -256,7 +280,12 @@ def host_run(args):
         report["steps"].append({"name": label, **result})
         write_report(out, report)
         if result["exit_code"] != 0:
-            raise RuntimeError(f"{label} failed; see {label}.log")
+            hint = ""
+            if label in {"docker-info", "buildx-version"} and report["environment"]["wsl_detected"]:
+                hint = (" Start Docker Desktop in Linux-container mode and enable Settings > "
+                        "Resources > WSL Integration for this distribution. Retry from its "
+                        "Linux terminal; see docs/DEVELOPMENT.md#running-from-windows-with-wsl2.")
+            raise RuntimeError(f"{label} failed; see {label}.log.{hint}")
         return (out / result["log"]).read_text(encoding="utf-8", errors="replace")
 
     try:
@@ -321,6 +350,8 @@ def host_run(args):
         report["finished_at"] = utc_now()
         write_report(out, report)
     print(f"Baseline: {report['status']}. Report: {out / 'report.md'}", flush=True)
+    if report.get("error"):
+        print(f"Error: {report['error']}", file=sys.stderr)
     return 0 if report["status"] == "pass" else 1
 
 

@@ -123,7 +123,8 @@ original arguments, identifiers, policies or native admission contract. The
 team's new event contract and enforcement runner remain a separate integration.
 
 On Linux or macOS, install Docker with Buildx and a working Linux-container daemon, Git,
-and Python 3.10 or later. Run as your normal user with Docker access. Allocate
+and Python 3.10 or later. For Windows, use the [WSL2 procedure below](#running-from-windows-with-wsl2).
+Run as your normal user with Docker access. Allocate
 at least 4 GB RAM to Docker for the build; the test container is limited to two
 CPUs and 2 GB RAM. From a checkout:
 
@@ -153,7 +154,9 @@ Cross-architecture execution requires Docker emulation and changes timing.
 Both run **Linux containers**, including on macOS. Native macOS execution,
 Windows host integration and Linux bubblewrap isolation are not certified by
 this baseline. Check the command on each intended host; an untested host stays
-unverified. The CI workflow runs native Linux amd64/arm64 jobs, not macOS jobs.
+unverified. CI runs the container suites on Linux amd64/arm64. A separate Windows
+job checks launcher guidance and mocked reporting; it does not exercise WSL2 or
+Docker Desktop. macOS and actual Windows/WSL2 acceptance remain separate checks.
 
 The image pins Rust 1.98.0, multi-platform Rust/Debian image digests, a dated
 Debian package snapshot and the repository's Cargo.lock. It records source-file
@@ -161,6 +164,72 @@ and executable hashes, runtime packages, Python/Rust versions, image identity,
 host/container architectures and whether the source checkout was dirty. This
 identifies the inputs; it does not promise bit-identical compiled binaries or
 identical latency on different hardware. The production Dockerfile is separate.
+
+### Running from Windows with WSL2
+
+Run this launcher with **Linux Python inside a WSL2 distribution**, such as Ubuntu,
+using Docker Desktop's Linux-container engine. Native Windows Python, including
+Python launched from PowerShell or Git Bash, is not a supported launcher host.
+WSL1 is outside this procedure. Actual Windows/WSL2 execution has not yet been
+verified for this launcher; retain the first host run as acceptance evidence.
+
+1. Follow [Microsoft's WSL installation instructions](https://learn.microsoft.com/en-us/windows/wsl/install).
+   For a new installation, run `wsl --install -d Ubuntu` in an administrator
+   PowerShell window, restart if requested, then open Ubuntu and create your
+   normal Linux user. For an existing installation, use that distribution.
+   In PowerShell, run `wsl --list --verbose` and confirm its `VERSION` is `2`.
+   If it is `1`, follow Microsoft's conversion instructions before continuing.
+2. Install/start [Docker Desktop with WSL2 integration](https://docs.docker.com/desktop/features/wsl/).
+   Use the WSL2 engine and Linux containers. Under **Settings > Resources > WSL Integration**,
+   enable the distribution you will use. Use Desktop's integration for this
+   procedure; do not install a second Docker Engine inside Ubuntu.
+3. Open the Ubuntu/WSL terminal as your normal Linux user. Install Git and Python
+   there if needed:
+
+   ```sh
+   sudo apt-get update
+   sudo apt-get install -y git python3
+   ```
+
+4. Keep the checkout and report directory in the
+   [WSL Linux filesystem](https://docs.docker.com/desktop/features/wsl/best-practices/),
+   for example `~/src/soup-wall`, rather than under `/mnt/c` or OneDrive:
+
+   ```sh
+   mkdir -p ~/src
+   cd ~/src
+   git clone https://github.com/SoupTeam/soup-wall.git
+   cd soup-wall
+   ```
+
+   Check out the revision under test. Until PR #35 merges, select its branch
+   with `git switch devops/reproducible-test-environment`.
+5. In that same WSL terminal, confirm the interpreter and Docker connection:
+
+   ```sh
+   python3 -c 'import sys; print(sys.platform); print(sys.executable)'
+   docker info --format '{{.OSType}}'
+   docker buildx version
+   python3 scripts/test-environment.py
+   ```
+
+   Python must report `linux` and Docker must report `linux`. Run the launcher
+   without `sudo`. The first build downloads dependencies; test execution uses
+   the same isolated Linux container and output directory as the native Linux run.
+
+The launcher records the Linux host kernel, `wsl_detected` and, when available,
+`wsl_distribution` in `results.json`. These are diagnostic hints, not proof of the
+WSL generation. For the first Windows acceptance run, retain `report.md`,
+`results.json` and logs, along with the Windows version, Docker Desktop version
+and PowerShell output from `wsl --version` and `wsl --list --verbose`. A successful
+run must report `pass` with no failures, errors or required-test skips. Until that
+evidence is reviewed, record this host path as **unverified**. This tests the Linux
+container route; the separate Windows Agent CI covers native Windows behavior.
+
+If `docker info` or Buildx fails, start Docker Desktop, enable integration for the
+correct distribution and retry from its Linux terminal. If Docker reports
+`windows`, switch it to Linux containers. If result files cannot be written, use
+the Linux checkout/output directory and normal Linux user described above.
 
 ### Included fixture checks
 
