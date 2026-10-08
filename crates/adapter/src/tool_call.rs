@@ -118,7 +118,7 @@ impl ToolCallEvent {
         }
     }
 
-    /// Validate required identifiers and contract version.
+    /// Validate required identifiers, contract version, and declared tool schema.
     pub fn validate(&self) -> Result<(), &'static str> {
         if self.contract_version != TOOL_CONTRACT_VERSION {
             return Err("unsupported_contract_version");
@@ -135,8 +135,79 @@ impl ToolCallEvent {
         if self.raw_arguments.is_null() {
             return Err("null_arguments");
         }
+        if let Some(schema) = &self.tool_schema {
+            validate_json_schema(&self.raw_arguments, schema)?;
+        }
         Ok(())
     }
+}
+
+/// Validate a JSON value against a basic JSON Schema specification.
+pub fn validate_json_schema(
+    val: &serde_json::Value,
+    schema: &serde_json::Value,
+) -> Result<(), &'static str> {
+    let schema_obj = match schema.as_object() {
+        Some(obj) => obj,
+        None => return Ok(()),
+    };
+
+    // 1. Type validation
+    if let Some(expected_type) = schema_obj.get("type").and_then(|t| t.as_str()) {
+        match expected_type {
+            "object" if !val.is_object() => return Err("schema_type_mismatch_expected_object"),
+            "array" if !val.is_array() => return Err("schema_type_mismatch_expected_array"),
+            "string" if !val.is_string() => return Err("schema_type_mismatch_expected_string"),
+            "number" | "integer" if !val.is_number() => {
+                return Err("schema_type_mismatch_expected_number")
+            }
+            "boolean" if !val.is_boolean() => return Err("schema_type_mismatch_expected_boolean"),
+            "null" if !val.is_null() => return Err("schema_type_mismatch_expected_null"),
+            _ => {}
+        }
+    }
+
+    // 2. Object validation
+    if let Some(obj) = val.as_object() {
+        if let Some(required) = schema_obj.get("required").and_then(|r| r.as_array()) {
+            for req in required {
+                if let Some(field) = req.as_str() {
+                    if !obj.contains_key(field) {
+                        return Err("schema_missing_required_property");
+                    }
+                }
+            }
+        }
+
+        let properties = schema_obj.get("properties").and_then(|p| p.as_object());
+        let additional_allowed = schema_obj
+            .get("additionalProperties")
+            .and_then(|a| a.as_bool())
+            .unwrap_or(true);
+
+        for (k, v) in obj {
+            if let Some(props) = properties {
+                if let Some(prop_schema) = props.get(k) {
+                    validate_json_schema(v, prop_schema)?;
+                    continue;
+                }
+            }
+            if !additional_allowed {
+                return Err("schema_additional_properties_forbidden");
+            }
+        }
+    }
+
+    // 3. Array items validation
+    if let Some(arr) = val.as_array() {
+        if let Some(items_schema) = schema_obj.get("items") {
+            for item in arr {
+                validate_json_schema(item, items_schema)?;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Final receipt verifying physical execution and enforcement outcome (Task 3).

@@ -20,21 +20,27 @@ and non-weakening behavior:
 
 1. **Non-Weakening Precedence**:
    - `Delete`, `SendData`, and `ChangePermissions` take strict precedence over `Read`. Even if a multi-action tool contains both `Read` and `ChangePermissions`, the verdict evaluates strictly to `Verdict::Deny`.
+   - `Write` operations strictly require operator confirmation (`Verdict::Ask`), and adding `Read` to a classification (`[Read, Write]`) does not downgrade or release the write requirement.
 2. **Unfamiliar Tool Interception**:
    - Any tool classified as `Unknown` or having `uncertainty >= 0.8` evaluates to `Verdict::Ask` (manual operator confirmation required). It never automatically executes.
 3. **Execution Isolation**:
    - On `Verdict::Deny` or `Verdict::Ask`, the tool executor is never invoked (guaranteed 0 physical calls).
 4. **Fail-Closed Validation**:
    - Null arguments fail validation (`null_arguments`).
+   - Declared schemas (`tool_schema`) are strictly checked: missing required fields, type mismatches, or disallowed additional properties evaluate to fail-closed `Verdict::Deny`.
    - Out-of-bounds or NaN confidence scores evaluate to fail-closed `Verdict::Deny`.
    - Empty or malformed JSON payloads evaluate to fail-closed `Verdict::Deny` (`executed: false`).
 5. **Runtime Error Differentiation**:
    - If an allowed call fails during physical host execution, `executed: true` is preserved alongside the runtime error string, differentiating host runtime errors from firewall interception.
 
-## Empirical Latency & Throughput Benchmarks
+## In-Memory Runner Microbenchmark
 
-Latency overhead was evaluated over 1,000 consecutive iterations per pipeline scenario via
-`cargo test -p soup-wall-adapter --test latency_bench`.
+The figures below represent an in-memory microbenchmark of `run_enforcement_pipeline` and `execute_raw_json` using `MockExecutor`. They evaluate policy evaluation and dispatch overhead without network transport (MCP transport or daemon boundaries):
+
+- **Platform**: Apple Silicon (macOS arm64), Rust 1.99.0
+- **Build Profile**: Debug (`[unoptimized + debuginfo]`)
+- **Reproduction Command**: `cargo test -p soup-wall-adapter --test latency_bench -- --nocapture`
+- **Timing Resolution**: Wall-clock duration truncated to integer microseconds (`as_micros()`).
 
 | Scenario | Invocations | Throughput | Mean Latency | p50 Latency | p95 Latency | p99 Latency |
 |---|---|---|---|---|---|---|
@@ -42,12 +48,12 @@ Latency overhead was evaluated over 1,000 consecutive iterations per pipeline sc
 | **Blocked Egress / Denial** | 1,000 | ~413,000 ops/sec | 1.07 µs | 1 µs | 2 µs | 2 µs |
 | **Raw JSON Parse + Policy** | 1,000 | ~208,000 ops/sec | 4.07 µs | 4 µs | 4 µs | 5 µs |
 
-All pipeline checks execute within 1–5 microseconds, adding negligible overhead to agent tool calls.
+In local runs, observed p99 latencies for the pure in-memory pipeline remained under 10 µs across 1,000 samples.
 
 ## Test Matrix Summary
 
-All 24 test suites pass in `soup-wall-adapter`:
+All 27 test cases pass in `soup-wall-adapter`:
 
-- 19 unit tests in `crates/adapter/src/lib.rs` and `runner.rs`.
-- 4 end-to-end integration tests in `crates/adapter/tests/enforcement_pipeline.rs`.
-- 1 latency and throughput benchmark suite in `crates/adapter/tests/latency_bench.rs`.
+- 22 unit tests in `crates/adapter/src/lib.rs`, `tool_call.rs`, and `runner.rs`.
+- 4 demonstration integration test cases in `crates/adapter/tests/enforcement_pipeline.rs`.
+- 1 latency and throughput microbenchmark in `crates/adapter/tests/latency_bench.rs`.
