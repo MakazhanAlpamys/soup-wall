@@ -67,6 +67,47 @@ jobs:
           path: target/mcp-admission-demo.json
           if-no-files-found: ignore
 
+  # The Linux workspace job covers these targets; this adds the native macOS boundary.
+  native-macos-resilience:
+    name: Native macOS admission resilience
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Prepare canonical temporary storage and environment evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/task3-resilience/tmp
+          printf 'TMPDIR=%s\n' "$(cd target/task3-resilience/tmp && pwd -P)" >> "$GITHUB_ENV"
+          {
+            git rev-parse HEAD
+            uname -a
+            rustc --version
+            cargo --version
+            python3 --version
+          } > target/task3-resilience/environment.log
+      - name: Check public runner resilience
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked -p soup-wall-adapter --test resilience_tests -- --test-threads=1 2>&1 | tee target/task3-resilience/adapter-resilience.log
+      - name: Check actual MCP execution and result admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked -p agentfw --test mcp_admission -- --test-threads=1 2>&1 | tee target/task3-resilience/mcp-admission.log
+      - name: Retain native macOS resilience evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: task3-native-macos-resilience
+          path: target/task3-resilience/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
   # The optional ML stack is not compiled by the default-feature job.
   all-features:
     runs-on: ubuntu-latest
