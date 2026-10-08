@@ -320,6 +320,7 @@ fn main() -> anyhow::Result<()> {
                     native,
                     command: cmd.clone(),
                     args: args.to_vec(),
+                    classifier: agentfw::mcp::admission::test_classifier_from_env()?,
                 };
                 let runtime = tokio::runtime::Builder::new_multi_thread()
                     .enable_all()

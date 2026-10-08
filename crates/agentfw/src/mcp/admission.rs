@@ -16,9 +16,102 @@ use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufRea
 use tokio::process::Command;
 
 use crate::native::{NativeState, CONTRACT, MAX_CONTENT};
+use soup_wall_agent::ActionClass;
 
 const MAX_REQUESTS: usize = 1024;
 const IO_TIMEOUT: Duration = Duration::from_secs(30);
+const CLASSIFICATION_CONTRACT: &str = "sw-classification/candidate-1";
+
+/// Internal classifier input. Discovery content is evidence; only the registry
+/// and successful admission establish the trusted baseline.
+pub struct Invocation<'a> {
+    pub server_id: &'a str,
+    pub host_call_id: &'a Value,
+    pub registry_sha256: &'a str,
+    pub snapshot_sha256: &'a str,
+    pub schema_sha256: &'a str,
+    pub tool: &'a str,
+    pub description: &'a str,
+    pub schema: &'a Value,
+    pub args: &'a Value,
+    pub baseline: ActionClass,
+}
+
+#[derive(serde::Serialize)]
+pub struct Classification {
+    pub actions: Vec<String>,
+    pub unknown: bool,
+    pub confidence: f64,
+    pub uncertainty: f64,
+    pub reason: String,
+}
+
+pub trait InvocationClassifier: Send + Sync {
+    fn source(&self) -> &'static str;
+    fn classify(&self, invocation: &Invocation<'_>) -> anyhow::Result<Classification>;
+}
+
+struct ReadTestDouble;
+
+impl InvocationClassifier for ReadTestDouble {
+    fn source(&self) -> &'static str {
+        "test-double/read-v1"
+    }
+    fn classify(&self, invocation: &Invocation<'_>) -> anyhow::Result<Classification> {
+        ensure!(
+            !invocation.server_id.is_empty()
+                && !invocation.registry_sha256.is_empty()
+                && !invocation.snapshot_sha256.is_empty()
+                && !invocation.schema_sha256.is_empty()
+                && id(invocation.host_call_id).is_ok()
+                && invocation.args.is_object()
+                && invocation.schema.is_object()
+                && invocation.baseline == ActionClass::ReadOnly,
+            "test classifier input missing"
+        );
+        Ok(Classification {
+            actions: vec!["read".into()],
+            unknown: false,
+            confidence: 1.0,
+            uncertainty: 0.0,
+            reason: "fixed fixture output".into(),
+        })
+    }
+}
+
+fn map_classification(result: &Classification) -> anyhow::Result<ActionClass> {
+    ensure!(
+        result.confidence.is_finite()
+            && (0.0..=1.0).contains(&result.confidence)
+            && result.uncertainty.is_finite()
+            && (0.0..=1.0).contains(&result.uncertainty)
+            && !result.reason.is_empty()
+            && result.reason.len() <= 1024,
+        "classifier_invalid"
+    );
+    ensure!(
+        result.actions.iter().all(|action| matches!(
+            action.as_str(),
+            "read" | "write" | "delete" | "send_data" | "change_permissions"
+        )),
+        "classifier_invalid"
+    );
+    ensure!(
+        !result.unknown && result.actions == ["read"],
+        "unsupported_classification_mapping"
+    );
+    Ok(ActionClass::ReadOnly)
+}
+
+struct AdmittedTool {
+    description: String,
+    schema: Value,
+    schema_sha256: String,
+}
+struct Snapshot {
+    sha256: String,
+    tools: BTreeMap<String, AdmittedTool>,
+}
 
 pub struct AdmissionCfg {
     pub daemon_url: String,
@@ -28,6 +121,17 @@ pub struct AdmissionCfg {
     pub native: NativeState,
     pub command: String,
     pub args: Vec<String>,
+    pub classifier: Option<Box<dyn InvocationClassifier>>,
+}
+
+/// Debug fixture only. The release build refuses this switch.
+pub fn test_classifier_from_env() -> anyhow::Result<Option<Box<dyn InvocationClassifier>>> {
+    match std::env::var("AGENTFW_TEST_CLASSIFIER_READ") {
+        Ok(value) if value == "1" && cfg!(debug_assertions) => Ok(Some(Box::new(ReadTestDouble))),
+        Ok(_) => bail!("test classifier is unavailable"),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(_) => bail!("invalid test classifier setting"),
+    }
 }
 
 struct InputSchema(BTreeSet<String>);
@@ -248,6 +352,51 @@ impl<'a> Collector<'a> {
         })
     }
 
+    fn classify(
+        &self,
+        snapshot: &Snapshot,
+        host_call_id: &Value,
+        name: &str,
+        args: &Value,
+        baseline: ActionClass,
+    ) -> anyhow::Result<()> {
+        let Some(classifier) = &self.config.classifier else {
+            return Ok(());
+        };
+        let tool = snapshot
+            .tools
+            .get(name)
+            .context("classifier discovery state missing")?;
+        let input = Invocation {
+            server_id: &self.config.server_id,
+            host_call_id,
+            registry_sha256: &self.config.native.registry_sha256,
+            snapshot_sha256: &snapshot.sha256,
+            schema_sha256: &tool.schema_sha256,
+            tool: name,
+            description: &tool.description,
+            schema: &tool.schema,
+            args,
+            baseline,
+        };
+        let result = classifier.classify(&input).context("classifier failed")?;
+        let mapped = map_classification(&result)?;
+        ensure!(mapped == baseline, "unsupported_classification_mapping");
+        eprintln!(
+            "{}",
+            json!({"event":"mcp_classification","contract_version":CLASSIFICATION_CONTRACT,
+            "source":classifier.source(),"host_call_id":host_call_id,"server_id":input.server_id,
+            "tool":name,"snapshot_sha256":input.snapshot_sha256,
+            "schema_sha256":input.schema_sha256,"args_sha256":sha(canonical(args).to_string().as_bytes()),
+            "registry_sha256":input.registry_sha256,
+            "classification":{"actions":&result.actions,"unknown":result.unknown,
+                "confidence":result.confidence,"uncertainty":result.uncertainty,
+                "reason_sha256":sha(result.reason.as_bytes())},
+            "mapped_action_class":mapped,"trusted_baseline":baseline})
+        );
+        Ok(())
+    }
+
     async fn post(&self, url: &str, token: &str, body: &Value) -> anyhow::Result<Value> {
         let response = self
             .client
@@ -421,7 +570,10 @@ impl Pending {
     }
 }
 
-fn manifest(value: &Value, native: &NativeState) -> anyhow::Result<BTreeMap<String, InputSchema>> {
+fn manifest(
+    value: &Value,
+    native: &NativeState,
+) -> anyhow::Result<(BTreeMap<String, InputSchema>, Snapshot)> {
     keys(value, &["tools"])?;
     let tools = value["tools"]
         .as_array()
@@ -432,6 +584,7 @@ fn manifest(value: &Value, native: &NativeState) -> anyhow::Result<BTreeMap<Stri
     );
     let mut seen = BTreeSet::new();
     let mut schemas: BTreeMap<String, InputSchema> = BTreeMap::new();
+    let mut admitted = BTreeMap::new();
     for tool in tools {
         keys(tool, &["name", "description", "inputSchema"])?;
         let name = tool["name"]
@@ -448,15 +601,28 @@ fn manifest(value: &Value, native: &NativeState) -> anyhow::Result<BTreeMap<Stri
             .iter()
             .find(|t| t.name == name)
             .context("MCP tool is not installed by operator")?;
+        let schema_sha256 = sha(canonical(&tool["inputSchema"]).to_string().as_bytes());
         ensure!(
-            tool["inputSchema"].is_object()
-                && sha(canonical(&tool["inputSchema"]).to_string().as_bytes())
-                    == installed.schema_sha256,
+            tool["inputSchema"].is_object() && schema_sha256 == installed.schema_sha256,
             "MCP tool schema differs from operator pin"
         );
         schemas.insert(name.into(), InputSchema::read(&tool["inputSchema"])?);
+        admitted.insert(
+            name.into(),
+            AdmittedTool {
+                description: tool["description"].as_str().unwrap_or("").into(),
+                schema: tool["inputSchema"].clone(),
+                schema_sha256,
+            },
+        );
     }
-    Ok(schemas)
+    Ok((
+        schemas,
+        Snapshot {
+            sha256: sha(canonical(value).to_string().as_bytes()),
+            tools: admitted,
+        },
+    ))
 }
 
 fn initialization(value: &Value) -> anyhow::Result<()> {
@@ -575,6 +741,7 @@ where
     let mut notified = false;
     let mut ready = false;
     let mut schemas: BTreeMap<String, InputSchema> = BTreeMap::new();
+    let mut admitted_snapshot: Option<Snapshot> = None;
     let mut used = BTreeSet::new();
     let mut client_partial = Vec::new();
     let mut server_partial = Vec::new();
@@ -611,6 +778,10 @@ where
                         let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
                         ensure!(args.is_object(), "MCP call arguments must be an object");
                         schemas.get(name).context("MCP tool schema not installed")?.validate(&args)?;
+                        if collector.config.classifier.is_some() {
+                            collector.classify(admitted_snapshot.as_ref().context("classifier discovery state missing")?, request_id,
+                                name, &args, installed.action_class)?;
+                        }
                         let receipt = collector.event("call", json!({"tool":name,"args":args,"schema_sha256":installed.schema_sha256})).await?;
                         if receipt["release"] != true {
                             write(host, &withheld(request_id, "invocation", &receipt["reason_codes"])).await?;
@@ -638,8 +809,10 @@ where
                     }
                     Pending::Manifest(_) => {
                         ensure!(value.get("error").is_none(), "MCP tools/list failed");
-                        schemas = manifest(&value["result"], &collector.config.native)?;
+                        let (validated_schemas, snapshot) = manifest(&value["result"], &collector.config.native)?;
                         collector.inspect_manifest(&value["result"]).await?;
+                        schemas = validated_schemas;
+                        admitted_snapshot = Some(snapshot);
                         ready = true;
                     }
                     Pending::Ping(_) => { ensure!(value.get("error").is_none(), "MCP ping failed"); keys(&value["result"], &[])?; }
@@ -669,6 +842,7 @@ pub async fn run(config: AdmissionCfg) -> anyhow::Result<()> {
             .args(&config.args)
             .env_remove("AGENTFW_TOKEN")
             .env_remove("AGENTFW_NATIVE_TOKEN")
+            .env_remove("AGENTFW_TEST_CLASSIFIER_READ")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
