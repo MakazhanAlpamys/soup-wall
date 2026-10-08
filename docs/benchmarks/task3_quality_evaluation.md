@@ -52,10 +52,14 @@ In local runs, observed p99 latencies for the pure in-memory pipeline remained u
 
 ## Test Matrix Summary
 
-All 40 test cases pass in `soup-wall-adapter`:
+All 58 test cases pass in `soup-wall-adapter`:
 
 - 22 unit tests in `crates/adapter/src/lib.rs`, `tool_call.rs`, and `runner.rs`.
 - 4 demonstration integration test cases in `crates/adapter/tests/enforcement_pipeline.rs`.
 - 1 latency and throughput microbenchmark in `crates/adapter/tests/latency_bench.rs`.
-
 - 13 schema enforcement regression tests in `crates/adapter/tests/schema_validation.rs`, with independent executor counters and temporary file witnesses.
+
+- 18 resilience regression tests in `crates/adapter/tests/resilience_tests.rs`.
+
+The [resilience reproduction and evidence report](task3_resilience.md) also covers
+real MCP daemon outages, admission timeouts and result withholding.
