@@ -51,6 +51,15 @@ impl ToolExecutor for MockExecutor {
 
 /// Baseline policy evaluation mapping tool classification to enforcement verdicts.
 pub fn evaluate_baseline_policy(classification: &ToolClassification) -> (Verdict, Option<String>) {
+    // 1. Validate score bounds and NaN (fail-closed if invalid)
+    if classification.validate().is_err() {
+        return (
+            Verdict::Deny,
+            Some("Invalid classification scores (out of bounds or NaN): fail-closed".into()),
+        );
+    }
+
+    // 2. High-risk destructive actions always take precedence (non-weakening)
     if classification
         .categories
         .contains(&ToolActionCategory::Delete)
@@ -69,12 +78,28 @@ pub fn evaluate_baseline_policy(classification: &ToolClassification) -> (Verdict
         )
     } else if classification
         .categories
+        .contains(&ToolActionCategory::ChangePermissions)
+    {
+        (
+            Verdict::Deny,
+            Some("Unauthorized permission modification is forbidden".into()),
+        )
+    } else if classification
+        .categories
+        .contains(&ToolActionCategory::Unknown)
+        || classification.uncertainty >= 0.8
+    {
+        // Any unknown action or high uncertainty blocks automatic execution
+        (
+            Verdict::Ask,
+            Some("Unfamiliar tool action requires explicit operator approval".into()),
+        )
+    } else if classification
+        .categories
         .contains(&ToolActionCategory::Read)
-        && classification.uncertainty < 0.8
     {
         (Verdict::Allow, None)
     } else {
-        // High uncertainty or unfamiliar tools require explicit operator approval
         (
             Verdict::Ask,
             Some("Unfamiliar tool action requires explicit operator approval".into()),
@@ -87,14 +112,22 @@ pub fn baseline_classify(event: &ToolCallEvent) -> ToolClassification {
     let name = event.tool_name.to_lowercase();
     let args_str = event.raw_arguments.to_string().to_lowercase();
 
-    if name.contains("read") || name.contains("cat") {
+    let is_read = name == "read"
+        || name == "cat"
+        || name == "read_file"
+        || name == "read_document"
+        || name.starts_with("read_")
+        || name.ends_with("_read");
+
+    if is_read {
         ToolClassification {
             categories: vec![ToolActionCategory::Read],
             confidence: 0.95,
             uncertainty: 0.05,
             reason: Some("File read operation detected".into()),
         }
-    } else if name.contains("curl")
+    } else if name == "curl"
+        || name.starts_with("curl ")
         || args_str.contains("https://")
         || args_str.contains("leak")
         || args_str.contains("attacker")
@@ -105,7 +138,7 @@ pub fn baseline_classify(event: &ToolCallEvent) -> ToolClassification {
             uncertainty: 0.02,
             reason: Some("Network egress detected".into()),
         }
-    } else if name.contains("rm") || name.contains("delete") {
+    } else if name == "rm" || name.starts_with("rm ") || name == "delete_file" {
         ToolClassification {
             categories: vec![ToolActionCategory::Delete],
             confidence: 0.99,
@@ -113,13 +146,8 @@ pub fn baseline_classify(event: &ToolCallEvent) -> ToolClassification {
             reason: Some("Destructive delete detected".into()),
         }
     } else {
-        // Unfamiliar tool
-        ToolClassification {
-            categories: vec![],
-            confidence: 0.40,
-            uncertainty: 0.85,
-            reason: Some("Unfamiliar tool action".into()),
-        }
+        // Standardized unknown classification
+        ToolClassification::unknown(Some("Unfamiliar tool action".into()))
     }
 }
 
@@ -155,11 +183,20 @@ pub fn run_enforcement_pipeline<E: ToolExecutor>(
     };
 
     // 3. Evaluate Policy
-    let (verdict, refusal_message) = evaluate_baseline_policy(&classification);
+    let (verdict, mut refusal_message) = evaluate_baseline_policy(&classification);
 
     // 4. Enforce Decision
     let executed = if verdict == Verdict::Allow {
-        executor.execute(event).is_ok()
+        match executor.execute(event) {
+            Ok(_) => true,
+            Err(err) => {
+                // Tool was dispatched to host executor, but execution failed at runtime
+                if refusal_message.is_none() {
+                    refusal_message = Some(format!("Runtime execution error: {err}"));
+                }
+                true
+            }
+        }
     } else {
         // Deny or Ask: Execution is strictly prevented
         false
@@ -229,5 +266,101 @@ mod tests {
         assert_eq!(receipt.verdict, Verdict::Deny);
         assert!(!receipt.executed);
         assert_eq!(executor.count(), 0);
+    }
+
+    #[test]
+    fn test_null_arguments_fails_validation() {
+        let executor = MockExecutor::new();
+        let mut event =
+            ToolCallEvent::new("call-null", "sess-1", "read_file", serde_json::Value::Null);
+
+        let receipt = run_enforcement_pipeline(&mut event, &executor);
+
+        assert_eq!(receipt.verdict, Verdict::Deny);
+        assert!(!receipt.executed);
+        assert_eq!(executor.count(), 0);
+        assert!(receipt.refusal_message.unwrap().contains("null_arguments"));
+    }
+
+    #[test]
+    fn test_catastrophe_tool_not_misclassified_as_read() {
+        let event = ToolCallEvent::new(
+            "call-cat",
+            "sess-1",
+            "catastrophe_tool",
+            serde_json::json!({}),
+        );
+        let classification = baseline_classify(&event);
+        assert_eq!(classification.categories, vec![ToolActionCategory::Unknown]);
+    }
+
+    #[test]
+    fn test_invalid_classification_scores_rejected() {
+        let classification = ToolClassification {
+            categories: vec![ToolActionCategory::Read],
+            confidence: 1.5, // invalid
+            uncertainty: 0.1,
+            reason: None,
+        };
+        let (verdict, reason) = evaluate_baseline_policy(&classification);
+        assert_eq!(verdict, Verdict::Deny);
+        assert!(reason.unwrap().contains("Invalid classification scores"));
+    }
+
+    #[test]
+    fn test_mixed_read_and_unknown_blocks_execution() {
+        let classification = ToolClassification {
+            categories: vec![ToolActionCategory::Read, ToolActionCategory::Unknown],
+            confidence: 0.9,
+            uncertainty: 0.1,
+            reason: None,
+        };
+        let (verdict, _) = evaluate_baseline_policy(&classification);
+        assert_eq!(verdict, Verdict::Ask);
+    }
+
+    #[test]
+    fn test_mixed_read_and_change_permissions_denied() {
+        let classification = ToolClassification {
+            categories: vec![
+                ToolActionCategory::Read,
+                ToolActionCategory::ChangePermissions,
+            ],
+            confidence: 0.9,
+            uncertainty: 0.1,
+            reason: None,
+        };
+        let (verdict, _) = evaluate_baseline_policy(&classification);
+        assert_eq!(verdict, Verdict::Deny);
+    }
+
+    struct FailingExecutor;
+    impl ToolExecutor for FailingExecutor {
+        fn execute(&self, _event: &ToolCallEvent) -> Result<serde_json::Value, String> {
+            Err("Disk I/O failure on host".into())
+        }
+    }
+
+    #[test]
+    fn test_runtime_execution_failure_sets_executed_true_with_error() {
+        let executor = FailingExecutor;
+        let mut event = ToolCallEvent::new(
+            "call-fail",
+            "sess-1",
+            "read_file",
+            serde_json::json!({"path": "a.txt"}),
+        );
+
+        let receipt = run_enforcement_pipeline(&mut event, &executor);
+
+        assert_eq!(receipt.verdict, Verdict::Allow);
+        assert!(
+            receipt.executed,
+            "Dispatched execution must report executed: true"
+        );
+        assert!(receipt
+            .refusal_message
+            .unwrap()
+            .contains("Runtime execution error"));
     }
 }

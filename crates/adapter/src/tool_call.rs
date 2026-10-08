@@ -60,6 +60,17 @@ impl ToolClassification {
             )
         })
     }
+
+    /// Validate confidence and uncertainty score bounds.
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.confidence < 0.0 || self.confidence > 1.0 || self.confidence.is_nan() {
+            return Err("invalid_confidence");
+        }
+        if self.uncertainty < 0.0 || self.uncertainty > 1.0 || self.uncertainty.is_nan() {
+            return Err("invalid_uncertainty");
+        }
+        Ok(())
+    }
 }
 
 /// Normalized internal tool call event emitted by Adapter (Task 2)
@@ -120,6 +131,9 @@ impl ToolCallEvent {
         }
         if self.tool_name.is_empty() {
             return Err("empty_tool_name");
+        }
+        if self.raw_arguments.is_null() {
+            return Err("null_arguments");
         }
         Ok(())
     }
