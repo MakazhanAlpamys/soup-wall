@@ -123,7 +123,13 @@ pub fn baseline_classify(event: &ToolCallEvent) -> ToolClassification {
     let args_str = event.raw_arguments.to_string().to_lowercase();
 
     // 1. Destructive operations in name
-    if name == "rm" || name.starts_with("rm ") || name == "delete_file" || name.contains("delete") {
+    if name == "rm"
+        || name.starts_with("rm ")
+        || name.starts_with("rm_")
+        || name == "rmdir"
+        || name.contains("delete")
+        || name.contains("remove")
+    {
         ToolClassification {
             categories: vec![ToolActionCategory::Delete],
             confidence: 0.99,
@@ -146,13 +152,29 @@ pub fn baseline_classify(event: &ToolCallEvent) -> ToolClassification {
             uncertainty: 0.02,
             reason: Some("Network egress detected in arguments or tool name".into()),
         }
-    // 3. Pure read operations (when no egress evidence is present)
-    } else if name == "read"
-        || name == "cat"
-        || name == "read_file"
-        || name == "read_document"
-        || name.starts_with("read_")
-        || name.ends_with("_read")
+    // 3. State modification / mutation operations in tool name or compound actions
+    } else if name.contains("write")
+        || name.contains("modify")
+        || name.contains("update")
+        || name.contains("patch")
+        || name.contains("edit")
+        || name.contains("create")
+        || name.contains("append")
+    {
+        ToolClassification {
+            categories: vec![ToolActionCategory::Write],
+            confidence: 0.90,
+            uncertainty: 0.10,
+            reason: Some("State modification / write action detected".into()),
+        }
+    // 4. Strict pure read primitives (when no mutation, compound, or egress evidence is present).
+    // Loose heuristics (like read_* prefixes) cannot establish read-only semantics for unfamiliar tools.
+    } else if matches!(
+        name.as_str(),
+        "read" | "cat" | "read_file" | "read_document"
+    ) && !args_str.contains("write")
+        && !args_str.contains("output")
+        && !args_str.contains("destination")
     {
         ToolClassification {
             categories: vec![ToolActionCategory::Read],
@@ -161,8 +183,10 @@ pub fn baseline_classify(event: &ToolCallEvent) -> ToolClassification {
             reason: Some("File read operation detected".into()),
         }
     } else {
-        // Standardized unknown classification
-        ToolClassification::unknown(Some("Unfamiliar tool action".into()))
+        // Standardized unknown classification: abstain on unresolved effects and unfamiliar tools
+        ToolClassification::unknown(Some(
+            "Unfamiliar tool action with unresolved side-effects: abstaining".into(),
+        ))
     }
 }
 
@@ -456,5 +480,58 @@ mod tests {
         );
         assert!(!receipt.executed);
         assert_eq!(executor.count(), 0);
+    }
+
+    #[test]
+    fn test_read_and_write_unfamiliar_tool_abstains_and_blocks_execution() {
+        let executor = MockExecutor::new();
+        let mut event = ToolCallEvent::new(
+            "call-read-write",
+            "sess-1",
+            "read_and_write",
+            serde_json::json!({
+                "path": "target.txt",
+                "content": "synthetic write payload"
+            }),
+        );
+
+        let receipt = run_enforcement_pipeline(&mut event, &executor);
+
+        // Must abstain on unresolved effects (Verdict::Ask or Deny), never Allow
+        assert_ne!(
+            receipt.verdict,
+            Verdict::Allow,
+            "read_and_write must not receive Allow"
+        );
+        assert!(
+            !receipt.executed,
+            "Unfamiliar read_and_write must never dispatch execution"
+        );
+        assert_eq!(executor.count(), 0, "Executor must not be invoked");
+
+        // Classification must not claim pure Read with high confidence
+        let classification = event.classification.as_ref().unwrap();
+        assert!(
+            !classification
+                .categories
+                .contains(&ToolActionCategory::Read)
+                || classification
+                    .categories
+                    .contains(&ToolActionCategory::Write)
+                || classification
+                    .categories
+                    .contains(&ToolActionCategory::Unknown),
+            "Classification must not claim pure Read for compound or unfamiliar mutation tool"
+        );
+        assert!(
+            classification.uncertainty >= 0.8
+                || classification
+                    .categories
+                    .contains(&ToolActionCategory::Write)
+                || classification
+                    .categories
+                    .contains(&ToolActionCategory::Unknown),
+            "Must abstain with high uncertainty or explicit write requirement"
+        );
     }
 }

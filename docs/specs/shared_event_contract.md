@@ -178,3 +178,24 @@ Produced after execution or refusal to guarantee enforcement guarantees.
 * **Task 1 (Classifier Team):** Consume `tool_name`, `raw_arguments`, `tool_description`, populate `ToolClassification`.
 * **Task 2 (Enforcement Team):** Wrap native MCP/Harness calls into `ToolCallEvent`, enforce `Verdict::Deny` without calling executor.
 * **Task 3 (Test & Quality Team):** Feed JSON fixtures into the pipeline and assert `VerificationReceipt.executed == false` for all denied calls.
+
+---
+
+## 5. Contract Scope, Evolution Boundary & Illustrative Runner Baseline
+
+### 5.1. Candidate vs. Agreed Milestone 1 Contract Boundary
+The type definitions in this specification (`sw-tool-event/0.1`) and `crates/adapter/src/tool_call.rs`:
+- Define the **scoped Milestone 1 agreed baseline contract**.
+- The canonical `ToolActionCategory` enum consists exclusively of:
+  `Read`, `Write`, `Delete`, `SendData`, `ChangePermissions`, and `Unknown`.
+- **Boundary Policy:** Various candidate proposals exist across teams (such as fine-grained classifier action taxonomies from Task 1 research or kernel-level intercept proposals from Task 2). These proposals are **candidates**, not agreed contract members.
+- Incompatible external types, extended taxonomies, or alternative action strings must **not** be silently injected into the canonical contract. Instead:
+  1. An explicit, reviewed adapter or normalization layer must map external candidate representations into the agreed `ToolActionCategory` variants; OR
+  2. A formal contract version bump (e.g. `sw-tool-event/0.2`) must be negotiated and agreed across Task 1, Task 2, and Task 3 before modifying the canonical enum.
+
+### 5.2. Baseline Runner & Illustrative Test Scope
+The in-crate enforcement runner (`soup_wall_adapter::runner::run_enforcement_pipeline`), baseline rule classifier (`baseline_classify`), and in-memory mock executors (`MockExecutor`):
+- Serve as the reproducible, fail-closed integration baseline and regression test harness for Task 3 quality evaluation.
+- They **do not claim** production native integration with live external Team 1 ML classifier services or kernel-level OS agent harness drivers. Those native connections remain separate integration work under Task 1 and Task 2.
+- The baseline classifier enforces strict abstain semantics: loose heuristics (such as `read_*` prefixes) are prohibited from granting read-only permissions to unfamiliar tools. Unfamiliar tools or tools with unresolved effects (e.g., `read_and_write`) must abstain by classifying as `Unknown` or requiring explicit operator confirmation (`Verdict::Ask`), preventing unauthorized dispatch.
+
