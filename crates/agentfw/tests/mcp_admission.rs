@@ -34,6 +34,7 @@ schemas = {
  'send_http': {'type':'object','properties':{'url':{'type':'string'},'body':{'type':'string'}},'required':['url','body'],'additionalProperties':False},
  'delete_note': {'type':'object','properties':{'name':{'type':'string'}},'required':['name'],'additionalProperties':False}
 }
+if mode == 'classified-read': schemas['read_document'] = {'type':'object','properties':{'path':{'type':'string'}},'required':['path'],'additionalProperties':False}
 for raw in sys.stdin:
  request = json.loads(raw)
  if mode == 'request-tap':
@@ -83,8 +84,12 @@ fn sha(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn registry() -> Value {
-    let read = json!({"type":"object","properties":{},"additionalProperties":false});
+fn registry_with_read_path(classified_read: bool) -> Value {
+    let read = if classified_read {
+        json!({"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false})
+    } else {
+        json!({"type":"object","properties":{},"additionalProperties":false})
+    };
     let send = json!({"type":"object","properties":{"url":{"type":"string"},"body":{"type":"string"}},"required":["url","body"],"additionalProperties":false});
     let delete = json!({"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false});
     json!({"contract_version": CONTRACT, "registry_id":"fixture-mcp-registry", "tools":[
@@ -133,6 +138,7 @@ struct Fixture {
     input: ChildStdin,
     output: tokio::io::Lines<BufReader<ChildStdout>>,
     ledger: std::path::PathBuf,
+    audit: std::path::PathBuf,
     stderr: std::path::PathBuf,
     #[cfg(windows)]
     private_before_launch: bool,
@@ -183,6 +189,10 @@ fn protected_dacl(path: &Path) -> bool {
 
 impl Fixture {
     async fn new(mode: &str, enforce: bool) -> Self {
+        Self::with_classifier(mode, enforce, false).await
+    }
+
+    async fn with_classifier(mode: &str, enforce: bool, classified_read: bool) -> Self {
         // macOS places the default temp directory under the /var -> /private/var
         // symlink, which the native registry guard correctly refuses.
         let root = std::env::temp_dir();
@@ -216,7 +226,9 @@ impl Fixture {
             bootstrap.success(),
             "fixture private Agent bootstrap failed"
         );
-        let bytes = registry().to_string().into_bytes();
+        let bytes = registry_with_read_path(classified_read)
+            .to_string()
+            .into_bytes();
         let digest = sha(&bytes);
         let registry_path = dir.path().join("registry.json");
         std::fs::write(&registry_path, &bytes).unwrap();
@@ -286,6 +298,9 @@ impl Fixture {
             if cfg!(windows) { "USERPROFILE" } else { "HOME" },
             dir.path(),
         );
+        if classified_read {
+            command.env("AGENTFW_TEST_CLASSIFIER_READ", "1");
+        }
         command
             .env("AGENTFW_TOKEN", "synthetic-hook-env")
             .env("AGENTFW_NATIVE_TOKEN", "synthetic-native-env");
@@ -312,6 +327,7 @@ impl Fixture {
             input,
             output,
             ledger,
+            audit: home.join("audit.jsonl"),
             stderr,
             #[cfg(windows)]
             private_before_launch,
@@ -425,6 +441,52 @@ impl Fixture {
             .and_then(|status| status.code());
         format!("category={category}, exit={code:?}")
     }
+}
+
+#[tokio::test]
+async fn classified_read_keeps_original_call_and_result_bytes() {
+    let mut fixture = Fixture::with_classifier("classified-read", true, true).await;
+    fixture.ready().await;
+    let read = r#"{ "jsonrpc":"2.0", "id":39, "method":"tools/call", "params":{"name":"read_document","arguments":{"path":"memo-1"}} }"#;
+    let result = fixture.exchange(read).await.unwrap();
+    assert_eq!(
+        result,
+        r#"{ "jsonrpc": "2.0", "id": 39, "result": {"content":[{"type":"text","text":"Inventory: 7 red widgets."}]} }"#
+    );
+    assert_eq!(
+        std::fs::read_to_string(&fixture.ledger).unwrap(),
+        format!("{read}\n")
+    );
+    let evidence = std::fs::read_to_string(&fixture.stderr).unwrap();
+    let classification: Value = evidence
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .find(|line| line["event"] == "mcp_classification")
+        .expect("classified call must emit structured evidence");
+    assert_eq!(classification["source"], "test-double/read-v1");
+    assert_eq!(classification["host_call_id"], 39);
+    assert_eq!(classification["tool"], "read_document");
+    assert_eq!(classification["classification"]["actions"], json!(["read"]));
+    assert_eq!(classification["classification"]["unknown"], false);
+    assert_eq!(classification["mapped_action_class"], "read_only");
+    assert_eq!(classification["trusted_baseline"], "read_only");
+    assert_eq!(classification["args_sha256"], sha(br#"{"path":"memo-1"}"#));
+    assert_eq!(
+        classification["schema_sha256"],
+        registry_with_read_path(true)["tools"][0]["schema_sha256"]
+    );
+    let audit = std::fs::read_to_string(&fixture.audit).unwrap();
+    let audit: Vec<Value> = audit
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert!(audit.iter().any(|line| line["event"] == "native_call"
+        && line["tool"] == "read_document"
+        && line["verdict"] == "allow"
+        && line["released"] == true));
+    assert!(audit.iter().any(|line| line["event"] == "native_result"
+        && line["tool"] == "read_document"
+        && line["released"] == true));
 }
 
 impl Drop for Fixture {
