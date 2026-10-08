@@ -40,6 +40,7 @@ overview. Choose a guide below for development, operation or evaluation.
 | [Generated scorecard](benchmarks/agent-security-scorecard.generated.md) | Exact output compared by CI; regenerate through the benchmark command |
 | [Independent historical replay](benchmarks/independent-history-replay.md) | Pinned historical evidence and the original adapter's semantic limits |
 | [AgentDojo runtime adapter](benchmarks/agentdojo-live-fallback.md) | Pinned runtime fixtures and explicit live-evaluation prerequisites |
+| [Task 3 resilience](benchmarks/task3_resilience.md) | Malformed events, unknown tools, daemon failures and independent execution witnesses |
 | [Native admission](benchmarks/native-admission.md) | Installed tool semantics, invocation binding and result/context contracts |
 | [Corpus documentation](../crates/bench/corpora/README.md) | Versioned synthetic agent-session labels and provenance |
 
