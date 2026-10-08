@@ -82,8 +82,16 @@ The dependency cache allowed adding `--offline` to the locked Cargo commands.
 | `cargo fmt --all -- --check` | Passed |
 | `cargo clippy --locked --workspace --all-targets -- -D warnings` | Passed |
 | Python `scripts/tests` discovery | 124 discovered: 119 passed, 5 skipped |
-| Python `scripts/benchmarks` discovery | 44 discovered: 26 passed, 18 skipped |
+| Python `scripts/benchmarks` discovery | 44 tests run: 28 passed, 16 skipped; 2 additional class-level skips |
 | `python3 scripts/check_docs.py` | Passed |
+
+The five ignored Rust checks require a live local model, disposable Redis,
+disposable PostgreSQL, an operator-selected OIDC issuer and real SAML metadata.
+The five Python script skips require native Windows launcher, ACL or DPAPI behavior.
+Benchmark skips require an explicitly selected pinned AgentDojo checkout/runtime or
+disposable native Agent: 16 individual tests and two whole test classes were skipped.
+Python reports 18 skip records in total; the two class-level records are not included
+in its `Ran 44 tests` count. No skipped environment was silently treated as accepted.
 
 Ignored and skipped tests are not counted as successful executions. Repository-wide
 validation commands and platform-dependent checks are listed in
