@@ -115,6 +115,104 @@ external URLs. It does not validate remote websites or every Markdown extension.
 Links into ignored personal notes fail even if the files exist locally. The
 `Documentation links` CI job runs for every pull request base branch.
 
+## Shared local Agent/MCP test environment
+
+The fixture baseline is the Environment & Reproducibility foundation for team
+integration. It packages existing tests without changing their MCP messages,
+original arguments, identifiers, policies or native admission contract. The
+team's new event contract and enforcement runner remain a separate integration.
+
+On Linux or macOS, install Docker with Buildx and a working Linux-container daemon, Git,
+and Python 3.10 or later. Run as your normal user with Docker access. Allocate
+at least 4 GB RAM to Docker for the build; the test container is limited to two
+CPUs and 2 GB RAM. From a checkout:
+
+```sh
+python3 scripts/test-environment.py
+```
+
+The launcher chooses the Docker daemon's architecture, builds the image, runs
+the selected tests and writes a unique directory under `target/test-environment/`.
+No local Rust, C compiler, GPU, model, provider account or production database
+is required. The first build needs internet access for image layers, signed
+Debian snapshot packages and Cargo dependencies. Later builds reuse Docker's
+local layer cache. Runtime tests use only loopback and temporary fixture files;
+the container runs with `--network=none`, a read-only root, no capabilities and
+no host source, home directory or Docker-socket mount. Its only writable bind
+mount is the fresh output directory. No public ports are published.
+
+Select a platform explicitly when comparing runs:
+
+```sh
+python3 scripts/test-environment.py --platform linux/amd64
+python3 scripts/test-environment.py --platform linux/arm64
+```
+
+Intel machines normally use `amd64`; Apple Silicon normally uses `arm64`.
+Cross-architecture execution requires Docker emulation and changes timing.
+Both run **Linux containers**, including on macOS. Native macOS execution,
+Windows host integration and Linux bubblewrap isolation are not certified by
+this baseline. Check the command on each intended host; an untested host stays
+unverified. The CI workflow runs native Linux amd64/arm64 jobs, not macOS jobs.
+
+The image pins Rust 1.98.0, multi-platform Rust/Debian image digests, a dated
+Debian package snapshot and the repository's Cargo.lock. It records source-file
+and executable hashes, runtime packages, Python/Rust versions, image identity,
+host/container architectures and whether the source checkout was dirty. This
+identifies the inputs; it does not promise bit-identical compiled binaries or
+identical latency on different hardware. The production Dockerfile is separate.
+
+### Included fixture checks
+
+| Existing test target | Evidence provided |
+| --- | --- |
+| `soup-wall-agent / scenarios` | Reviewed benign/action-policy regressions; no OS execution claim |
+| `agentfw / mcp_admission` | Actual stdio processes, original bytes/IDs, execution ledger, result withholding, malformed/unknown calls, poisoned descriptions and daemon outage |
+| `agentfw / native_endpoint` | Native API binding, authority, arguments, result and context contracts through the actual router |
+| `agentfw / judge_endpoint` | Deterministic mock judge success, malformed reply, HTTP failure and timeout/fallback behavior |
+
+Each discovered test runs by its original exact name with a 60-second timeout.
+A process-group timeout kills fixture descendants. The launcher bounds the
+whole container run to 15 minutes and forcibly removes only its own uniquely
+named container afterward. Passing every required case produces exit code 0.
+Failures, infrastructure errors, empty discovery and required-test skips produce
+a nonzero exit. Build failures retain reports too. See `container.log` for
+progress while the launcher waits, and individual case logs for failures.
+
+### Reading and sharing results
+
+- `report.md`: readable summary, individual statuses and explicit limitations.
+- `results.json`: host/build identity, steps, complete fixture results and hashes.
+- `fixture-results.json`: checkpointed container results, including partial runs.
+- `build.log`, `container.log`, case logs and `cleanup.log`: reproducible diagnostics.
+
+Outputs are new on each run; failed runs are not overwritten. CI retains them
+even when the job fails. Review output before sharing it; fixtures use synthetic
+values, and the launcher does not copy host credentials into the container.
+
+The reported elapsed milliseconds include test setup and teardown. They are
+**not** request/classifier latency. Accuracy, uncertainty and false-block rate
+remain **not measured** until the scenario owners supply labelled evaluations.
+Live model experiments, a new classifier, native host acceptance and the team's
+new shared-contract flow are outside this baseline and must be reported
+separately. A baseline pass does not close the full team milestone.
+
+To add team scenarios, first agree on the event contract, the runner's command,
+input/output paths, failure codes and independent execution/result witnesses.
+Additional Rust integration tests can join `SUITES` in
+`scripts/test-environment.py`, with required files included by
+`deploy/Dockerfile.test.dockerignore`. A runner with a different CLI/result
+format needs a separate invocation/report adapter after that interface is
+agreed; the current reader accepts Rust libtest output only. Reuse original
+protocols; do not disguise unfamiliar tools as Bash or invent replacement IDs.
+
+Common failures:
+
+- Docker socket denied or daemon stopped: correct Docker access/startup and retry.
+- Build fetch failure: inspect `build.log`; dependencies need network during build.
+- Wrong architecture/exec format: select a native platform or configure emulation.
+- Nonzero result/skip: inspect the case log; do not suppress it to obtain a green run.
+
 ## Source map and focused checks
 
 Read the [architecture](ARCHITECTURE.md) for component relationships and actual
