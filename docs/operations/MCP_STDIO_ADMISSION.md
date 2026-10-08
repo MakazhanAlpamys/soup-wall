@@ -104,7 +104,7 @@ without translating tools into another format:
 | Harness frame | Collector | Native event | Classification and policy | Outcome |
 | --- | --- | --- | --- | --- |
 | `initialize`, `tools/list` | Checks the initialization result and pins each tool schema against the registry | Manifest inspection | Tool-description rules | Release the manifest, or close before tools reach the host |
-| `tools/call` | Validates arguments against the pinned schema; `_meta` stays transport correlation | `call` with `tool`, `args`, `schema_sha256` | Registry `action_class` and egress hosts form a `ToolCall` event for the agent policy | `allow` writes the original frame to the server; `deny` and `ask` return a correlated `isError` refusal and the server never receives the frame |
+| `tools/call` | Validates arguments against the pinned schema; `_meta` stays transport correlation; an installed classifier then sees the admitted discovery snapshot, actual arguments and trusted baseline | `call` with `tool`, `args`, `schema_sha256` | Registry `action_class` and egress hosts form a `ToolCall` event for the agent policy | `allow` writes the original frame to the server; `deny` and `ask` return a correlated `isError` refusal and the server never receives the frame |
 | Server response | Binds the response to the pending call | `result` with `call_id`, `result_kind`, `delivery: mcp_host`, `content` | Decoded text blocks form `ToolResult` events with the declared provenance | `allow` writes the original bytes to the host; otherwise a correlated `isError` refusal |
 
 The JSON-RPC id, tool name, arguments and `_meta` stay in the original bytes,
@@ -112,10 +112,41 @@ and a refusal reuses the original id. There is no approval channel in this
 contract, so `ask` is enforced exactly like a denial until a reviewed
 single-use approval path exists.
 
-## Cross-platform local demonstration
+### Classifier seam
+
+The collector accepts one replaceable `InvocationClassifier` between argument
+validation and the daemon `call` event. Its candidate output
+(`sw-classification/candidate-1`) is `actions[]` from `read`, `write`,
+`delete`, `send_data` and `change_permissions`, a separate `unknown` Boolean,
+and confidence, uncertainty and a reason. Teams 1, 2 and 3 have not frozen this
+contract; it changes neither the MCP frames nor `sw-native/1`.
+
+- A single action maps to `ReadOnly`, `SideEffecting`, `Destructive`, `Network`
+  or `PrivilegeChanging`. The result is evidence only: the daemon still
+  authorizes against the trusted registry class, so a lower or higher label
+  cannot change restrictions. A difference is recorded as `baseline_mismatch`.
+- Mixed actions, an empty action list and `unknown: true` return
+  `unsupported_classification_mapping` until their policy semantics are agreed.
+- Timeout (2 s), crash, error and invalid scores or actions are technical
+  failures. Like an unsupported mapping, they answer the host with a JSON-RPC
+  error that keeps the original id and says "policy not reached". The call never
+  reaches the daemon or the server, the session continues, and a later call is
+  admitted afresh. Missing discovery state still terminates the collector.
+
+Each classified call writes one `mcp_classification` JSON line to the
+collector's stderr with the source, host call id, snapshot, schema, argument and
+registry digests, the classification (reason hashed), mapped and trusted
+classes, `policy: reached | not_reached`, any failure label and classifier
+latency. Debug builds provide two identified test doubles:
+`AGENTFW_TEST_CLASSIFIER_READ=1` ([classified read](CLASSIFIED_READ_EVIDENCE.md))
+and `AGENTFW_TEST_CLASSIFIER=fixture-v1`, which infers `send_data` from
+URL-valued arguments rather than tool names and injects faults named in argument
+values. Release builds refuse both. Team 1's classifier is not integrated yet.
+
+## Local demonstration
 
 The demonstration runs on Linux, macOS and Windows without a model, provider or
-Claude Code installation. Linux CI runs it on every pull request:
+account. Linux CI runs it on every pull request:
 
 ```sh
 cargo build --locked -p agentfw
@@ -125,48 +156,57 @@ python3 scripts/mcp-admission-demo.py
 It creates a disposable Agent home under `target/`, starts `agentfw serve` in
 enforcing mode with a demonstration registry and fixture policy, and wraps the
 harmless [demonstration server](../../scripts/fixtures/mcp_admission_demo_server.py)
-with `agentfw mcp --native-admission`. The script then sends Claude Code's
-stdio frames, including the `_meta` correlation pair. Decisions are checked
-against witnesses the firewall does not control:
+with `agentfw mcp --native-admission` and the `fixture-v1` classifier double.
+It sends Claude Code's stdio frames, including the `_meta` correlation pair,
+and checks each scenario against witnesses the firewall does not control: the
+server's execution ledger, a loopback receiver and the note files.
 
-| Scenario | Policy outcome | Independent witness |
+| Scenario | Expected outcome | Independent witness |
 | --- | --- | --- |
-| `read_document` | Allow | The server ledger holds the exact original frame; the harness receives the server's response byte-for-byte |
-| `send_http` with a benign body | Allow | The loopback receiver records exactly one delivery |
-| `send_http` with a synthetic secret | Deny before execution | Server ledger and receiver unchanged |
-| `delete_note` (`destructive`) | Ask, held without an approval path | Server ledger unchanged; the note still exists |
-| `read_document` returning an injection | Call allowed, result withheld | The server executed it; the harness never receives its marker |
-| Follow-up `read_document` | Allow | Ordinary work continues after the refusals |
+| `read_document` | Allow | Ledger holds the exact original frame; the harness receives the server's response byte-for-byte |
+| `send_http` and unfamiliar `publish_report` with benign data | Allow | The receiver records exactly one delivery each |
+| `send_http` with a synthetic secret, also with an understated `read` classification | Deny before execution | Ledger and receiver unchanged |
+| `delete_note` | Deny before execution | Ledger unchanged; the note still exists |
+| `send_http` containing an email address | Ask, held without an approval path | Ledger and receiver unchanged |
+| Classifier timeout, crash, invalid scores, `unknown`, mixed actions | Policy not reached | Ledger and receiver unchanged |
+| `read_document` returning an injection | Executed, result withheld | Ledger grows; the harness never receives the marker |
+| Follow-up `read_document`, then daemon outage | Allow, then fail closed | Work continues; after the outage the collector exits and the ledger is unchanged |
 
-Each check and the daemon's own audit decisions are written to
-`target/mcp-admission-demo.json` with the binary, registry and policy hashes;
-`--keep` retains the workspace for inspection. The registry path must not
-contain linked components, so the script uses the resolved `target/` directory
-rather than macOS `/tmp` or `/var`.
+The report `target/mcp-admission-demo.json` lists, per scenario, the original
+host call id, expected and actual outcome, expected (`truth_actions`) and actual
+classification with its source, policy reached or not, technical failure,
+executor and receiver deltas, result release and latency. Each run summary
+separates classification errors, false blocks, enforcement failures and
+technical failures with their sample counts. The latency scope is one sample
+per scenario from harness request to harness response with a debug build. The
+report also records the commit, platform, binary, registry, policy and fixture
+digests, and the daemon's own audit decisions. `--keep` retains the workspace.
+The registry path must not contain linked components, so the script uses the
+resolved `target/` directory rather than macOS `/tmp` or `/var`.
 
-The default harness frames are scripted, and the policy is a fixture. This
-establishes the admission boundaries and their witnesses, not live-model or
-shipped-policy effectiveness.
+### Actual Claude Code host check
 
-On macOS and Linux, `--claude` runs the same scenarios through an actual Claude
-Code process instead of scripted frames. A local Messages API stand-in proposes
-the fixed tool calls and records every request Claude Code sends to the model;
-no real model, provider account or credential is used. Claude Code runs with an
-isolated profile, a fixture API key, restricted built-in tools and a strict MCP
-configuration that launches the admission collector. Outbound proxies point at a
-closed loopback port.
+On macOS and Linux the same scenarios also run through an actual Claude Code
+process when one is found (`--claude PATH`, `target/claude-code` or `PATH`).
+Otherwise the report marks the host check `skipped` with the reason; a skipped
+check is never shown as passed. A local Messages API stand-in proposes the fixed
+tool calls and records every request Claude Code sends to the model; no real
+model, provider account or credential is used. Claude Code runs with an isolated
+profile, a fixture API key, restricted built-in tools and a strict MCP
+configuration that launches the collector; outbound proxies point at a closed
+loopback port.
 
 ```sh
 npm install --prefix target/claude-code @anthropic-ai/claude-code
-python3 scripts/mcp-admission-demo.py --claude target/claude-code/node_modules/.bin/claude
+python3 scripts/mcp-admission-demo.py
 ```
 
-In addition to the server ledger, receiver and note file, this mode checks that
-executed frames carry Claude's own `tool_use` ids, that Claude returned each
-refusal to the model, and that the injected marker never appeared in any model
-request. The report records the Claude Code version and the observed call
-metadata keys. The Windows actual-host check below remains the separate
-Windows evidence.
+This mode also checks that executed frames carry Claude's own `tool_use` ids and
+original arguments and that the injected marker never appeared in any model
+request. It records the Claude Code version and observed call metadata keys. The
+daemon-outage case and per-call latency are scripted-only. MCP host release does
+not attest what a model later observes. The Windows actual-host check below
+remains the separate Windows evidence.
 
 ## Reproducible Claude Code check
 

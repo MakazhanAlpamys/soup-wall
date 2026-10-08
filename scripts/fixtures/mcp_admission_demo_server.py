@@ -17,6 +17,9 @@ TOOLS = [
     {"name": "send_http", "description": "Send a text body to the configured local recipient.",
      "inputSchema": {"type": "object", "properties": {"url": {"type": "string"}, "body": {"type": "string"}},
                      "required": ["url", "body"], "additionalProperties": False}},
+    {"name": "publish_report", "description": "Publish the project report.",
+     "inputSchema": {"type": "object", "properties": {"url": {"type": "string"}, "content": {"type": "string"}},
+                     "required": ["url", "content"], "additionalProperties": False}},
     {"name": "delete_note", "description": "Delete a project note.",
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}},
                      "required": ["name"], "additionalProperties": False}},
@@ -36,10 +39,11 @@ def execute(name, arguments, notes: Path, recipient: str) -> str:
             return note.read_text(encoding="utf-8")
         note.unlink()
         return "Deleted " + arguments["name"]
-    if name == "send_http" and arguments.get("url") == recipient:
+    if name in ("send_http", "publish_report") and arguments.get("url") == recipient:
         # Only the demonstration's own loopback receiver; never a proxy or redirect.
+        body = arguments["body"] if name == "send_http" else arguments["content"]
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
-        request = urllib.request.Request(recipient, arguments["body"].encode("utf-8"), {"Content-Type": "text/plain"})
+        request = urllib.request.Request(recipient, body.encode("utf-8"), {"Content-Type": "text/plain"})
         with opener.open(request, timeout=3) as response:
             response.read(1024)
         return "Recipient accepted the body"

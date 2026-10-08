@@ -189,10 +189,12 @@ fn protected_dacl(path: &Path) -> bool {
 
 impl Fixture {
     async fn new(mode: &str, enforce: bool) -> Self {
-        Self::with_classifier(mode, enforce, false).await
+        Self::with_classifier(mode, enforce, None).await
     }
 
-    async fn with_classifier(mode: &str, enforce: bool, classified_read: bool) -> Self {
+    /// `read` installs the classified-read double; `fixture-v1` the fault-injecting one.
+    async fn with_classifier(mode: &str, enforce: bool, classifier: Option<&str>) -> Self {
+        let classified_read = classifier == Some("read");
         // macOS places the default temp directory under the /var -> /private/var
         // symlink, which the native registry guard correctly refuses.
         let root = std::env::temp_dir();
@@ -298,9 +300,11 @@ impl Fixture {
             if cfg!(windows) { "USERPROFILE" } else { "HOME" },
             dir.path(),
         );
-        if classified_read {
-            command.env("AGENTFW_TEST_CLASSIFIER_READ", "1");
-        }
+        match classifier {
+            Some("read") => command.env("AGENTFW_TEST_CLASSIFIER_READ", "1"),
+            Some(double) => command.env("AGENTFW_TEST_CLASSIFIER", double),
+            None => &mut command,
+        };
         command
             .env("AGENTFW_TOKEN", "synthetic-hook-env")
             .env("AGENTFW_NATIVE_TOKEN", "synthetic-native-env");
@@ -443,9 +447,103 @@ impl Fixture {
     }
 }
 
+fn classifications(fixture: &Fixture) -> Vec<Value> {
+    std::fs::read_to_string(&fixture.stderr)
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|line| line["event"] == "mcp_classification")
+        .collect()
+}
+
+#[tokio::test]
+async fn understated_classification_keeps_trusted_network_restrictions() {
+    // Letting a lower-risk label replace the registry class would release this secret send.
+    let mut fixture = Fixture::with_classifier("normal", true, Some("fixture-v1")).await;
+    fixture.ready().await;
+    let denied = fixture.exchange(r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/collect","body":"AKIAIOSFODNN7EXAMPLE classifier-fault-understate"}}}"#).await.unwrap();
+    assert!(denied.contains("fixture-secret-egress"), "{denied}");
+    assert!(executed(&fixture.ledger).is_empty());
+    let allowed = fixture.exchange(r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/collect","body":"weekly summary"}}}"#).await.unwrap();
+    assert!(allowed.contains("7 red widgets"));
+    assert_eq!(executed(&fixture.ledger).len(), 1);
+    let evidence = classifications(&fixture);
+    assert_eq!(evidence.len(), 2);
+    assert_eq!(evidence[0]["source"], "test-double/fixture-v1");
+    assert_eq!(evidence[0]["classification"]["actions"], json!(["read"]));
+    assert_eq!(evidence[0]["mapped_action_class"], "read_only");
+    assert_eq!(evidence[0]["trusted_baseline"], "network");
+    assert_eq!(evidence[0]["baseline_mismatch"], true);
+    assert_eq!(evidence[0]["policy"], "reached");
+    assert_eq!(
+        evidence[1]["classification"]["actions"],
+        json!(["send_data"])
+    );
+    assert_eq!(evidence[1]["baseline_mismatch"], false);
+}
+
+#[tokio::test]
+async fn classifier_failures_never_reach_policy_or_the_server() {
+    // Treating any of these as an implicit Allow would forward the call to the server.
+    let mut fixture = Fixture::with_classifier("normal", true, Some("fixture-v1")).await;
+    fixture.ready().await;
+    let cases = [
+        ("timeout", "classifier_timeout"),
+        ("crash", "classifier_crash"),
+        ("invalid", "classifier_invalid"),
+        ("unknown", "unsupported_classification_mapping"),
+        ("mixed", "unsupported_classification_mapping"),
+    ];
+    for (index, (fault, label)) in cases.iter().enumerate() {
+        let id = 10 + index;
+        let request = json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":"send_http",
+            "arguments":{"url":"http://127.0.0.1:9/collect","body":format!("summary classifier-fault-{fault}")}}});
+        let reply: Value =
+            serde_json::from_str(&fixture.exchange(&request.to_string()).await.unwrap()).unwrap();
+        assert_eq!(
+            reply["id"], id,
+            "the technical response keeps the host call id"
+        );
+        let message = reply["error"]["message"].as_str().unwrap();
+        assert!(
+            message.contains(label) && message.contains("policy not reached"),
+            "{message}"
+        );
+        assert!(
+            executed(&fixture.ledger).is_empty(),
+            "{fault} must not execute"
+        );
+    }
+    let followup = r#"{"jsonrpc":"2.0","id":20,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    assert!(
+        fixture
+            .exchange(followup)
+            .await
+            .unwrap()
+            .contains("7 red widgets"),
+        "a later call is admitted afresh"
+    );
+    assert_eq!(executed(&fixture.ledger).len(), 1);
+    let evidence = classifications(&fixture);
+    let failures: Vec<_> = evidence
+        .iter()
+        .filter(|line| line["policy"] == "not_reached")
+        .map(|line| line["failure"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        failures,
+        cases.iter().map(|(_, label)| *label).collect::<Vec<_>>()
+    );
+    let audit = std::fs::read_to_string(&fixture.audit).unwrap();
+    assert!(
+        !audit.contains("\"tool\":\"send_http\""),
+        "policy was never consulted for an unclassified call"
+    );
+}
+
 #[tokio::test]
 async fn classified_read_keeps_original_call_and_result_bytes() {
-    let mut fixture = Fixture::with_classifier("classified-read", true, true).await;
+    let mut fixture = Fixture::with_classifier("classified-read", true, Some("read")).await;
     fixture.ready().await;
     let read = r#"{ "jsonrpc":"2.0", "id":39, "method":"tools/call", "params":{"name":"read_document","arguments":{"path":"memo-1"}} }"#;
     let result = fixture.exchange(read).await.unwrap();

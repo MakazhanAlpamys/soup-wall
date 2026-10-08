@@ -4,6 +4,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context};
@@ -21,19 +22,21 @@ use soup_wall_agent::ActionClass;
 const MAX_REQUESTS: usize = 1024;
 const IO_TIMEOUT: Duration = Duration::from_secs(30);
 const CLASSIFICATION_CONTRACT: &str = "sw-classification/candidate-1";
+const CLASSIFIER_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Internal classifier input. Discovery content is evidence; only the registry
 /// and successful admission establish the trusted baseline.
-pub struct Invocation<'a> {
-    pub server_id: &'a str,
-    pub host_call_id: &'a Value,
-    pub registry_sha256: &'a str,
-    pub snapshot_sha256: &'a str,
-    pub schema_sha256: &'a str,
-    pub tool: &'a str,
-    pub description: &'a str,
-    pub schema: &'a Value,
-    pub args: &'a Value,
+#[derive(Clone)]
+pub struct Invocation {
+    pub server_id: String,
+    pub host_call_id: Value,
+    pub registry_sha256: String,
+    pub snapshot_sha256: String,
+    pub schema_sha256: String,
+    pub tool: String,
+    pub description: String,
+    pub schema: Value,
+    pub args: Value,
     pub baseline: ActionClass,
 }
 
@@ -48,7 +51,7 @@ pub struct Classification {
 
 pub trait InvocationClassifier: Send + Sync {
     fn source(&self) -> &'static str;
-    fn classify(&self, invocation: &Invocation<'_>) -> anyhow::Result<Classification>;
+    fn classify(&self, invocation: &Invocation) -> anyhow::Result<Classification>;
 }
 
 struct ReadTestDouble;
@@ -57,13 +60,13 @@ impl InvocationClassifier for ReadTestDouble {
     fn source(&self) -> &'static str {
         "test-double/read-v1"
     }
-    fn classify(&self, invocation: &Invocation<'_>) -> anyhow::Result<Classification> {
+    fn classify(&self, invocation: &Invocation) -> anyhow::Result<Classification> {
         ensure!(
             !invocation.server_id.is_empty()
                 && !invocation.registry_sha256.is_empty()
                 && !invocation.snapshot_sha256.is_empty()
                 && !invocation.schema_sha256.is_empty()
-                && id(invocation.host_call_id).is_ok()
+                && id(&invocation.host_call_id).is_ok()
                 && invocation.args.is_object()
                 && invocation.schema.is_object()
                 && invocation.baseline == ActionClass::ReadOnly,
@@ -79,28 +82,93 @@ impl InvocationClassifier for ReadTestDouble {
     }
 }
 
-fn map_classification(result: &Classification) -> anyhow::Result<ActionClass> {
-    ensure!(
-        result.confidence.is_finite()
-            && (0.0..=1.0).contains(&result.confidence)
-            && result.uncertainty.is_finite()
-            && (0.0..=1.0).contains(&result.uncertainty)
-            && !result.reason.is_empty()
-            && result.reason.len() <= 1024,
-        "classifier_invalid"
-    );
-    ensure!(
-        result.actions.iter().all(|action| matches!(
-            action.as_str(),
-            "read" | "write" | "delete" | "send_data" | "change_permissions"
-        )),
-        "classifier_invalid"
-    );
-    ensure!(
-        !result.unknown && result.actions == ["read"],
-        "unsupported_classification_mapping"
-    );
-    Ok(ActionClass::ReadOnly)
+/// Identified test double for the seam, never classifier acceptance. It infers
+/// `send_data` from URL-valued arguments rather than tool names, otherwise
+/// echoes the trusted baseline, and injects faults named in argument values.
+struct FixtureTestDouble;
+
+impl InvocationClassifier for FixtureTestDouble {
+    fn source(&self) -> &'static str {
+        "test-double/fixture-v1"
+    }
+    fn classify(&self, invocation: &Invocation) -> anyhow::Result<Classification> {
+        let values: Vec<&str> = invocation
+            .args
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter_map(|(_, value)| value.as_str())
+            .collect();
+        let fault = |name: &str| {
+            let marker = format!("classifier-fault-{name}");
+            values.iter().any(|value| value.contains(&marker))
+        };
+        if fault("timeout") {
+            std::thread::sleep(CLASSIFIER_TIMEOUT * 2);
+        }
+        assert!(!fault("crash"), "fixture classifier crash");
+        let actions = if fault("unknown") {
+            vec![]
+        } else if fault("mixed") {
+            vec!["read".into(), "send_data".into()]
+        } else if fault("understate") {
+            vec!["read".into()]
+        } else if values
+            .iter()
+            .any(|value| value.starts_with("http://") || value.starts_with("https://"))
+        {
+            vec!["send_data".into()]
+        } else {
+            vec![baseline_action(invocation.baseline).into()]
+        };
+        Ok(Classification {
+            actions,
+            unknown: fault("unknown"),
+            confidence: if fault("invalid") { 2.0 } else { 0.9 },
+            uncertainty: 0.1,
+            reason: "fixture test double".into(),
+        })
+    }
+}
+
+fn baseline_action(class: ActionClass) -> &'static str {
+    match class {
+        ActionClass::ReadOnly => "read",
+        ActionClass::SideEffecting => "write",
+        ActionClass::Network => "send_data",
+        ActionClass::PrivilegeChanging => "change_permissions",
+        ActionClass::Destructive => "delete",
+    }
+}
+
+/// Candidate singleton mapping. Mixed actions and `unknown` stay unsupported
+/// until Teams 1, 2 and 3 agree their policy semantics; there is no numeric maximum.
+fn map_classification(result: &Classification) -> Result<ActionClass, &'static str> {
+    let valid = result.confidence.is_finite()
+        && (0.0..=1.0).contains(&result.confidence)
+        && result.uncertainty.is_finite()
+        && (0.0..=1.0).contains(&result.uncertainty)
+        && !result.reason.is_empty()
+        && result.reason.len() <= 1024
+        && result.actions.iter().all(|action| {
+            matches!(
+                action.as_str(),
+                "read" | "write" | "delete" | "send_data" | "change_permissions"
+            )
+        });
+    if !valid {
+        return Err("classifier_invalid");
+    }
+    match (result.unknown, result.actions.as_slice()) {
+        (false, [action]) => Ok(match action.as_str() {
+            "read" => ActionClass::ReadOnly,
+            "write" => ActionClass::SideEffecting,
+            "delete" => ActionClass::Destructive,
+            "send_data" => ActionClass::Network,
+            _ => ActionClass::PrivilegeChanging,
+        }),
+        _ => Err("unsupported_classification_mapping"),
+    }
 }
 
 struct AdmittedTool {
@@ -121,16 +189,19 @@ pub struct AdmissionCfg {
     pub native: NativeState,
     pub command: String,
     pub args: Vec<String>,
-    pub classifier: Option<Box<dyn InvocationClassifier>>,
+    pub classifier: Option<Arc<dyn InvocationClassifier>>,
 }
 
-/// Debug fixture only. The release build refuses this switch.
-pub fn test_classifier_from_env() -> anyhow::Result<Option<Box<dyn InvocationClassifier>>> {
-    match std::env::var("AGENTFW_TEST_CLASSIFIER_READ") {
-        Ok(value) if value == "1" && cfg!(debug_assertions) => Ok(Some(Box::new(ReadTestDouble))),
-        Ok(_) => bail!("test classifier is unavailable"),
-        Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(_) => bail!("invalid test classifier setting"),
+/// Debug fixtures only. The release build refuses both switches.
+pub fn test_classifier_from_env() -> anyhow::Result<Option<Arc<dyn InvocationClassifier>>> {
+    let read = std::env::var_os("AGENTFW_TEST_CLASSIFIER_READ");
+    let fixture = std::env::var_os("AGENTFW_TEST_CLASSIFIER");
+    match (read, fixture) {
+        (None, None) => Ok(None),
+        _ if !cfg!(debug_assertions) => bail!("test classifier is unavailable"),
+        (Some(value), None) if value == "1" => Ok(Some(Arc::new(ReadTestDouble))),
+        (None, Some(value)) if value == "fixture-v1" => Ok(Some(Arc::new(FixtureTestDouble))),
+        _ => bail!("invalid test classifier setting"),
     }
 }
 
@@ -352,49 +423,67 @@ impl<'a> Collector<'a> {
         })
     }
 
-    fn classify(
+    /// Classifies one validated call before the daemon sees it. The outer error is
+    /// untrusted session state; the inner label is a call-local failure that must
+    /// not execute and does not reach policy. A supported result is evidence only:
+    /// the daemon still authorizes against the trusted registry baseline.
+    async fn classify(
         &self,
         snapshot: &Snapshot,
         host_call_id: &Value,
         name: &str,
         args: &Value,
         baseline: ActionClass,
-    ) -> anyhow::Result<()> {
-        let Some(classifier) = &self.config.classifier else {
-            return Ok(());
+    ) -> anyhow::Result<Result<(), &'static str>> {
+        let Some(classifier) = self.config.classifier.clone() else {
+            return Ok(Ok(()));
         };
         let tool = snapshot
             .tools
             .get(name)
             .context("classifier discovery state missing")?;
         let input = Invocation {
-            server_id: &self.config.server_id,
-            host_call_id,
-            registry_sha256: &self.config.native.registry_sha256,
-            snapshot_sha256: &snapshot.sha256,
-            schema_sha256: &tool.schema_sha256,
-            tool: name,
-            description: &tool.description,
-            schema: &tool.schema,
-            args,
+            server_id: self.config.server_id.clone(),
+            host_call_id: host_call_id.clone(),
+            registry_sha256: self.config.native.registry_sha256.clone(),
+            snapshot_sha256: snapshot.sha256.clone(),
+            schema_sha256: tool.schema_sha256.clone(),
+            tool: name.into(),
+            description: tool.description.clone(),
+            schema: tool.schema.clone(),
+            args: args.clone(),
             baseline,
         };
-        let result = classifier.classify(&input).context("classifier failed")?;
-        let mapped = map_classification(&result)?;
-        ensure!(mapped == baseline, "unsupported_classification_mapping");
+        let source = classifier.source();
+        let started = std::time::Instant::now();
+        let task = tokio::task::spawn_blocking(move || classifier.classify(&input));
+        // ponytail: a timed-out classifier thread is abandoned, not killed; an
+        // out-of-process classifier would be needed to reclaim it.
+        let (result, mapped) = match tokio::time::timeout(CLASSIFIER_TIMEOUT, task).await {
+            Err(_) => (None, Err("classifier_timeout")),
+            Ok(Err(_)) => (None, Err("classifier_crash")),
+            Ok(Ok(Err(_))) => (None, Err("classifier_error")),
+            Ok(Ok(Ok(result))) => {
+                let mapped = map_classification(&result);
+                (Some(result), mapped)
+            }
+        };
         eprintln!(
             "{}",
             json!({"event":"mcp_classification","contract_version":CLASSIFICATION_CONTRACT,
-            "source":classifier.source(),"host_call_id":host_call_id,"server_id":input.server_id,
-            "tool":name,"snapshot_sha256":input.snapshot_sha256,
-            "schema_sha256":input.schema_sha256,"args_sha256":sha(canonical(args).to_string().as_bytes()),
-            "registry_sha256":input.registry_sha256,
-            "classification":{"actions":&result.actions,"unknown":result.unknown,
+            "source":source,"host_call_id":host_call_id,"server_id":self.config.server_id,
+            "tool":name,"snapshot_sha256":snapshot.sha256,
+            "schema_sha256":tool.schema_sha256,"args_sha256":sha(canonical(args).to_string().as_bytes()),
+            "registry_sha256":self.config.native.registry_sha256,
+            "classification":result.as_ref().map(|result| json!({"actions":result.actions,"unknown":result.unknown,
                 "confidence":result.confidence,"uncertainty":result.uncertainty,
-                "reason_sha256":sha(result.reason.as_bytes())},
-            "mapped_action_class":mapped,"trusted_baseline":baseline})
+                "reason_sha256":sha(result.reason.as_bytes())})),
+            "mapped_action_class":mapped.ok(),"trusted_baseline":baseline,
+            "baseline_mismatch":mapped.ok().map(|class| class != baseline),
+            "policy":if mapped.is_ok() { "reached" } else { "not_reached" },
+            "failure":mapped.err(),"latency_us":started.elapsed().as_micros()})
         );
-        Ok(())
+        Ok(mapped.map(|_| ()))
     }
 
     async fn post(&self, url: &str, token: &str, body: &Value) -> anyhow::Result<Value> {
@@ -753,6 +842,17 @@ fn withheld(id: &Value, phase: &str, reasons: &Value) -> Vec<u8> {
     raw
 }
 
+/// A JSON-RPC error, not a policy refusal: the call did not execute and policy was not reached.
+fn not_classified(id: &Value, failure: &str) -> Vec<u8> {
+    let message =
+        format!("Soup Wall could not classify the MCP invocation ({failure}); policy not reached");
+    let mut raw = json!({"jsonrpc":"2.0","id":id,"error":{"code":-32603,"message":message}})
+        .to_string()
+        .into_bytes();
+    raw.push(b'\n');
+    raw
+}
+
 fn unsupported_resource_inventory(id: &Value) -> Vec<u8> {
     let mut raw = json!({"jsonrpc":"2.0","id":id,"error":{
         "code":-32601,"message":"Native MCP admission does not support resource inventory"
@@ -831,8 +931,11 @@ where
                         ensure!(args.is_object(), "MCP call arguments must be an object");
                         schemas.get(name).context("MCP tool schema not installed")?.validate(&args)?;
                         if collector.config.classifier.is_some() {
-                            collector.classify(admitted_snapshot.as_ref().context("classifier discovery state missing")?, request_id,
-                                name, &args, installed.action_class)?;
+                            let snapshot = admitted_snapshot.as_ref().context("classifier discovery state missing")?;
+                            if let Err(failure) = collector.classify(snapshot, request_id, name, &args, installed.action_class).await? {
+                                write(host, &not_classified(request_id, failure)).await?;
+                                continue;
+                            }
                         }
                         let receipt = collector.event("call", json!({"tool":name,"args":args,"schema_sha256":installed.schema_sha256})).await?;
                         if receipt["release"] != true {
@@ -895,6 +998,7 @@ pub async fn run(config: AdmissionCfg) -> anyhow::Result<()> {
             .env_remove("AGENTFW_TOKEN")
             .env_remove("AGENTFW_NATIVE_TOKEN")
             .env_remove("AGENTFW_TEST_CLASSIFIER_READ")
+            .env_remove("AGENTFW_TEST_CLASSIFIER")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
