@@ -27,7 +27,7 @@ and non-weakening behavior:
    - On `Verdict::Deny` or `Verdict::Ask`, the tool executor is never invoked (guaranteed 0 physical calls).
 4. **Fail-Closed Validation**:
    - Null arguments fail validation (`null_arguments`).
-   - Declared schemas (`tool_schema`) are strictly checked: missing required fields, type mismatches, or disallowed additional properties evaluate to fail-closed `Verdict::Deny`.
+   - Declared schemas (`tool_schema`) are checked against the [supported schema subset](../specs/shared_event_contract.md#supported-tool-schemas): missing required fields, type mismatches, disallowed additional properties, malformed definitions and unsupported constraints evaluate to fail-closed `Verdict::Deny`.
    - Out-of-bounds or NaN confidence scores evaluate to fail-closed `Verdict::Deny`.
    - Empty or malformed JSON payloads evaluate to fail-closed `Verdict::Deny` (`executed: false`).
 5. **Runtime Error Differentiation**:
@@ -52,8 +52,10 @@ In local runs, observed p99 latencies for the pure in-memory pipeline remained u
 
 ## Test Matrix Summary
 
-All 27 test cases pass in `soup-wall-adapter`:
+All 40 test cases pass in `soup-wall-adapter`:
 
 - 22 unit tests in `crates/adapter/src/lib.rs`, `tool_call.rs`, and `runner.rs`.
 - 4 demonstration integration test cases in `crates/adapter/tests/enforcement_pipeline.rs`.
 - 1 latency and throughput microbenchmark in `crates/adapter/tests/latency_bench.rs`.
+
+- 13 schema enforcement regression tests in `crates/adapter/tests/schema_validation.rs`, with independent executor counters and temporary file witnesses.

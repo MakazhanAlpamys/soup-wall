@@ -142,71 +142,196 @@ impl ToolCallEvent {
     }
 }
 
-/// Validate a JSON value against a basic JSON Schema specification.
+/// Validate a value against the adapter's bounded JSON Schema subset.
+///
+/// Supports boolean schemas, types (including unions), properties, required,
+/// additionalProperties and items. Unsupported constraints and malformed schema
+/// definitions are rejected before checking the value. No references are resolved.
 pub fn validate_json_schema(
     val: &serde_json::Value,
     schema: &serde_json::Value,
 ) -> Result<(), &'static str> {
-    let schema_obj = match schema.as_object() {
-        Some(obj) => obj,
-        None => return Ok(()),
-    };
+    validate_schema_definition(schema, 0)?;
+    validate_schema_value(val, schema)
+}
 
-    // 1. Type validation
-    if let Some(expected_type) = schema_obj.get("type").and_then(|t| t.as_str()) {
-        match expected_type {
-            "object" if !val.is_object() => return Err("schema_type_mismatch_expected_object"),
-            "array" if !val.is_array() => return Err("schema_type_mismatch_expected_array"),
-            "string" if !val.is_string() => return Err("schema_type_mismatch_expected_string"),
-            "number" | "integer" if !val.is_number() => {
-                return Err("schema_type_mismatch_expected_number")
-            }
-            "boolean" if !val.is_boolean() => return Err("schema_type_mismatch_expected_boolean"),
-            "null" if !val.is_null() => return Err("schema_type_mismatch_expected_null"),
-            _ => {}
+const MAX_SCHEMA_DEPTH: usize = 64;
+
+fn validate_schema_definition(
+    schema: &serde_json::Value,
+    depth: usize,
+) -> Result<(), &'static str> {
+    if depth > MAX_SCHEMA_DEPTH {
+        return Err("schema_depth_limit_exceeded");
+    }
+    if schema.is_boolean() {
+        return Ok(());
+    }
+    let object = schema.as_object().ok_or("schema_invalid_definition")?;
+    for keyword in object.keys() {
+        if !matches!(
+            keyword.as_str(),
+            "type"
+                | "properties"
+                | "required"
+                | "additionalProperties"
+                | "items"
+                | "$schema"
+                | "$id"
+                | "$comment"
+                | "title"
+                | "description"
+                | "default"
+                | "examples"
+                | "readOnly"
+                | "writeOnly"
+                | "deprecated"
+        ) {
+            return Err("schema_unsupported_keyword");
         }
     }
-
-    // 2. Object validation
-    if let Some(obj) = val.as_object() {
-        if let Some(required) = schema_obj.get("required").and_then(|r| r.as_array()) {
-            for req in required {
-                if let Some(field) = req.as_str() {
-                    if !obj.contains_key(field) {
-                        return Err("schema_missing_required_property");
-                    }
+    if let Some(dialect) = object.get("$schema") {
+        if dialect.as_str() != Some("https://json-schema.org/draft/2020-12/schema") {
+            return Err("schema_unsupported_dialect");
+        }
+    }
+    for keyword in ["$id", "$comment", "title", "description"] {
+        if object.get(keyword).is_some_and(|value| !value.is_string()) {
+            return Err("schema_invalid_annotation");
+        }
+    }
+    for keyword in ["readOnly", "writeOnly", "deprecated"] {
+        if object.get(keyword).is_some_and(|value| !value.is_boolean()) {
+            return Err("schema_invalid_annotation");
+        }
+    }
+    if object
+        .get("examples")
+        .is_some_and(|value| !value.is_array())
+    {
+        return Err("schema_invalid_annotation");
+    }
+    if let Some(types) = object.get("type") {
+        if let Some(name) = types.as_str() {
+            validate_schema_type_name(name)?;
+        } else {
+            let names = types.as_array().ok_or("schema_invalid_type")?;
+            if names.is_empty() {
+                return Err("schema_invalid_type");
+            }
+            for (index, name) in names.iter().enumerate() {
+                validate_schema_type_name(name.as_str().ok_or("schema_invalid_type")?)?;
+                if names[..index].contains(name) {
+                    return Err("schema_invalid_type");
                 }
             }
         }
+    }
+    if let Some(required) = object.get("required") {
+        let fields = required.as_array().ok_or("schema_invalid_required")?;
+        for (index, field) in fields.iter().enumerate() {
+            if !field.is_string() || fields[..index].contains(field) {
+                return Err("schema_invalid_required");
+            }
+        }
+    }
+    if let Some(properties) = object.get("properties") {
+        for property in properties
+            .as_object()
+            .ok_or("schema_invalid_properties")?
+            .values()
+        {
+            validate_schema_definition(property, depth + 1)?;
+        }
+    }
+    for keyword in ["additionalProperties", "items"] {
+        if let Some(subschema) = object.get(keyword) {
+            validate_schema_definition(subschema, depth + 1)?;
+        }
+    }
+    Ok(())
+}
 
-        let properties = schema_obj.get("properties").and_then(|p| p.as_object());
-        let additional_allowed = schema_obj
-            .get("additionalProperties")
-            .and_then(|a| a.as_bool())
-            .unwrap_or(true);
+fn validate_schema_type_name(name: &str) -> Result<(), &'static str> {
+    if matches!(
+        name,
+        "object" | "array" | "string" | "number" | "integer" | "boolean" | "null"
+    ) {
+        Ok(())
+    } else {
+        Err("schema_unsupported_type")
+    }
+}
 
-        for (k, v) in obj {
-            if let Some(props) = properties {
-                if let Some(prop_schema) = props.get(k) {
-                    validate_json_schema(v, prop_schema)?;
-                    continue;
+fn validate_schema_type(val: &serde_json::Value, name: &str) -> Result<(), &'static str> {
+    match name {
+        "object" if !val.is_object() => Err("schema_type_mismatch_expected_object"),
+        "array" if !val.is_array() => Err("schema_type_mismatch_expected_array"),
+        "string" if !val.is_string() => Err("schema_type_mismatch_expected_string"),
+        "number" if !val.is_number() => Err("schema_type_mismatch_expected_number"),
+        "integer"
+            if !(val.is_i64()
+                || val.is_u64()
+                || val
+                    .as_f64()
+                    .is_some_and(|number| number.is_finite() && number.fract() == 0.0)) =>
+        {
+            Err("schema_type_mismatch_expected_integer")
+        }
+        "boolean" if !val.is_boolean() => Err("schema_type_mismatch_expected_boolean"),
+        "null" if !val.is_null() => Err("schema_type_mismatch_expected_null"),
+        _ => Ok(()),
+    }
+}
+
+fn validate_schema_value(
+    val: &serde_json::Value,
+    schema: &serde_json::Value,
+) -> Result<(), &'static str> {
+    match schema.as_bool() {
+        Some(true) => return Ok(()),
+        Some(false) => return Err("schema_false"),
+        None => {}
+    }
+    let object = schema.as_object().ok_or("schema_invalid_definition")?;
+    if let Some(types) = object.get("type") {
+        if let Some(name) = types.as_str() {
+            validate_schema_type(val, name)?;
+        } else {
+            let names = types.as_array().ok_or("schema_invalid_type")?;
+            if !names.iter().any(|name| {
+                name.as_str()
+                    .is_some_and(|name| validate_schema_type(val, name).is_ok())
+            }) {
+                return Err("schema_type_mismatch");
+            }
+        }
+    }
+    if let Some(values) = val.as_object() {
+        if let Some(required) = object.get("required").and_then(|value| value.as_array()) {
+            for field in required {
+                let field = field.as_str().ok_or("schema_invalid_required")?;
+                if !values.contains_key(field) {
+                    return Err("schema_missing_required_property");
                 }
             }
-            if !additional_allowed {
-                return Err("schema_additional_properties_forbidden");
+        }
+        let properties = object.get("properties").and_then(|value| value.as_object());
+        for (name, value) in values {
+            if let Some(property) = properties.and_then(|properties| properties.get(name)) {
+                validate_schema_value(value, property)?;
+            } else if let Some(additional) = object.get("additionalProperties") {
+                validate_schema_value(value, additional)?;
             }
         }
     }
-
-    // 3. Array items validation
-    if let Some(arr) = val.as_array() {
-        if let Some(items_schema) = schema_obj.get("items") {
-            for item in arr {
-                validate_json_schema(item, items_schema)?;
+    if let Some(values) = val.as_array() {
+        if let Some(items) = object.get("items") {
+            for value in values {
+                validate_schema_value(value, items)?;
             }
         }
     }
-
     Ok(())
 }
 

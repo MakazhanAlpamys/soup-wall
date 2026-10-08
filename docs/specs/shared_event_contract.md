@@ -38,10 +38,37 @@ Emitted by the **Adapter (Task 2)** when a native tool call arrives.
 | `call_id` | `string` | Unique identifier (preserves harness call ID, e.g. MCP request ID). |
 | `session_id` | `string` | Stable agent conversation / session identifier. |
 | `tool_name` | `string` | Canonical name of the invoked tool (e.g. `bash`, `read_file`, `web_fetch`). |
-| `raw_arguments` | `JSON Object` | Unparsed or parsed JSON arguments provided by the model. |
+| `raw_arguments` | `non-null JSON value` | Original JSON arguments provided by the harness; validation does not rewrite them. |
 | `tool_description` | `string?` | Optional description from manifest. **Untrusted data** — must not grant authority. |
-| `tool_schema` | `JSON Object?` | Optional input schema declared by the tool manifest. |
+| `tool_schema` | `object or boolean?` | Optional input schema declared by the tool manifest; see the supported subset below. |
 | `classification` | `object?` | Populated by **Task 1** after inspection. |
+
+#### Supported tool schemas
+
+The prototype accepts a bounded subset of JSON Schema 2020-12. A schema may be a
+boolean (`true` accepts any value; `false` rejects every value) or an object with:
+
+- `type`: one standard type name or a nonempty list of distinct type names.
+  `integer` accepts integral values, including `1.0`, and rejects `1.5`.
+- `properties`, `required`, `additionalProperties` (boolean or schema), and `items`
+  (one schema applied to every array item).
+- Annotations `$id`, `$comment`, `title`, `description`, `default`, `examples`,
+  `readOnly`, `writeOnly`, and `deprecated`. Annotations do not grant permission,
+  change arguments, or insert defaults.
+
+If `$schema` is present, it must be
+`https://json-schema.org/draft/2020-12/schema`. References are not resolved.
+Unsupported keywords, including `$ref`, `enum`, `const`, combinators and numeric
+or string bounds, produce a validation error instead of being silently ignored.
+Schema definitions are checked before values, including subschemas for absent
+properties and empty arrays. Definitions may nest at most 64 schema edges below
+the root; malformed or deeper definitions also fail closed.
+
+Omitted or JSON-null `tool_schema` means no schema was declared. The event-level
+rule still rejects root `raw_arguments: null`, even under a permissive schema;
+nested null values are checked according to their schema. Every validation error
+returns `Deny` without entering the executor. These rules constrain the internal
+event contract and do not change a harness's native external format.
 
 ### 2.2. `ToolClassification` (Output of Task 1 Classifier)
 Returned by the **Tool Classifier (Task 1)** (Rule-based or Jev/ML).
@@ -142,7 +169,7 @@ Produced after execution or refusal to guarantee enforcement guarantees.
   }
 }
 ```
-**Outcome:** `verdict: "ask"` or `"deny"`, `executed: false` (Fail-closed).
+**Outcome:** `verdict: "deny"`, `executed: false`, with a `null_arguments` validation error (fail-closed).
 
 ---
 
