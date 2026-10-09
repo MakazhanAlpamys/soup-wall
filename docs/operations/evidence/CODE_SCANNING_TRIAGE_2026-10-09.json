@@ -188,7 +188,7 @@
   "review_coordination": {
     "triage_owner": "konung3",
     "pr_review_coordinator": "Nari_Ab",
-    "proposed_affected_code_reviewer": "MakazhanAlpamys (introduced vendored provider; no CODEOWNERS assignment found)",
+    "affected_code_review": "Coordinated by Nari_Ab; no CODEOWNERS assignment verified",
     "configuration_owner": "userarlan via SOU-18"
   },
   "upstream_limit": "PATCH.md records retained upstream tests; upstream archive byte identity was not independently re-verified in this triage."

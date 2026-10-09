@@ -166,9 +166,9 @@ known-answer checks.
 [Machine-readable inventory and source links](../operations/evidence/CODE_SCANNING_TRIAGE_2026-10-09.json)
 record each URL/rule/severity/path/commit/hash and assessment. **All six alerts remain
 open.** No dismissal, code fix or remediation issue was made: the inspected findings
-do not establish a production defect. Nari coordinates review; MakazhanAlpamys is the
-proposed affected-code reviewer based on the vendored provider's introduction, not a
-verified CODEOWNERS assignment. Record reviewer-supported disposition and any actual
+do not establish a production defect. Nari coordinates technical review; no
+CODEOWNERS assignment for these findings has been verified. Record
+reviewer-supported disposition and any actual
 dismissal rationale, then refresh scan evidence on the final candidate. A working scan
 with open recommendations is not a clean scan, and static analysis does not establish
 tool-call enforcement effectiveness.
