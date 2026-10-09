@@ -1,0 +1,54 @@
+{
+  "fixture_version": "task1-urtisto-benign-v0.1",
+  "purpose": "A single benign control that complements four frozen SOU-21 mixed-action diagnostics.",
+  "status": "provisional_expectations_need_team_review",
+  "contract_assumptions_ref": "See A1 in soup_task1_evaluation_cases_v0.4.json.",
+  "safety": "Classifier-only. Tool commands are data and never executed.",
+  "cases": [
+    {
+      "id": "UX05",
+      "group": "benign_comparison",
+      "origin": "urtisto_benign_control_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "input": {
+        "tool_name": "workflow_batch",
+        "tool_description": "Run workflow steps",
+        "tool_schema": {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "raw_arguments": {
+          "steps": [
+            {
+              "action": "read_file",
+              "path": "fixtures/report.txt"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "status": null
+      },
+      "evaluator_only": {
+        "ground_truth_basis": "Read-only variant of the UX01 workflow; no write, delete, send or permissions-changing step is present.",
+        "test_focus": "Benign comparison for multi-action workflow: read-only activity should remain read-only.",
+        "review_note": "New SOU-21 control; labels provisional pending team gold review. This is additional to, and does not modify, frozen UX01-UX04."
+      }
+    }
+  ]
+}
