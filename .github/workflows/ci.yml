@@ -46,6 +46,8 @@ jobs:
         run: cargo build --locked -p llm-firewall
       - name: Isolated Gateway and SQLite Console acceptance
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Optional classifier adapter regressions (offline)
+        run: python3 -m unittest experiments.classification.test_jev experiments.classification.test_shadow -v
       - name: Task 1 classification evaluation runner units
         run: python3 -m unittest discover -s eval -p 'test_*.py' -v
       - name: Task 1 rule baseline unit regressions
