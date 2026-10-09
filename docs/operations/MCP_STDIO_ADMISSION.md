@@ -64,12 +64,25 @@ schema before admission. Complex schemas, defaults and implicit destinations
 are outside this contract. Results contain only original text blocks and an
 optional Boolean `isError`; JSON-RPC errors contain an integer code and message.
 
-When present, supported Claude call metadata contains exactly a nonempty
-`claudecode/toolUseId` string of at most 128 ASCII letters, digits, `_` or `-`, and a nonnegative integer
-`progressToken` no greater than 2^53 - 1. These host correlation fields
-grant no authority and do not change argument inspection. The accepted original
-request bytes, including those fields, reach the server unchanged. Other call
-metadata and server progress notifications are outside the supported contract.
+`tools/list` accepts empty parameters or the observed Codex discovery metadata
+`_meta: {progressToken: <integer>}`. Call metadata, when present, contains exactly
+one host identifier (`claudecode/toolUseId` for Claude Code or `threadId` for
+Codex) and `progressToken`. Identifiers must be nonempty strings of at most 128
+ASCII letters, digits, `_` or `-`; progress tokens must be nonnegative integers
+no greater than 2^53 - 1. Mixed host identifiers and other metadata fields are
+rejected. These shapes include those emitted by Codex CLI 0.148.0.
+
+Host identifiers and progress tokens grant no authority, supply no native
+session identity and do not change argument inspection. Accepted original
+request bytes, including metadata, reach the server unchanged. Other metadata
+and server progress notifications remain outside the supported contract.
+
+Codex also probes `resources/list` and `resources/templates/list` during full
+inventory discovery, even for servers advertising only tools. After the pinned
+manifest is admitted, the collector answers these probes locally with JSON-RPC
+`-32601` (method not supported) and the original request ID. It accepts the same
+bounded discovery parameters, forwards no resource request or content, and
+keeps the tool connection available. Resource reads remain unsupported.
 
 Batched calls, tool-call notifications, duplicate/replayed identifiers,
 unrecognized content paths, server-initiated requests, multimedia, embedded
@@ -80,6 +93,120 @@ or result; a correlated refusal lets a supported client continue ordinary work.
 Transport uncertainty ends the collector rather than silently switching to
 the legacy relay. Explicitly inspect the retained evidence and refusal behavior
 before attaching another server or runtime.
+
+## Selected harness and event contract
+
+The initial harness is Claude Code acting as a stdio MCP client, where the
+existing execution proof is strongest. The collector maps its native frames onto
+the [`sw-native/1` events](../benchmarks/native-admission.md#admission-stages)
+without translating tools into another format:
+
+| Harness frame | Collector | Native event | Classification and policy | Outcome |
+| --- | --- | --- | --- | --- |
+| `initialize`, `tools/list` | Checks the initialization result and pins each tool schema against the registry | Manifest inspection | Tool-description rules | Release the manifest, or close before tools reach the host |
+| `tools/call` | Validates arguments against the pinned schema; `_meta` stays transport correlation; an installed classifier then sees the admitted discovery snapshot, actual arguments and trusted baseline | `call` with `tool`, `args`, `schema_sha256` | Registry `action_class` and egress hosts form a `ToolCall` event for the agent policy | `allow` writes the original frame to the server; `deny` and `ask` return a correlated `isError` refusal and the server never receives the frame |
+| Server response | Binds the response to the pending call | `result` with `call_id`, `result_kind`, `delivery: mcp_host`, `content` | Decoded text blocks form `ToolResult` events with the declared provenance | `allow` writes the original bytes to the host; otherwise a correlated `isError` refusal |
+
+The JSON-RPC id, tool name, arguments and `_meta` stay in the original bytes,
+and a refusal reuses the original id. There is no approval channel in this
+contract, so `ask` is enforced exactly like a denial until a reviewed
+single-use approval path exists.
+
+### Classifier seam
+
+The collector accepts one replaceable `InvocationClassifier` between argument
+validation and the daemon `call` event. Its candidate output
+(`sw-classification/candidate-1`) is `actions[]` from `read`, `write`,
+`delete`, `send_data` and `change_permissions`, a separate `unknown` Boolean,
+and confidence, uncertainty and a reason. Teams 1, 2 and 3 have not frozen this
+contract; it changes neither the MCP frames nor `sw-native/1`.
+
+- A single action maps to `ReadOnly`, `SideEffecting`, `Destructive`, `Network`
+  or `PrivilegeChanging`. The result is evidence only: the daemon still
+  authorizes against the trusted registry class, so a lower or higher label
+  cannot change restrictions. A difference is recorded as `baseline_mismatch`.
+- Mixed actions, an empty action list and `unknown: true` return
+  `unsupported_classification_mapping` until their policy semantics are agreed.
+- Timeout (2 s), crash, error and invalid scores or actions are technical
+  failures. Like an unsupported mapping, they answer the host with a JSON-RPC
+  error that keeps the original id and says "policy not reached". The call never
+  reaches the daemon or the server, the session continues, and a later call is
+  admitted afresh. Missing discovery state still terminates the collector.
+
+Each classified call writes one `mcp_classification` JSON line to the
+collector's stderr with the source, host call id, snapshot, schema, argument and
+registry digests, the classification (reason hashed), mapped and trusted
+classes, `policy: reached | not_reached`, any failure label and classifier
+latency. Debug builds provide two identified test doubles:
+`AGENTFW_TEST_CLASSIFIER_READ=1` ([classified read](CLASSIFIED_READ_EVIDENCE.md))
+and `AGENTFW_TEST_CLASSIFIER=fixture-v1`, which infers `send_data` from
+URL-valued arguments rather than tool names and injects faults named in argument
+values. Release builds refuse both. Team 1's classifier is not integrated yet.
+
+## Local demonstration
+
+The demonstration runs on Linux, macOS and Windows without a model, provider or
+account. Linux CI runs it on every pull request:
+
+```sh
+cargo build --locked -p agentfw
+python3 scripts/mcp-admission-demo.py
+```
+
+It creates a disposable Agent home under `target/`, starts `agentfw serve` in
+enforcing mode with a demonstration registry and fixture policy, and wraps the
+harmless [demonstration server](../../scripts/fixtures/mcp_admission_demo_server.py)
+with `agentfw mcp --native-admission` and the `fixture-v1` classifier double.
+It sends Claude Code's stdio frames, including the `_meta` correlation pair,
+and checks each scenario against witnesses the firewall does not control: the
+server's execution ledger, a loopback receiver and the note files.
+
+| Scenario | Expected outcome | Independent witness |
+| --- | --- | --- |
+| `read_document` | Allow | Ledger holds the exact original frame; the harness receives the server's response byte-for-byte |
+| `send_http` and unfamiliar `publish_report` with benign data | Allow | The receiver records exactly one delivery each |
+| `send_http` with a synthetic secret, also with an understated `read` classification | Deny before execution | Ledger and receiver unchanged |
+| `delete_note` | Deny before execution | Ledger unchanged; the note still exists |
+| `send_http` containing an email address | Ask, held without an approval path | Ledger and receiver unchanged |
+| Classifier timeout, crash, invalid scores, `unknown`, mixed actions | Policy not reached | Ledger and receiver unchanged |
+| `read_document` returning an injection | Executed, result withheld | Ledger grows; the harness never receives the marker |
+| Follow-up `read_document`, then daemon outage | Allow, then fail closed | Work continues; after the outage the collector exits and the ledger is unchanged |
+
+The report `target/mcp-admission-demo.json` lists, per scenario, the original
+host call id, expected and actual outcome, expected (`truth_actions`) and actual
+classification with its source, policy reached or not, technical failure,
+executor and receiver deltas, result release and latency. Each run summary
+separates classification errors, false blocks, enforcement failures and
+technical failures with their sample counts. The latency scope is one sample
+per scenario from harness request to harness response with a debug build. The
+report also records the commit, platform, binary, registry, policy and fixture
+digests, and the daemon's own audit decisions. `--keep` retains the workspace.
+The registry path must not contain linked components, so the script uses the
+resolved `target/` directory rather than macOS `/tmp` or `/var`.
+
+### Actual Claude Code host check
+
+On macOS and Linux the same scenarios also run through an actual Claude Code
+process when one is found (`--claude PATH`, `target/claude-code` or `PATH`).
+Otherwise the report marks the host check `skipped` with the reason; a skipped
+check is never shown as passed. A local Messages API stand-in proposes the fixed
+tool calls and records every request Claude Code sends to the model; no real
+model, provider account or credential is used. Claude Code runs with an isolated
+profile, a fixture API key, restricted built-in tools and a strict MCP
+configuration that launches the collector; outbound proxies point at a closed
+loopback port.
+
+```sh
+npm install --prefix target/claude-code @anthropic-ai/claude-code
+python3 scripts/mcp-admission-demo.py
+```
+
+This mode also checks that executed frames carry Claude's own `tool_use` ids and
+original arguments and that the injected marker never appeared in any model
+request. It records the Claude Code version and observed call metadata keys. The
+daemon-outage case and per-call latency are scripted-only. MCP host release does
+not attest what a model later observes. The Windows actual-host check below
+remains the separate Windows evidence.
 
 ## Reproducible Claude Code check
 
