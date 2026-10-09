@@ -46,6 +46,15 @@ jobs:
         run: cargo build --locked -p llm-firewall
       - name: Isolated Gateway and SQLite Console acceptance
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Disposable Agent setup and daemon status
+        run: python3 scripts/clean-setup-acceptance.py --run --agentfw target/debug/agentfw --output target/clean-setup-linux.json
+      - name: Retain setup and status evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: clean-setup-linux
+          path: target/clean-setup-linux.json
+          if-no-files-found: warn
       - name: Run isolated Gateway binary acceptance
         run: python3 scripts/self-hosted-local-acceptance.py --gateway target/debug/llm-firewall --artifact-label "$GITHUB_SHA" --out target/local-gateway-evidence.json
       - name: Retain isolated Gateway acceptance evidence
@@ -96,6 +105,15 @@ jobs:
           path: target/task3-resilience/*.log
           if-no-files-found: warn
           retention-days: 14
+      - name: Disposable Agent setup and daemon status
+        run: python3 scripts/clean-setup-acceptance.py --run --agentfw target/debug/agentfw --output target/clean-setup-macos.json
+      - name: Retain setup and status evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: clean-setup-macos
+          path: target/clean-setup-macos.json
+          if-no-files-found: warn
 
   # The optional ML stack is not compiled by the default-feature job.
   all-features:
@@ -126,6 +144,15 @@ jobs:
       - name: Native Windows MCP fixture storage and harness checks
         run: python -m unittest discover -s scripts/tests -p 'test_windows*.py' -v
       - run: cargo build --locked -p agentfw --bin agentfw
+      - name: Disposable Agent setup and daemon status
+        run: python scripts/clean-setup-acceptance.py --run --agentfw target/debug/agentfw.exe --output target/clean-setup-windows.json
+      - name: Retain setup and status evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: clean-setup-windows
+          path: target/clean-setup-windows.json
+          if-no-files-found: warn
       - name: Disposable Windows Agent acceptance
         run: ./scripts/windows-agent-acceptance.ps1 -EvidencePath target/windows-agent-acceptance.json
       - name: Disposable IPv6 loopback Agent acceptance

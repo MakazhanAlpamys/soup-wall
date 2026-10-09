@@ -155,7 +155,7 @@ def prepare_image():
         shutil.copy2(executable, destination)
         manifest["suites"].append({"package": package, "target": target,
                                     "executable": str(executable), "sha256": sha256(executable)})
-    for relative in ["target/debug/agentfw", "scripts/test-environment.py",
+    for relative in ["target/debug/agentfw", "scripts/test-environment.py", "scripts/clean-setup-acceptance.py",
                      "scripts/tests/test_test_environment.py", "LICENSE", "NOTICE"]:
         destination = bundle / ROOT.relative_to("/") / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
