@@ -1,0 +1,258 @@
+{
+  "format": "soup-wall/jev-shadow-report/1",
+  "source_commit": "ab62dc8d299d2df1753631cfb743baf4247022c2",
+  "source_sha256": {
+    "jev.py": "b86adbb1264aa31510ab895814975ac7dd69a824ec4b4b9570e5af5bac0244d4",
+    "shadow.py": "35dd11d0ba87bb536d95f61dc77ed19fbc727ad98c6d6133a63bf139ed5848da"
+  },
+  "python": "3.11.14",
+  "mode": "mock-only",
+  "external_requests": 0,
+  "model_api_cost_usd": 0,
+  "real_jev_quality": null,
+  "real_jev_latency_ms": null,
+  "real_jev_cost_usd": null,
+  "policy_evaluations": 0,
+  "tool_executions": 0,
+  "recommendation": "do_not_adopt_pending_reviewed_access_budget_and_measured_shadow_results",
+  "measurement_date": "2026-10-09",
+  "source_state": "Working-tree implementation identified by source_sha256; source_commit is the base.",
+  "baseline_commit": "000136c51884e0c204ac51b77c29c5c302f7256a",
+  "limitations": [
+    "Single local diagnostic run, no warm-up or repetition.",
+    "Synthetic fixtures with provisional labels; pending cases excluded from quality denominators.",
+    "Mock candidate is deliberately ambiguous and does not measure Jev quality.",
+    "No runtime policy or executor was invoked; no enforcement acceptance is claimed."
+  ],
+  "runs": {
+    "rule_baseline": {
+      "meta": {
+        "runner": "eval_runner.py",
+        "runner_sha256": "db61c0c426314bc7d7d2dd6b9c99ed04c12cb46c684ae9d693d40e97e356382a",
+        "python": "3.11.14",
+        "classifier": {
+          "spec": "rule_baseline",
+          "baseline_sha256": "affe481dd188b7d9eaf6383276a86edb59b0088d70ce38703a623a477c7ffab3"
+        },
+        "fixtures": [
+          {
+            "file": "soup_task1_evaluation_cases_v0.4.json",
+            "fixture_version": "task1-evaluation-v0.4",
+            "sha256": "2a1424065a303d54fe4584678f7b54786337723e2c68dcd3ff1d89569948be2c"
+          },
+          {
+            "file": "soup_task1_challenge_cases_v0.1.json",
+            "fixture_version": "task1-challenge-v0.1",
+            "sha256": "d391d7113fc1b8977411ab628483e4e29210053aa542f286844478e2d929b1ab"
+          }
+        ]
+      },
+      "latency": {
+        "count": 58,
+        "p50_ms": 0.09280000813305378,
+        "p95_ms": 0.18540001474320889
+      },
+      "overall": {
+        "scored": 55,
+        "pass": 49,
+        "fail": 6,
+        "technical_error": 0,
+        "unscored": 3
+      },
+      "per_label": {
+        "read": {
+          "missing": 3,
+          "spurious": 0,
+          "expected_present": 28
+        },
+        "write": {
+          "missing": 1,
+          "spurious": 0,
+          "expected_present": 8
+        },
+        "delete": {
+          "missing": 1,
+          "spurious": 0,
+          "expected_present": 13
+        },
+        "send_data": {
+          "missing": 0,
+          "spurious": 0,
+          "expected_present": 10
+        },
+        "change_permissions": {
+          "missing": 0,
+          "spurious": 0,
+          "expected_present": 9
+        }
+      },
+      "critical_miss_cases": 1,
+      "technical_errors_total": 0,
+      "typed_failures": [],
+      "valid_response_unknown_fraction": 0.2413793103448276,
+      "mismatches": [
+        {
+          "id": "CU01",
+          "expected_actions": [
+            "read",
+            "write"
+          ],
+          "expected_unknown": true,
+          "predicted_actions": [],
+          "predicted_unknown": true,
+          "missing": [
+            "read",
+            "write"
+          ],
+          "spurious": []
+        },
+        {
+          "id": "CU02",
+          "expected_actions": [
+            "delete"
+          ],
+          "expected_unknown": false,
+          "predicted_actions": [],
+          "predicted_unknown": true,
+          "missing": [
+            "delete"
+          ],
+          "spurious": []
+        },
+        {
+          "id": "CU03",
+          "expected_actions": [
+            "send_data"
+          ],
+          "expected_unknown": false,
+          "predicted_actions": [
+            "send_data"
+          ],
+          "predicted_unknown": true,
+          "missing": [],
+          "spurious": []
+        },
+        {
+          "id": "CM01",
+          "expected_actions": [
+            "write"
+          ],
+          "expected_unknown": false,
+          "predicted_actions": [
+            "write"
+          ],
+          "predicted_unknown": true,
+          "missing": [],
+          "spurious": []
+        },
+        {
+          "id": "CX06",
+          "expected_actions": [
+            "read",
+            "delete"
+          ],
+          "expected_unknown": false,
+          "predicted_actions": [
+            "delete"
+          ],
+          "predicted_unknown": false,
+          "missing": [
+            "read"
+          ],
+          "spurious": []
+        },
+        {
+          "id": "CS06",
+          "expected_actions": [
+            "read",
+            "send_data"
+          ],
+          "expected_unknown": false,
+          "predicted_actions": [
+            "send_data"
+          ],
+          "predicted_unknown": true,
+          "missing": [
+            "read"
+          ],
+          "spurious": []
+        }
+      ],
+      "classification_quality_interpretation": "synthetic developer diagnostic; provisional labels"
+    },
+    "jev_simulated_ambiguous": {
+      "meta": {
+        "runner": "eval_runner.py",
+        "runner_sha256": "db61c0c426314bc7d7d2dd6b9c99ed04c12cb46c684ae9d693d40e97e356382a",
+        "python": "3.11.14",
+        "classifier": {
+          "spec": "jev_simulated_ambiguous",
+          "baseline_sha256": null
+        },
+        "fixtures": [
+          {
+            "file": "soup_task1_evaluation_cases_v0.4.json",
+            "fixture_version": "task1-evaluation-v0.4",
+            "sha256": "2a1424065a303d54fe4584678f7b54786337723e2c68dcd3ff1d89569948be2c"
+          },
+          {
+            "file": "soup_task1_challenge_cases_v0.1.json",
+            "fixture_version": "task1-challenge-v0.1",
+            "sha256": "d391d7113fc1b8977411ab628483e4e29210053aa542f286844478e2d929b1ab"
+          }
+        ]
+      },
+      "latency": {
+        "count": 58,
+        "p50_ms": 0.050449976697564125,
+        "p95_ms": 0.09229988791048527
+      },
+      "overall": {
+        "scored": 55,
+        "pass": 4,
+        "fail": 51,
+        "technical_error": 0,
+        "unscored": 3
+      },
+      "per_label": {
+        "read": {
+          "missing": 28,
+          "spurious": 0,
+          "expected_present": 28
+        },
+        "write": {
+          "missing": 8,
+          "spurious": 0,
+          "expected_present": 8
+        },
+        "delete": {
+          "missing": 13,
+          "spurious": 0,
+          "expected_present": 13
+        },
+        "send_data": {
+          "missing": 10,
+          "spurious": 0,
+          "expected_present": 10
+        },
+        "change_permissions": {
+          "missing": 9,
+          "spurious": 0,
+          "expected_present": 9
+        }
+      },
+      "critical_miss_cases": 32,
+      "technical_errors_total": 1,
+      "typed_failures": [
+        {
+          "code": "classifier_invalid",
+          "detail": "actual non-null raw_arguments are required",
+          "policy_reached": false
+        }
+      ],
+      "valid_response_unknown_fraction": 1.0,
+      "mismatches": [],
+      "classification_quality_interpretation": "not Jev quality: fixed mocked probabilities; plumbing observation only"
+    }
+  }
+}
