@@ -117,8 +117,148 @@ async fn delay_call_admission(
     next.run(request).await
 }
 
+fn fixture_state(home: &Path, port: u16, enforce: bool) -> Arc<AppState> {
+    let bytes = registry().to_string().into_bytes();
+    let digest = sha(&bytes);
+    Arc::new(AppState {
+        native: Some(NativeState::from_bytes(&bytes, &digest, TOKEN.into()).unwrap()),
+        firewall: Mutex::new(AgentFirewall::new(
+            AgentPolicySet::from_yaml(POLICY).unwrap(),
+            DEFAULT_TAINT_CAP,
+        )),
+        sessions: Sessions::default(),
+        audit: AuditSink::open(&home.join("audit.jsonl")).unwrap(),
+        spans: agentfw::spans::SpanCache::new(64, 4096),
+        judge: agentfw::judge::Judge::new(Default::default()),
+        manifests: agentfw::mcp::store::ManifestStore::new(&home.join("manifests")),
+        tools: agentfw::mcp::store::ToolRegistry::with_builtins(),
+        grants: agentfw::grant::GrantStore::new(&home.join("grants")),
+        grant_ledger: agentfw::grant::GrantLedger::open(&home.join("grants-spent.json")),
+        grant_key: agentfw::grant::derive_key("fixture-hook-token"),
+        config: Config {
+            enforce,
+            port,
+            ..Config::default()
+        },
+        token: "fixture-hook-token".into(),
+    })
+}
+
+fn start_daemon(
+    listener: tokio::net::TcpListener,
+    state: Arc<AppState>,
+    faults: Arc<DaemonFaults>,
+) -> (tokio::task::JoinHandle<()>, oneshot::Sender<()>) {
+    let daemon_app = app(state).layer(middleware::from_fn_with_state(faults, delay_call_admission));
+    let (shutdown, received) = oneshot::channel();
+    let daemon = tokio::spawn(async move {
+        axum::serve(listener, daemon_app)
+            .with_graceful_shutdown(async move {
+                let _ = received.await;
+            })
+            .await
+            .unwrap();
+    });
+    (daemon, shutdown)
+}
+
+type GatewayOutput = tokio::io::Lines<BufReader<ChildStdout>>;
+
+fn spawn_gateway(
+    directory: &Path,
+    ledger: &Path,
+    mode: &str,
+    stderr: &Path,
+) -> (Child, ChildStdin, GatewayOutput) {
+    let python = if cfg!(windows) { "python" } else { "python3" };
+    let mut command = Command::new(env!("CARGO_BIN_EXE_agentfw"));
+    command.args([
+        "mcp",
+        "--native-admission",
+        "--id",
+        "fixture",
+        "--",
+        python,
+        "-I",
+        "-u",
+        "-c",
+        SERVER,
+    ]);
+    command.arg(ledger).arg(mode).env(
+        if cfg!(windows) { "USERPROFILE" } else { "HOME" },
+        directory,
+    );
+    command
+        .env("AGENTFW_TOKEN", "synthetic-hook-env")
+        .env("AGENTFW_NATIVE_TOKEN", "synthetic-native-env")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::from(
+            std::fs::File::create(stderr).unwrap(),
+        ))
+        .kill_on_drop(true);
+    let mut child = command.spawn().unwrap();
+    let input = child.stdin.take().unwrap();
+    let output = BufReader::new(child.stdout.take().unwrap()).lines();
+    (child, input, output)
+}
+
+/// A second real collector and MCP process using the same daemon and profile.
+/// Its ledger is separate from the first collector's execution witness.
+struct PeerGateway {
+    child: Child,
+    input: ChildStdin,
+    output: GatewayOutput,
+    ledger: std::path::PathBuf,
+}
+
+impl PeerGateway {
+    fn new(fixture: &Fixture) -> Self {
+        let ledger = fixture._dir.path().join("peer-executed.jsonl");
+        let stderr = fixture._dir.path().join("peer-gateway-stderr.log");
+        let (child, input, output) = spawn_gateway(fixture._dir.path(), &ledger, "normal", &stderr);
+        Self {
+            child,
+            input,
+            output,
+            ledger,
+        }
+    }
+
+    async fn exchange(&mut self, raw: &str) -> Option<String> {
+        self.input
+            .write_all(format!("{raw}\n").as_bytes())
+            .await
+            .unwrap();
+        self.input.flush().await.unwrap();
+        tokio::time::timeout(Duration::from_secs(10), self.output.next_line())
+            .await
+            .unwrap()
+            .unwrap()
+    }
+
+    async fn ready(&mut self) {
+        assert!(self
+            .exchange(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#)
+            .await
+            .is_some());
+        assert!(self
+            .exchange(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#)
+            .await
+            .is_some());
+    }
+}
+
+impl Drop for PeerGateway {
+    fn drop(&mut self) {
+        let _ = self.child.start_kill();
+    }
+}
+
 struct Fixture {
     _dir: tempfile::TempDir,
+    port: u16,
+    enforce: bool,
     daemon: tokio::task::JoinHandle<()>,
     daemon_shutdown: Option<oneshot::Sender<()>>,
     daemon_faults: Arc<DaemonFaults>,
@@ -216,83 +356,24 @@ impl Fixture {
         std::fs::write(home.join("token"), "fixture-hook-token").unwrap();
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
-        let config = Config {
-            enforce,
-            port,
-            ..Config::default()
-        };
-        let state = Arc::new(AppState {
-            native: Some(NativeState::from_bytes(&bytes, &digest, TOKEN.into()).unwrap()),
-            firewall: Mutex::new(AgentFirewall::new(
-                AgentPolicySet::from_yaml(POLICY).unwrap(),
-                DEFAULT_TAINT_CAP,
-            )),
-            sessions: Sessions::default(),
-            audit: AuditSink::open(&home.join("audit.jsonl")).unwrap(),
-            spans: agentfw::spans::SpanCache::new(64, 4096),
-            judge: agentfw::judge::Judge::new(Default::default()),
-            manifests: agentfw::mcp::store::ManifestStore::new(&home.join("manifests")),
-            tools: agentfw::mcp::store::ToolRegistry::with_builtins(),
-            grants: agentfw::grant::GrantStore::new(&home.join("grants")),
-            grant_ledger: agentfw::grant::GrantLedger::open(&home.join("grants-spent.json")),
-            grant_key: agentfw::grant::derive_key("fixture-hook-token"),
-            config,
-            token: "fixture-hook-token".into(),
-        });
         let daemon_faults = Arc::new(DaemonFaults::default());
-        let daemon_app = app(state).layer(middleware::from_fn_with_state(
+        let (daemon, daemon_shutdown) = start_daemon(
+            listener,
+            fixture_state(&home, port, enforce),
             daemon_faults.clone(),
-            delay_call_admission,
-        ));
-        let (daemon_shutdown, shutdown_received) = oneshot::channel();
-        let daemon = tokio::spawn(async move {
-            axum::serve(listener, daemon_app)
-                .with_graceful_shutdown(async move {
-                    let _ = shutdown_received.await;
-                })
-                .await
-                .unwrap();
-        });
+        );
         let path = registry_path.to_string_lossy().replace('\'', "''");
         std::fs::write(home.join("config.yaml"), format!("port: {port}\nenforce: true\nnative:\n  registry_path: '{path}'\n  registry_sha256: '{digest}'\n")).unwrap();
         let ledger = dir.path().join("executed.jsonl");
-        let python = if cfg!(windows) { "python" } else { "python3" };
-        let mut command = Command::new(env!("CARGO_BIN_EXE_agentfw"));
-        command.args([
-            "mcp",
-            "--native-admission",
-            "--id",
-            "fixture",
-            "--",
-            python,
-            "-I",
-            "-u",
-            "-c",
-            SERVER,
-        ]);
-        command.arg(&ledger).arg(mode).env(
-            if cfg!(windows) { "USERPROFILE" } else { "HOME" },
-            dir.path(),
-        );
-        command
-            .env("AGENTFW_TOKEN", "synthetic-hook-env")
-            .env("AGENTFW_NATIVE_TOKEN", "synthetic-native-env");
         #[cfg(windows)]
         let private_before_launch = [home.clone(), home.join("token"), home.join("native-token")]
             .iter()
             .all(|path| protected_dacl(path));
-        command
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::from(
-                std::fs::File::create(&stderr).unwrap(),
-            ))
-            .kill_on_drop(true);
-        let mut child = command.spawn().unwrap();
-        let input = child.stdin.take().unwrap();
-        let output = BufReader::new(child.stdout.take().unwrap()).lines();
+        let (child, input, output) = spawn_gateway(dir.path(), &ledger, mode, &stderr);
         Self {
             _dir: dir,
+            port,
+            enforce,
             daemon,
             daemon_shutdown: Some(daemon_shutdown),
             daemon_faults,
@@ -327,6 +408,21 @@ impl Fixture {
             .await
             .expect("fixture daemon connections must close")
             .expect("fixture daemon task must stop cleanly");
+    }
+
+    async fn restart_daemon(&mut self) {
+        self.stop_daemon().await;
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", self.port))
+            .await
+            .unwrap();
+        self.daemon_faults = Arc::new(DaemonFaults::default());
+        let (daemon, shutdown) = start_daemon(
+            listener,
+            fixture_state(&self._dir.path().join(".agentfw"), self.port, self.enforce),
+            self.daemon_faults.clone(),
+        );
+        self.daemon = daemon;
+        self.daemon_shutdown = Some(shutdown);
     }
 
     async fn wait_for_server_marker(&self, suffix: &str) {
@@ -424,6 +520,27 @@ impl Drop for Fixture {
         }
         self.daemon.abort();
     }
+}
+
+fn evidence(test: &str, call_id: Value, ledger: &Path, delivered: Option<&str>, outcome: &str) {
+    let executions = executed(ledger).len();
+    let registry_bytes = std::fs::read(ledger.parent().unwrap().join("registry.json")).unwrap();
+    eprintln!(
+        "SOU17_EVIDENCE {}",
+        json!({
+            "schema_version": "sou17-native-evidence/0.1",
+            "registry_sha256": sha(&registry_bytes),
+            "policy_sha256": sha(POLICY.as_bytes()),
+            "test": test,
+            "call_id": call_id,
+            "execution_count": executions,
+            "effect_observed": executions != 0,
+            "result_prepared": ledger.with_extension("jsonl.result-ready").exists(),
+            "client_result_bytes": delivered.map_or(0, str::len),
+            "gated_result_marker_released": delivered.is_some_and(|value| value.contains("RESULT-AFTER-DAEMON-OUTAGE")),
+            "outcome": outcome,
+        })
+    );
 }
 
 fn executed(path: &Path) -> Vec<Value> {
@@ -704,7 +821,28 @@ async fn native_mcp_never_releases_unbound_or_nontext_server_results() {
 async fn native_mcp_preserves_the_original_correlated_jsonrpc_error() {
     let mut fixture = Fixture::new("error", true).await;
     fixture.ready().await;
-    assert_eq!(fixture.exchange(r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#).await.as_deref(), Some(r#"{"jsonrpc":"2.0","id":3,"error":{"code":-32603,"message":"harmless fixture error"}}"#));
+    let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    let delivered = fixture.exchange(call).await.unwrap();
+    assert_eq!(
+        delivered,
+        r#"{"jsonrpc":"2.0","id":3,"error":{"code":-32603,"message":"harmless fixture error"}}"#
+    );
+    assert_eq!(
+        executed(&fixture.ledger).len(),
+        1,
+        "a delivered runtime error does not erase the executor's effect"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&fixture.ledger).unwrap(),
+        format!("{call}\n")
+    );
+    evidence(
+        "correlated_runtime_error_after_effect",
+        json!(3),
+        &fixture.ledger,
+        Some(&delivered),
+        "runtime_error_after_effect",
+    );
 }
 
 #[tokio::test]
@@ -833,4 +971,249 @@ async fn native_mcp_schema_drift_does_not_release_tools_or_execute() {
         .await
         .is_none());
     assert!(executed(&fixture.ledger).is_empty());
+}
+
+#[tokio::test]
+async fn native_mcp_unsupported_cancellation_before_call_never_executes() {
+    let mut fixture = Fixture::new("normal", true).await;
+    fixture.ready().await;
+    assert!(fixture.exchange(r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":3,"reason":"fixture cancellation"}}"#).await.is_none());
+    fixture.assert_gateway_failed().await;
+    assert!(
+        executed(&fixture.ledger).is_empty(),
+        "unsupported cancellation cannot authorize a callable effect"
+    );
+    evidence(
+        "unsupported_cancellation_before_call",
+        json!(3),
+        &fixture.ledger,
+        None,
+        "transport_refused",
+    );
+}
+
+#[tokio::test]
+async fn native_mcp_cancellation_after_effect_withholds_result_without_undoing_execution() {
+    let mut fixture = Fixture::new("gated-result", true).await;
+    fixture.ready().await;
+    let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    fixture
+        .input
+        .write_all(format!("{call}\n").as_bytes())
+        .await
+        .unwrap();
+    fixture.input.flush().await.unwrap();
+    fixture.wait_for_server_marker("effect-recorded").await;
+    assert!(fixture.exchange(r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":3,"reason":"fixture cancellation"}}"#).await.is_none(), "unsupported cancellation must close without delivering the held result");
+    fixture.assert_gateway_failed().await;
+    assert_eq!(
+        std::fs::read_to_string(&fixture.ledger).unwrap(),
+        format!("{call}\n")
+    );
+    assert_eq!(
+        executed(&fixture.ledger).len(),
+        1,
+        "cancellation cannot erase an already witnessed effect"
+    );
+    assert!(!fixture.ledger.with_extension("jsonl.result-ready").exists());
+    evidence(
+        "unsupported_cancellation_after_effect",
+        json!(3),
+        &fixture.ledger,
+        None,
+        "transport_refused_after_effect",
+    );
+}
+
+#[tokio::test]
+async fn native_mcp_two_call_batch_never_executes_either_tool() {
+    let mut fixture = Fixture::new("normal", true).await;
+    fixture.ready().await;
+    let batch = r#"[{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}},{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/fixture","body":"synthetic"}}}]"#;
+    assert!(
+        fixture.exchange(batch).await.is_none(),
+        "unsupported batch must be refused before either dispatch"
+    );
+    fixture.assert_gateway_failed().await;
+    assert!(executed(&fixture.ledger).is_empty());
+    evidence(
+        "unsupported_two_call_batch",
+        json!([3, 4]),
+        &fixture.ledger,
+        None,
+        "transport_refused",
+    );
+}
+
+#[tokio::test]
+async fn native_mcp_concurrent_call_after_effect_never_reaches_second_executor() {
+    let mut fixture = Fixture::new("gated-result", true).await;
+    fixture.ready().await;
+    let first = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    fixture
+        .input
+        .write_all(format!("{first}\n").as_bytes())
+        .await
+        .unwrap();
+    fixture.input.flush().await.unwrap();
+    fixture.wait_for_server_marker("effect-recorded").await;
+    let second = r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    assert!(fixture.exchange(second).await.is_none(), "unsupported concurrency must close before releasing a result or forwarding the second call");
+    fixture.assert_gateway_failed().await;
+    assert_eq!(
+        std::fs::read_to_string(&fixture.ledger).unwrap(),
+        format!("{first}\n")
+    );
+    assert_eq!(executed(&fixture.ledger).len(), 1);
+    evidence(
+        "unsupported_concurrent_call",
+        json!([3, 4]),
+        &fixture.ledger,
+        None,
+        "transport_refused_after_first_effect",
+    );
+}
+
+#[tokio::test]
+async fn native_mcp_denied_session_does_not_block_a_benign_peer_on_the_same_daemon() {
+    let mut fixture = Fixture::new("normal", true).await;
+    fixture.ready().await;
+    let mut peer = PeerGateway::new(&fixture);
+    peer.ready().await;
+    let denied = fixture.exchange(r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/fixture","body":"AKIAIOSFODNN7EXAMPLE"}}}"#).await.unwrap();
+    let refused: Value = serde_json::from_str(&denied).unwrap();
+    assert_eq!(refused["id"], 3);
+    assert_eq!(refused["result"]["isError"], true);
+    assert!(!denied.contains("AKIAIOSFODNN7EXAMPLE"));
+    assert!(executed(&fixture.ledger).is_empty());
+    evidence(
+        "same_daemon_denied_call",
+        json!(3),
+        &fixture.ledger,
+        Some(&denied),
+        "policy_refused",
+    );
+    let read = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    assert_eq!(
+        peer.exchange(read).await.as_deref(),
+        Some(READ_RESULT),
+        "native call IDs are scoped to each collector session"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&peer.ledger).unwrap(),
+        format!("{read}\n")
+    );
+    assert_eq!(executed(&peer.ledger).len(), 1);
+    let followup = read.replace("\"id\":3", "\"id\":4");
+    let reply = fixture.exchange(&followup).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&reply).unwrap()["id"], 4);
+    assert!(reply.contains("Inventory: 7 red widgets."));
+    assert_eq!(
+        std::fs::read_to_string(&fixture.ledger).unwrap(),
+        format!("{followup}\n"),
+        "the denied session must remain useful for a fresh benign call"
+    );
+    assert_eq!(executed(&fixture.ledger).len(), 1);
+    evidence(
+        "same_daemon_benign_peer",
+        json!(3),
+        &peer.ledger,
+        Some(READ_RESULT),
+        "allow",
+    );
+    evidence(
+        "same_daemon_benign_followup",
+        json!(4),
+        &fixture.ledger,
+        Some(&reply),
+        "allow",
+    );
+}
+
+#[tokio::test]
+async fn native_mcp_restarted_daemon_rejects_old_completion_but_new_session_remains_useful() {
+    let mut fixture = Fixture::new("gated-result", true).await;
+    fixture.ready().await;
+    let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    fixture
+        .input
+        .write_all(format!("{call}\n").as_bytes())
+        .await
+        .unwrap();
+    fixture.input.flush().await.unwrap();
+    fixture.wait_for_server_marker("effect-recorded").await;
+    fixture.restart_daemon().await;
+    std::fs::write(
+        fixture.ledger.with_extension("jsonl.release-result"),
+        "release old result",
+    )
+    .unwrap();
+    fixture.wait_for_server_marker("result-ready").await;
+    assert!(
+        fixture.receive().await.is_none(),
+        "a fresh daemon cannot accept an old session's invocation binding or release its result"
+    );
+    fixture.assert_gateway_failed().await;
+    assert_eq!(
+        std::fs::read_to_string(&fixture.ledger).unwrap(),
+        format!("{call}\n")
+    );
+    assert_eq!(executed(&fixture.ledger).len(), 1);
+    let mut peer = PeerGateway::new(&fixture);
+    peer.ready().await;
+    assert_eq!(
+        peer.exchange(call).await.as_deref(),
+        Some(READ_RESULT),
+        "fresh session admission may reuse the original native client ID"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&peer.ledger).unwrap(),
+        format!("{call}\n")
+    );
+    assert_eq!(executed(&peer.ledger).len(), 1);
+    assert_eq!(
+        executed(&fixture.ledger).len(),
+        1,
+        "a fresh call cannot replay the old executor effect"
+    );
+    evidence(
+        "daemon_restart_old_completion",
+        json!(3),
+        &fixture.ledger,
+        None,
+        "transport_refused_after_effect",
+    );
+    evidence(
+        "daemon_restart_fresh_session",
+        json!(3),
+        &peer.ledger,
+        Some(READ_RESULT),
+        "allow",
+    );
+}
+
+#[tokio::test]
+async fn native_mcp_replayed_id_with_changed_tool_and_arguments_adds_no_effect() {
+    let mut fixture = Fixture::new("normal", true).await;
+    fixture.ready().await;
+    let read = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    assert_eq!(fixture.exchange(read).await.as_deref(), Some(READ_RESULT));
+    let changed = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/fixture","body":"synthetic"}}}"#;
+    assert!(
+        fixture.exchange(changed).await.is_none(),
+        "reusing an admitted ID cannot dispatch a different valid tool and argument set"
+    );
+    fixture.assert_gateway_failed().await;
+    assert_eq!(
+        std::fs::read_to_string(&fixture.ledger).unwrap(),
+        format!("{read}\n")
+    );
+    assert_eq!(executed(&fixture.ledger).len(), 1);
+    evidence(
+        "replayed_id_changed_payload",
+        json!(3),
+        &fixture.ledger,
+        None,
+        "transport_refused_after_original_effect",
+    );
 }
