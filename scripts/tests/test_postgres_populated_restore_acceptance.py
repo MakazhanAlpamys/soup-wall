@@ -21,6 +21,18 @@ RESTORE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = RESTORE
 SPEC.loader.exec_module(RESTORE)
 
+# macOS places the default temp directory under the /var -> /private/var
+# symlink, which the private-directory guards correctly refuse.
+RESOLVED_TEMPDIR = patch.object(tempfile, "tempdir", os.path.realpath(tempfile.gettempdir()))
+
+
+def setUpModule():
+    RESOLVED_TEMPDIR.start()
+
+
+def tearDownModule():
+    RESOLVED_TEMPDIR.stop()
+
 
 def reserve_fixture_tmp(parent):
     # Parsing/ordering cases are portable; Unix permission behavior is exercised

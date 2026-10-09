@@ -85,6 +85,21 @@ jobs:
           name: local-gateway-acceptance
           path: target/local-gateway-evidence.json
           if-no-files-found: ignore
+      - name: Stdio MCP admission demonstration
+        run: |
+          cargo build --locked -p agentfw
+          python3 scripts/mcp-admission-demo.py --out target/mcp-admission-demo.json
+      - name: Real rule-baseline MCP admission demonstration
+        run: python3 scripts/mcp-admission-demo.py --classifier rule-baseline --out target/sou-22-real-baseline.json
+      - name: Retain MCP admission demonstration evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-admission-demo
+          path: |
+            target/mcp-admission-demo.json
+            target/sou-22-real-baseline.json
+          if-no-files-found: ignore
 
   # The Linux workspace job covers these targets; this adds the native macOS boundary.
   native-macos-resilience:
@@ -155,7 +170,9 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --locked -p agentfw --all-targets -- -D warnings
-      - run: cargo test --locked -p agentfw
+      # Each MCP case owns real processes and protected profile files. Avoid a
+      # startup burst on Windows; explicit within-case concurrency remains tested.
+      - run: cargo test --locked -p agentfw -- --test-threads=1
       - name: Native Windows MCP fixture storage and harness checks
         run: python -m unittest discover -s scripts/tests -p 'test_windows*.py' -v
       - run: cargo build --locked -p agentfw --bin agentfw

@@ -31,6 +31,7 @@ overview. Choose a guide below for development, operation or evaluation.
 | [Identity interoperability](operations/IDENTITY_INTEROPERABILITY.md) | Local identity fixtures, external metadata probes and pilot gates |
 | [Keycloak SAML acceptance](operations/KEYCLOAK_SAML_ACCEPTANCE.md) | Pinned vendor-runtime setup and signed SAML checks |
 | [Local release acceptance](operations/LOCAL_RELEASE_ACCEPTANCE.md) | Downloaded binary and archive acceptance scope |
+| [Classified read seam evidence](operations/CLASSIFIED_READ_EVIDENCE.md) | Reproduce the Task 2 test-double read through protected MCP admission |
 | [Local monitoring acceptance](operations/LOCAL_MONITORING_ACCEPTANCE.md) | Scrape-outage and authenticated alert-delivery evidence |
 
 ## Benchmarks and evaluation

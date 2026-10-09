@@ -19,6 +19,30 @@ SPEC.loader.exec_module(ENVIRONMENT)
 
 
 class FixtureReporting(unittest.TestCase):
+    @unittest.skipUnless(sys.platform in {"linux", "darwin"}, "Linux-image path layout")
+    def test_bundle_retains_exact_classifier_source_and_missing_source_fails(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary).resolve() / "source"
+            bundle = Path(temporary).resolve() / "bundle"
+            for relative in ENVIRONMENT.RUNTIME_FILES:
+                path = source / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(("synthetic:" + relative).encode())
+            with patch.object(ENVIRONMENT, "ROOT", source):
+                ENVIRONMENT.copy_runtime_files(bundle)
+                relative = "rule_baseline/rule_baseline.py"
+                copied = bundle / source.relative_to("/") / relative
+                self.assertEqual(copied.read_bytes(), (source / relative).read_bytes())
+                (source / relative).unlink()
+                with self.assertRaises(FileNotFoundError):
+                    ENVIRONMENT.copy_runtime_files(bundle)
+
+    def test_fixture_build_context_includes_classifier_runtime_source(self):
+        rules = (ENVIRONMENT.ROOT / "deploy/Dockerfile.test.dockerignore").read_text().splitlines()
+        self.assertIn("!rule_baseline/", rules)
+        self.assertIn("!rule_baseline/rule_baseline.py", rules)
+        self.assertNotIn("!rule_baseline/**", rules)
+
     def test_windows_python_exits_with_wsl_instructions_before_starting_commands(self):
         with patch.object(ENVIRONMENT.sys, "platform", "win32"), \
                 patch.object(ENVIRONMENT.sys, "argv", ["test-environment.py"]), \

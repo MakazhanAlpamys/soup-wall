@@ -122,6 +122,18 @@ def discovery(output):
     return names
 
 
+RUNTIME_FILES = ("target/debug/agentfw", "scripts/test-environment.py", "scripts/clean-setup-acceptance.py",
+                 "scripts/tests/test_test_environment.py", "rule_baseline/rule_baseline.py", "LICENSE", "NOTICE")
+
+
+def copy_runtime_files(bundle):
+    """Keep required runtime sources at the absolute paths embedded in the tests."""
+    for relative in RUNTIME_FILES:
+        destination = bundle / ROOT.relative_to("/") / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
+
+
 def prepare_image():
     """Retain executable paths: Rust embeds CARGO_BIN_EXE_agentfw in MCP tests."""
     inputs = {str(path.relative_to(ROOT)): sha256(path)
@@ -155,11 +167,7 @@ def prepare_image():
         shutil.copy2(executable, destination)
         manifest["suites"].append({"package": package, "target": target,
                                     "executable": str(executable), "sha256": sha256(executable)})
-    for relative in ["target/debug/agentfw", "scripts/test-environment.py", "scripts/clean-setup-acceptance.py",
-                     "scripts/tests/test_test_environment.py", "LICENSE", "NOTICE"]:
-        destination = bundle / ROOT.relative_to("/") / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / relative, destination)
+    copy_runtime_files(bundle)
     manifest["agentfw_sha256"] = sha256(ROOT / "target/debug/agentfw")
     write_json(bundle / ROOT.relative_to("/") / "fixture-build.json", manifest)
 
@@ -350,6 +358,17 @@ def host_run(args):
         report["finished_at"] = utc_now()
         write_report(out, report)
     print(f"Baseline: {report['status']}. Report: {out / 'report.md'}", flush=True)
+    if report["status"] != "pass":
+        for case in report.get("fixture", {}).get("cases", []):
+            if case.get("status") == "pass":
+                continue
+            print(json.dumps({key: case.get(key) for key in ("suite", "name", "status", "exit_code", "reason")}),
+                  file=sys.stderr, flush=True)
+            log = out / str(case.get("log", ""))
+            if log.parent.resolve() == out.resolve() and log.is_file():
+                # These are owned synthetic fixture logs, already retained in CI artifacts.
+                print("\n".join(log.read_text(encoding="utf-8", errors="replace")[-8192:].splitlines()[-24:]),
+                      file=sys.stderr, flush=True)
     if report.get("error"):
         print(f"Error: {report['error']}", file=sys.stderr)
     return 0 if report["status"] == "pass" else 1
