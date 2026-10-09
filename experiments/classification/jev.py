@@ -9,7 +9,9 @@ from __future__ import annotations
 import copy
 import json
 import math
+import multiprocessing
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -232,6 +234,83 @@ class JevClassifier:
         return result
 
 
+def _http_worker(request: dict, api_key: str, timeout_s: float, sender) -> None:
+    """Isolated, terminable network worker; sends only a small validated envelope."""
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    try:
+        body = json.dumps(request, ensure_ascii=False, allow_nan=False).encode('utf-8')
+        req = urllib.request.Request(ENDPOINT, data=body, method='POST',
+                                     headers={'Content-Type': 'application/json',
+                                              'Authorization': 'Bearer ' + api_key})
+        with opener.open(req, timeout=timeout_s) as response:
+            if response.status != 200:
+                raise ClassificationFailure('classifier_internal_error', 'unexpected provider status')
+            data = response.read(65537)
+            parsed = parse_response(data)
+            _, diagnostics = map_response(parsed, JevConfig(model=request['model']))
+            # Never forward unknown provider fields or raw error bodies to the parent.
+            clean = {'model': diagnostics['model'], 'usage': diagnostics['usage'],
+                     'answers': {q: {'type': 'noul', 'noul': p}
+                                 for q, p in diagnostics['probabilities'].items()}}
+            envelope = {'ok': clean}
+    except ClassificationFailure as exc:
+        envelope = {'failure': {'code': exc.code, 'detail': exc.detail}}
+    except (TimeoutError, socket.timeout):
+        envelope = {'failure': {'code': 'classifier_timeout', 'detail': 'provider deadline exceeded'}}
+    except urllib.error.URLError as exc:
+        is_timeout = isinstance(getattr(exc, 'reason', None), (TimeoutError, socket.timeout))
+        envelope = {'failure': {'code': 'classifier_timeout' if is_timeout else 'classifier_internal_error',
+                                'detail': 'provider connection failed'}}
+    except Exception:
+        envelope = {'failure': {'code': 'classifier_internal_error', 'detail': 'provider transport failed'}}
+    try:
+        encoded = json.dumps(envelope, allow_nan=False).encode('utf-8')
+        if len(encoded) > 2048:
+            encoded = b'{"failure":{"code":"classifier_invalid","detail":"normalized response too large"}}'
+        sender.send_bytes(encoded)
+    finally:
+        sender.close()
+
+
+def _deadline_dispatch(request: dict, api_key: str, timeout_s: float, *, worker_entry=_http_worker) -> dict:
+    """Supervise DNS, connect, headers and reads together; discard/terminate late work."""
+    context = multiprocessing.get_context('spawn')
+    receiver, sender = context.Pipe(duplex=False)
+    worker = context.Process(target=worker_entry, args=(request, api_key, timeout_s, sender),
+                             name='jev-http-shadow', daemon=True)
+    start = time.monotonic()
+    started = False
+    try:
+        worker.start()
+        started = True
+        sender.close()
+        worker.join(max(0, timeout_s - (time.monotonic() - start)))
+        if worker.is_alive() or time.monotonic() - start > timeout_s:
+            raise TimeoutError('provider deadline exceeded')
+        if worker.exitcode != 0 or not receiver.poll(0):
+            raise ClassificationFailure('classifier_internal_error', 'network worker did not return a result')
+        envelope = parse_response(receiver.recv_bytes(2048), max_bytes=2048)
+        if 'failure' in envelope:
+            failure = envelope['failure']
+            raise ClassificationFailure(failure['code'], failure['detail'])
+        return envelope['ok']
+    finally:
+        if started:
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(0.1)
+            if worker.is_alive():
+                worker.kill()
+                worker.join(0.1)
+            if not worker.is_alive():
+                worker.close()
+        receiver.close()
+        sender.close()
+
+
 class HttpTransport:
     """Optional transport; never constructed by the default mock experiment.
 
@@ -255,48 +334,18 @@ class HttpTransport:
         self.max_requests = max_requests
         self.safe_state_hashes = frozenset(safe_state_hashes)
         self.requests = 0
+        self._request_lock = threading.Lock()
+        self._dispatch = _deadline_dispatch
         self.endpoint = endpoint
-        # Suppress proxy use and redirects: a token must not reach another origin.
-        class NoRedirect(urllib.request.HTTPRedirectHandler):
-            def redirect_request(self, req, fp, code, msg, headers, newurl):
-                return None
-        self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
 
     def __call__(self, request: dict, timeout_s: float) -> dict:
+        request = copy.deepcopy(request)  # Admission and dispatch use the same immutable snapshot.
         encoded_state = json.dumps(request["state"], sort_keys=True, ensure_ascii=False,
                                    allow_nan=False).encode("utf-8")
         if self._hash(encoded_state).hexdigest() not in self.safe_state_hashes:
             raise ClassificationFailure("classifier_invalid", "state is not approved for external transmission")
-        if self.requests >= self.max_requests:
-            raise ClassificationFailure("classifier_internal_error", "approved request cap exhausted")
-        body = json.dumps(request, ensure_ascii=False, allow_nan=False).encode("utf-8")
-        self.requests += 1  # Reserve before dispatch; errors do not restore a potentially billed request.
-        req = urllib.request.Request(self.endpoint, data=body, method="POST",
-                                     headers={"Content-Type": "application/json",
-                                              "Authorization": "Bearer " + self._api_key})
-        start = time.monotonic()
-        try:
-            with self._opener.open(req, timeout=timeout_s) as response:
-                if response.status != 200:
-                    raise ClassificationFailure("classifier_internal_error", "unexpected provider status")
-                data = bytearray()
-                # Per-socket timeout is not an overall deadline: check before and after every bounded read.
-                while True:
-                    if time.monotonic() - start > timeout_s:
-                        raise TimeoutError()
-                    chunk = response.read1(min(4096, 65537 - len(data)))
-                    if not chunk:
-                        break
-                    data.extend(chunk)
-                    if len(data) > 65536:
-                        raise _invalid("provider response exceeds byte limit")
-                if time.monotonic() - start > timeout_s:
-                    raise TimeoutError()
-                return parse_response(bytes(data))
-        except urllib.error.HTTPError as exc:
-            # Never log the raw provider error, request, Authorization or input.
-            raise ClassificationFailure("classifier_internal_error", f"provider HTTP status {exc.code}") from None
-        except urllib.error.URLError as exc:
-            if isinstance(exc.reason, (TimeoutError, socket.timeout)):
-                raise TimeoutError() from None
-            raise ClassificationFailure("classifier_internal_error", "provider connection failed") from None
+        with self._request_lock:
+            if self.requests >= self.max_requests:
+                raise ClassificationFailure("classifier_internal_error", "approved request cap exhausted")
+            self.requests += 1  # Reserve atomically; failed/billed requests never restore budget.
+        return self._dispatch(request, self._api_key, timeout_s)

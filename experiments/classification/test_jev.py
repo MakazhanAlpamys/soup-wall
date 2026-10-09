@@ -3,13 +3,27 @@ import copy
 import hashlib
 import json
 import math
+import multiprocessing
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from experiments.classification.jev import (
     ACTIONS, QUESTION_IDS, ClassificationFailure, HttpTransport, JevClassifier,
-    JevConfig, build_request, map_response, parse_response,
+    JevConfig, _deadline_dispatch, _http_worker, build_request, map_response, parse_response,
 )
+
+
+def blocked_local_worker(request, api_key, timeout_s, sender):
+    # Safe local replacement for a DNS/header/body read that never finishes.
+    time.sleep(10)
+
+
+def successful_local_worker(request, api_key, timeout_s, sender):
+    sender.send_bytes(json.dumps({'ok': response(read=.99)}).encode())
+    sender.close()
 
 
 def response(**probabilities):
@@ -166,7 +180,7 @@ class JevTests(unittest.TestCase):
                           safe_state_hashes={"x"}, endpoint="https://unreviewed.invalid/")
         client = HttpTransport("synthetic-test-key", approval_reference="mock-test-approval", max_requests=1,
                                safe_state_hashes={"not-the-input"})
-        with patch.object(client._opener, "open") as opener:
+        with patch.object(client, "_dispatch") as opener:
             with self.assertRaises(ClassificationFailure):
                 client(build_request(self.input, self.config), 1)
             opener.assert_not_called()
@@ -177,13 +191,68 @@ class JevTests(unittest.TestCase):
         digest = hashlib.sha256(json.dumps(req["state"], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         client = HttpTransport("synthetic-test-key", approval_reference="mock-test-approval",
                                max_requests=1, safe_state_hashes={digest})
-        with patch.object(client._opener, "open", side_effect=TimeoutError()) as opener:
+        with patch.object(client, "_dispatch", side_effect=TimeoutError()) as opener:
             with self.assertRaises(TimeoutError):
                 client(req, 1)
             with self.assertRaises(ClassificationFailure):
                 client(req, 1)
             self.assertEqual(opener.call_count, 1)
         self.assertEqual(client.requests, 1)
+
+    def test_parallel_request_admission_cannot_exceed_reserved_cap(self):
+        req = build_request(self.input, self.config)
+        digest = hashlib.sha256(json.dumps(req['state'], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        client = HttpTransport('synthetic-test-key', approval_reference='mock-test-approval',
+                               max_requests=3, safe_state_hashes={digest})
+        barrier = threading.Barrier(12)
+        def invoke(_):
+            barrier.wait(timeout=5)
+            try:
+                client(req, 1)
+            except (TimeoutError, ClassificationFailure):
+                pass
+        with patch.object(client, '_dispatch', side_effect=TimeoutError()) as dispatch:
+            with ThreadPoolExecutor(max_workers=12) as pool:
+                list(pool.map(invoke, range(12)))
+            self.assertEqual(dispatch.call_count, 3)
+        self.assertEqual(client.requests, 3)
+
+    def test_process_deadline_stops_blocked_provider_and_leaves_no_worker(self):
+        started = time.monotonic()
+        with self.assertRaises(TimeoutError):
+            _deadline_dispatch({}, 'synthetic-test-key', .15, worker_entry=blocked_local_worker)
+        self.assertLess(time.monotonic() - started, 2)
+        self.assertFalse(any(p.name == 'jev-http-shadow' for p in multiprocessing.active_children()))
+
+    def test_completed_worker_result_is_delivered_without_live_api_access(self):
+        result = _deadline_dispatch({}, 'synthetic-test-key', 5, worker_entry=successful_local_worker)
+        self.assertEqual(result, response(read=.99))
+        self.assertFalse(any(p.name == 'jev-http-shadow' for p in multiprocessing.active_children()))
+
+    def test_worker_only_forwards_validated_probabilities_and_usage(self):
+        opener, sender = MagicMock(), MagicMock()
+        fixture = response(read=.99)
+        fixture['private_extra_field'] = 'must not reach parent'
+        remote = opener.open.return_value.__enter__.return_value
+        remote.status = 200
+        remote.read.return_value = json.dumps(fixture).encode()
+        with patch('experiments.classification.jev.urllib.request.build_opener', return_value=opener):
+            _http_worker({'model': self.config.model}, 'synthetic-test-key', 1, sender)
+        sent = sender.send_bytes.call_args.args[0]
+        self.assertNotIn(b'private_extra', sent)
+        self.assertEqual(json.loads(sent)['ok'], response(read=.99))
+        remote.read.assert_called_once_with(65537)
+        sender.close.assert_called_once()
+
+    def test_worker_timeout_never_returns_private_provider_error(self):
+        opener, sender = MagicMock(), MagicMock()
+        opener.open.side_effect = TimeoutError('private provider response and key')
+        with patch('experiments.classification.jev.urllib.request.build_opener', return_value=opener):
+            _http_worker({'model': self.config.model}, 'synthetic-test-key', 1, sender)
+        sent = sender.send_bytes.call_args.args[0]
+        self.assertNotIn(b'private', sent)
+        self.assertNotIn(b'synthetic-test-key', sent)
+        self.assertEqual(json.loads(sent)['failure']['code'], 'classifier_timeout')
 
     def test_pinned_model_and_finite_thresholds(self):
         for kwargs in ({"model": "jev-latest"}, {"timeout_s": math.inf},

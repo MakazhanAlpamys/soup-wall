@@ -1,8 +1,8 @@
 {
   "format": "soup-wall/jev-shadow-report/1",
-  "source_commit": "ab62dc8d299d2df1753631cfb743baf4247022c2",
+  "source_commit": "406ca7ea0e1e80475f6163c86d342b502f895283",
   "source_sha256": {
-    "jev.py": "b86adbb1264aa31510ab895814975ac7dd69a824ec4b4b9570e5af5bac0244d4",
+    "jev.py": "44f574b311d287323318263e0d371d19c78e1e4c0b92b2aa2a2c3f4970d541bd",
     "shadow.py": "35dd11d0ba87bb536d95f61dc77ed19fbc727ad98c6d6133a63bf139ed5848da"
   },
   "python": "3.11.14",
@@ -49,8 +49,8 @@
       },
       "latency": {
         "count": 58,
-        "p50_ms": 0.09280000813305378,
-        "p95_ms": 0.18540001474320889
+        "p50_ms": 0.12179999612271786,
+        "p95_ms": 0.5648999940603971
       },
       "overall": {
         "scored": 55,
@@ -204,8 +204,8 @@
       },
       "latency": {
         "count": 58,
-        "p50_ms": 0.050449976697564125,
-        "p95_ms": 0.09229988791048527
+        "p50_ms": 0.05949998740106821,
+        "p95_ms": 0.15770015306770802
       },
       "overall": {
         "scored": 55,

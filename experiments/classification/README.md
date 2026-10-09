@@ -60,7 +60,7 @@ it does not score an absent status field in these fixtures.
 | Pending cases, excluded from scores | 3 | 3 |
 | Technical errors across all calls | 0 | 1 invalid input in a pending case |
 | Valid responses carrying unknown | 14 / 58 | 57 / 57 |
-| Local p50 / p95, ms | 0.093 / 0.185 | 0.050 / 0.092 |
+| Local p50 / p95, ms | 0.122 / 0.565 | 0.059 / 0.158 |
 | External API requests / API cost | 0 / $0 | 0 / $0 |
 
 The mock invalid-input observation correctly uses `classifier_invalid` rather
@@ -123,11 +123,20 @@ not evidence that the provider model is inaccurate.
 selected by the CLI. Construction requires an approval reference, exact safe
 state-hash allowlist and request cap. It uses the official HTTPS endpoint,
 suppresses proxies/redirects, reserves requests before dispatch, bounds responses
-and performs no retries. The caller must separately verify the dollar budget;
-the request cap does not enforce vendor billing. Socket waits are bounded and
-late results are discarded; DNS/connection and repeated slow reads can exceed
-the nominal overall deadline before control returns. This limitation prevents
-runtime adoption without a transport-level deadline review. No credentials or
-raw provider errors are written to evidence.
+and performs no retries. Request admission and reservation are protected by one
+lock, including concurrent callers; failure never restores a possibly billed
+request. Admission and dispatch use the same copied request. The caller must
+separately verify the dollar budget; the request cap does not enforce billing.
+
+DNS, connect, headers and body reads run in a separate spawned process supervised
+by one deadline. Late work is terminated rather than left in a background
+thread, and late output is discarded. Cleanup allows up to two 0.1-second joins;
+OS process-start/termination scheduling is not a hard real-time guarantee.
+The worker returns only a bounded, validated probability/usage envelope and
+never raw provider errors or extra fields. Python callers must use a normal
+spawn-compatible entry point (including a main guard on Windows). The default
+mock CLI does not start a network worker. Safe local regressions cover blocked
+worker termination, successful delivery and concurrent request-cap admission.
+No credentials or raw provider errors are written to evidence.
 
 SOU-6 tracking: [Experimental Jev classifier](https://linear.app/soup-wall/issue/SOU-6/task-11-experimental-jev-classifier).
