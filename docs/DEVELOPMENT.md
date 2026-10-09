@@ -158,7 +158,7 @@ unverified. CI runs the container suites on Linux amd64/arm64. A separate Window
 job checks launcher guidance and mocked reporting; it does not exercise WSL2 or
 Docker Desktop. macOS and actual Windows/WSL2 acceptance remain separate checks.
 
-The image pins Rust 1.98.0, multi-platform Rust/Debian image digests, a dated
+The image pins Rust 1.98.1, multi-platform Rust/Debian image digests, a dated
 Debian package snapshot and the repository's Cargo.lock. It records source-file
 and executable hashes, runtime packages, Python/Rust versions, image identity,
 host/container architectures and whether the source checkout was dirty. This
