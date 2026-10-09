@@ -166,7 +166,9 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --locked -p agentfw --all-targets -- -D warnings
-      - run: cargo test --locked -p agentfw
+      # Each MCP case owns real processes and protected profile files. Avoid a
+      # startup burst on Windows; explicit within-case concurrency remains tested.
+      - run: cargo test --locked -p agentfw -- --test-threads=1
       - name: Native Windows MCP fixture storage and harness checks
         run: python -m unittest discover -s scripts/tests -p 'test_windows*.py' -v
       - run: cargo build --locked -p agentfw --bin agentfw

@@ -367,7 +367,7 @@ def host_run(args):
             log = out / str(case.get("log", ""))
             if log.parent.resolve() == out.resolve() and log.is_file():
                 # These are owned synthetic fixture logs, already retained in CI artifacts.
-                print("\n".join(log.read_text(encoding="utf-8", errors="replace").splitlines()[-24:]),
+                print("\n".join(log.read_text(encoding="utf-8", errors="replace")[-8192:].splitlines()[-24:]),
                       file=sys.stderr, flush=True)
     if report.get("error"):
         print(f"Error: {report['error']}", file=sys.stderr)

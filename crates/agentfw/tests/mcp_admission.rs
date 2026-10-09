@@ -1644,7 +1644,7 @@ async fn real_baseline_preserves_frames_and_policy_enforcement() {
     assert_eq!(reply["id"], "original-read");
     assert!(reply["result"]["content"][0]["text"]
         .as_str()
-        .unwrap()
+        .unwrap_or_else(|| panic!("expected successful real-baseline read, got {reply}"))
         .contains("7 red widgets"));
     assert_eq!(
         std::fs::read_to_string(&fixture.ledger).unwrap(),
