@@ -1,0 +1,6 @@
+Gold freeze for the challenge suite (recorded BEFORE any baseline run on these inputs)
+frozen_at_utc: 2026-10-08T14:01:22Z
+48a445b5d53dd2cc77a999616f7042eff1962eaf8291ee099e6e88b5fe621a69  fixtures/soup_task1_challenge_cases_v0.1.json
+c4feb12d6f0f861581349b607129c6ebcdd396f72698bf92314c1ce3d1b05a67  tools/make_challenge_v01.py
+047d522c8fcaaa61aa479f12a9e34eb7c6bd47dcd4c7005909e6837afea91044  fixtures/soup_task1_evaluation_cases_v0.4.json
+0c56f042c0c065a7ff473a692562538db8a334a0ea4e09fba0a8d5faef5e0729  tools/make_v04.py
