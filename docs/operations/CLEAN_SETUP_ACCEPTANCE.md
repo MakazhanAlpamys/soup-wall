@@ -149,6 +149,41 @@ Before adding a workflow, inspect the active default setup with an administrator
 No CodeQL workflow in the checkout does not mean scanning is disabled. This
 preparation deliberately adds no duplicate CodeQL workflow.
 
+### Readable offline report
+
+After collecting the JSON above, convert it to Markdown with the
+[report script](../../scripts/github-code-scanning-report.py):
+
+```sh
+python3 scripts/github-code-scanning-report.py \
+  --input target/github-main-audit.json \
+  --output target/github-main-audit.md
+```
+
+For a PR, use its saved audit JSON instead. On Windows, use `python` instead of
+`python3`. The converter needs Python 3.10+ and only its standard library;
+it needs neither GitHub credentials nor network access. Keep the original JSON
+beside the Markdown report. Conversion does not refresh the saved observations.
+
+An audit exit code of 2 can still leave a valid, incomplete JSON report. Inspect
+that file and run the converter separately; do not discard access failures or
+replace missing evidence with a pass. The converter accepts schema version 1,
+preserves recorded statuses, and labels missing/null values as `not recorded`.
+It refuses invalid input, unsupported schema versions and existing output paths.
+Use a fresh Markdown filename for each report.
+
+The converter's exit code 0 means **the document was created**, even when the
+audit is incomplete. Exit code 2 means conversion failed. Neither a generated
+report nor a successful analysis/upload job proves that a finding blocks merge.
+
+For the administrator handoff, review the recorded target SHA, observation time
+and head recheck first. Then compare the analysis jobs with the separate results
+check, including its app, exact-head match and conclusion. Review the observed
+rulesets, effective main rules and thresholds alongside unavailable observations.
+An empty rule list or a 403/404 response does not prove the absence of protection.
+The final table keeps all three administrator gate cases and their saved statuses,
+including `not_run`; conversion never runs those cases or changes GitHub settings.
+
 ### Administrator configuration and live gate evidence
 
 Coordinate with @winux125; @manettibenetti coordinates PR review. The
