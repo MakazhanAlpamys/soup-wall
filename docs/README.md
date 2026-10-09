@@ -38,6 +38,7 @@ overview. Choose a guide below for development, operation or evaluation.
 | Guide | Purpose |
 | --- | --- |
 | [Methodology](methodology.md) | Corpus, classifier and evidence methods with claim limits |
+| [Local learned classifier preparation](../experiments/local_classifier/README.md) | Masked-label training, separate calibration and approved-data shadow pilot commands |
 | [Experimental classifiers](../experiments/classification/README.md) | Offline Jev adapter, shadow comparison, access limitations and adoption decision |
 | [Generated scorecard](benchmarks/agent-security-scorecard.generated.md) | Exact output compared by CI; regenerate through the benchmark command |
 | [Independent historical replay](benchmarks/independent-history-replay.md) | Pinned historical evidence and the original adapter's semantic limits |
