@@ -89,12 +89,16 @@ jobs:
         run: |
           cargo build --locked -p agentfw
           python3 scripts/mcp-admission-demo.py --out target/mcp-admission-demo.json
+      - name: Real rule-baseline MCP admission demonstration
+        run: python3 scripts/mcp-admission-demo.py --classifier rule-baseline --out target/sou-22-real-baseline.json
       - name: Retain MCP admission demonstration evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: mcp-admission-demo
-          path: target/mcp-admission-demo.json
+          path: |
+            target/mcp-admission-demo.json
+            target/sou-22-real-baseline.json
           if-no-files-found: ignore
 
   # The Linux workspace job covers these targets; this adds the native macOS boundary.
