@@ -78,22 +78,16 @@ jobs:
             cargo --version
             python3 --version
           } > target/task3-resilience/environment.log
-      - name: Check public runner resilience
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo test --locked -p soup-wall-adapter --test resilience_tests -- --test-threads=1 2>&1 | tee target/task3-resilience/adapter-resilience.log
-      - name: Check actual MCP execution and result admission
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo test --locked -p agentfw --test mcp_admission -- --test-threads=1 2>&1 | tee target/task3-resilience/mcp-admission.log
+      - name: Retain exact-source SOU-17 regression outcomes
+        run: python3 scripts/verify-sou17.py --expected-commit "$GITHUB_SHA" --out target/task3-resilience/verification
       - name: Retain native macOS resilience evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: task3-native-macos-resilience
-          path: target/task3-resilience/*.log
+          path: |
+            target/task3-resilience/environment.log
+            target/task3-resilience/verification/
           if-no-files-found: warn
           retention-days: 14
 
