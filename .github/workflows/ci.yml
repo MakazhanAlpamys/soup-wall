@@ -48,6 +48,10 @@ jobs:
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
       - name: Task 1 classification evaluation runner units
         run: python3 -m unittest discover -s eval -p 'test_*.py' -v
+      - name: Task 1 rule baseline unit regressions
+        run: python3 -m unittest discover -s rule_baseline -p 'test_*.py' -v
+      - name: Task 1 frozen core regression evaluation
+        run: python3 eval/eval_runner.py eval/fixtures/soup_task1_evaluation_cases_v0.4.json --classifier-path rule_baseline --out-dir target/task1-core-evaluation
       - name: Disposable Agent setup and daemon status
         run: python3 scripts/clean-setup-acceptance.py --run --agentfw target/debug/agentfw --output target/clean-setup-linux.json
       - name: Retain setup and status evidence
