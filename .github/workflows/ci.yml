@@ -46,6 +46,8 @@ jobs:
         run: cargo build --locked -p llm-firewall
       - name: Isolated Gateway and SQLite Console acceptance
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Task 1 classification evaluation runner units
+        run: python3 -m unittest discover -s eval -p 'test_*.py' -v
       - name: Disposable Agent setup and daemon status
         run: python3 scripts/clean-setup-acceptance.py --run --agentfw target/debug/agentfw --output target/clean-setup-linux.json
       - name: Retain setup and status evidence

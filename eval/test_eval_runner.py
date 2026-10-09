@@ -63,6 +63,18 @@ class Comparison(unittest.TestCase):
     def test_fully_unknown_expected_and_predicted_passes(self):
         self.assertEqual(self.ev(case(actions=[], unknown=True), ok([], unknown=True))["outcome"], "pass")
 
+    def test_explicit_no_op_is_valid_and_matches(self):
+        c = case(actions=[], unknown=False)
+        fixture = {"fixture_version": "test", "cases": [c]}
+        self.assertEqual(R.validate_fixture(fixture), [])
+        out = {"actions": [], "unknown": False}
+        self.assertIsNone(R.check_output(out))
+        self.assertEqual(self.ev(c, out)["outcome"], "pass")
+
+    def test_no_op_and_unresolved_effects_are_not_interchangeable(self):
+        self.assertEqual(self.ev(case(actions=[], unknown=False), ok([], unknown=True))["outcome"], "fail")
+        self.assertEqual(self.ev(case(actions=[], unknown=True), {"actions": [], "unknown": False})["outcome"], "fail")
+
     def test_status_not_evaluated_when_expected_null(self):
         r = self.ev(case(), {"status": "unknown", "actions": ["read"], "unknown": False})
         self.assertEqual((r["outcome"], r["status_check"]), ("pass", "not_evaluated"))
@@ -92,7 +104,8 @@ class TechnicalErrors(unittest.TestCase):
     def test_invalid_outputs(self):
         for bad in [None, "read", {"actions": "read", "unknown": False}, {"actions": ["read", "unknown"], "unknown": True},
                     {"actions": ["read"], "unknown": "no"}, {"actions": ["read", "read"], "unknown": False},
-                    {"actions": [], "unknown": False}, {"status": "weird", "actions": ["read"], "unknown": False},
+                    {"status": [], "actions": ["read"], "unknown": False},
+                    {"status": "weird", "actions": ["read"], "unknown": False},
                     {"actions": ["read"]}]:
             with self.subTest(bad=bad):
                 self.assertEqual(self.ev(case(), const(bad))["outcome"], "technical_error")
@@ -179,17 +192,17 @@ class FixtureValidation(unittest.TestCase):
     def test_catches_problems(self):
         bad_label = case(actions=["read", "unknown"])
         bad_unknown = case("B", unknown=None)
-        empty_known = case("C", actions=[], unknown=False)
+        duplicate_actions = case("C", actions=["read", "read"])
         pending_with_gold = case("D", status="pending")
         dup = case("E")
         leak = case("F")
         leak["input"]["raw_arguments"] = {"note": "case F"}
         extra_input_key = case("G")
         extra_input_key["input"]["expected"] = ["read"]
-        errs = R.validate_fixture(self.fx(bad_label, bad_unknown, empty_known, pending_with_gold, dup, dict(dup), leak,
+        errs = R.validate_fixture(self.fx(bad_label, bad_unknown, duplicate_actions, pending_with_gold, dup, dict(dup), leak,
                                           extra_input_key))
         text = "\n".join(errs)
-        for needle in ("T01: expected.actions", "B: expected.unknown", "C: actions=[] with unknown=false",
+        for needle in ("T01: expected.actions", "B: expected.unknown", "C: expected.actions",
                        "D: pending cases", "E: duplicate id", "F: case id appears", "G: input must be"):
             self.assertIn(needle, text)
 

@@ -94,8 +94,6 @@ def validate_fixture(data: Any, source: str = "<fixture>") -> list[str]:
                 errs.append(f"{where}: expected.actions must be a duplicate-free list of {ACTIONS}")
             if not isinstance(unk, bool):
                 errs.append(f"{where}: expected.unknown must be true/false for a scored case")
-            if acts == [] and unk is False:
-                errs.append(f"{where}: actions=[] with unknown=false is not a valid expectation (A1)")
         elif acts is not None or unk is not None:
             errs.append(f"{where}: pending cases must have expected.actions and expected.unknown = null")
         if exp["status"] is not None and exp["status"] not in STATUSES:
@@ -114,7 +112,7 @@ def check_output(out: Any) -> str | None:
     if not isinstance(out, dict):
         return f"invalid_output: expected an object, got {type(out).__name__}"
     status = out.get("status")
-    if status is not None and status not in STATUSES:
+    if status is not None and (not isinstance(status, str) or status not in STATUSES):
         return f"invalid_output: status {status!r} not in {sorted(STATUSES)}"
     if status == "error":
         return "classifier_reported_error: " + str(out.get("reason", ""))[:200]
@@ -128,8 +126,6 @@ def check_output(out: Any) -> str | None:
         return "invalid_output: duplicate actions"
     if not isinstance(out.get("unknown"), bool):
         return "invalid_output: unknown missing or not a Boolean"
-    if acts == [] and out["unknown"] is False:
-        return "invalid_output: actions=[] with unknown=false (invalid under assumption A1)"
     return None
 
 

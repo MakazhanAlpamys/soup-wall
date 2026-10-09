@@ -52,3 +52,18 @@ On 9 Oct the classifier owner separately reported **49/55** on the two core suit
 ## Important limitation
 
 These are synthetic developer regression/challenge cases, not proof of production model accuracy or security. Gold labels are provisional until the agreed contract and review process confirm them. The historical results provide traceability for discovered defects; they are not target scores.
+
+## Reviewed runner compatibility
+
+The runner accepts an explicit no-op result (`actions=[]`, `unknown=false`) and
+compares it independently from unresolved effects (`unknown=true`). This does
+not establish that any particular tool is a no-op or approve a fixture label.
+The frozen historical fixtures and their pending cases are preserved unchanged;
+label promotion requires separate review. Invalid outputs remain technical
+errors, including a non-string local `status` field. The local `status` convention
+is retained for historical diagnostics; this runner is not the runtime failure
+channel or an approval of the complete SOU-10 interface.
+
+CI runs the runner unit suite explicitly. Evaluation with the separately owned
+classifier remains a reproducible diagnostic run; existing classification
+mismatches are not hidden or relabeled to obtain a green score.
