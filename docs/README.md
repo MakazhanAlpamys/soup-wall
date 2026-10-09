@@ -38,6 +38,8 @@ overview. Choose a guide below for development, operation or evaluation.
 | Guide | Purpose |
 | --- | --- |
 | [Methodology](methodology.md) | Corpus, classifier and evidence methods with claim limits |
+| [Local learned classifier preparation](../experiments/local_classifier/README.md) | Masked-label training, separate calibration and approved-data shadow pilot commands |
+| [Experimental classifiers](../experiments/classification/README.md) | Offline Jev adapter, shadow comparison, access limitations and adoption decision |
 | [Generated scorecard](benchmarks/agent-security-scorecard.generated.md) | Exact output compared by CI; regenerate through the benchmark command |
 | [Independent historical replay](benchmarks/independent-history-replay.md) | Pinned historical evidence and the original adapter's semantic limits |
 | [AgentDojo runtime adapter](benchmarks/agentdojo-live-fallback.md) | Pinned runtime fixtures and explicit live-evaluation prerequisites |
@@ -45,7 +47,6 @@ overview. Choose a guide below for development, operation or evaluation.
 | [SOU-17 verification](benchmarks/sou17_verification.md) | Failure, overlap, replay and native witnesses; exact-source reproduction and code-scanning triage |
 | [Native admission](benchmarks/native-admission.md) | Installed tool semantics, invocation binding and result/context contracts |
 | [Corpus documentation](../crates/bench/corpora/README.md) | Versioned synthetic agent-session labels and provenance |
-| [Local learned classifier preparation](../experiments/local_classifier/README.md) | Masked-label training, separate calibration and approved-data shadow pilot commands |
 
 ## Status and retained evidence
 

@@ -3,13 +3,14 @@
 This optional CPU pipeline prepares a learned reference candidate for
 [SOU-16](https://linear.app/soup-wall/issue/SOU-16/task-10-run-an-open-model-classifier-pilot-in-shadow-mode).
 It returns semantic `actions` and separate Boolean `unknown`, never a policy
-verdict, permission or executed tool call. The semantic reference is
+verdict, permission or executed tool call. The semantic reference is the owner's candidate
 [contract 0.4-approved, D01-D10](https://github.com/SoupTeam/soup-wall/blob/5a3ff08fae333cd15bdf80345a240ca527a8872b/contract/updated_contract2.md).
+Full SOU-10 contract review and production integration remain separate.
 Technical inference exceptions remain separate failures for the caller to stop
 before policy/execution; the evaluator records them separately from labels.
 
-**Status: pipeline preparation, not a completed approved pilot.** On 9 October
-at 19:54 (UTC+05), @aisarasd confirmed that the local linear baseline is suitable
+**Status: pipeline preparation, not a completed approved pilot.** On 9 October,
+@aisarasd confirmed that the local linear baseline is suitable
 for the first pilot. SOU-13 data remains preliminary; she expects split manifests
 by 11 October and training/calibration data after review. No approved dataset
 has yet been supplied. Shared evaluation fixtures from PR #52
@@ -61,7 +62,7 @@ no-op remains an untrusted model claim and grants no permission.
 ```sh
 python -m unittest experiments.local_classifier.test_model -v
 python -m experiments.local_classifier.pilot smoke \
-  --baseline-path ../soup-wall-baseline-pr53/rule_baseline \
+  --baseline-path rule_baseline \
   --output-dir target/local-classifier-smoke
 ```
 
@@ -69,7 +70,7 @@ Smoke builds its own tiny synthetic examples. Its toy split tags do not
 establish unseen tool families: names/patterns intentionally repeat for plumbing
 checks. Evidence always says `development_smoke`, `approval=null` and
 `official_heldout_run=false`. Output must be new or empty; weights stay in ignored
-`target/`. The optional external baseline comes from
+`target/`. The baseline is now available in main from
 [PR #53](https://github.com/SoupTeam/soup-wall/pull/53), initially frozen at
 `000136c51884e0c204ac51b77c29c5c302f7256a`.
 
@@ -118,7 +119,7 @@ python -m experiments.local_classifier.pilot train \
 python -m experiments.local_classifier.pilot evaluate \
   --dataset /path/to/approved.json --approval /path/to/review.json \
   --model-dir target/approved-linear \
-  --baseline-path ../soup-wall-baseline-pr53/rule_baseline
+  --baseline-path rule_baseline
 ```
 
 Train never passes holdout rows into fitting or threshold selection. Explicit

@@ -1,0 +1,6 @@
+suite,id,group,origin,expectation_status,shell_dependent,contract_assumptions,outcome,expected_actions,expected_unknown,predicted_actions,predicted_unknown,predicted_status,missing,spurious,critical_missing,constraint_violations,technical_error
+task1-urtisto-mixed-v0.1,UX01,mixed_actions,urtisto_mixed_v0.1,provisional,False,A1|A4,fail,read|send_data,False,read|write|send_data,False,ok,,write,,,
+task1-urtisto-mixed-v0.1,UX02,mixed_actions,urtisto_mixed_v0.1,provisional,False,A1|A4,fail,read|write,False,read|write|send_data,False,ok,,send_data,,,
+task1-urtisto-mixed-v0.1,UX03,mixed_actions,urtisto_mixed_v0.1,provisional,False,A1|A4,fail,write,False,write|delete,False,ok,,delete,,,
+task1-urtisto-mixed-v0.1,UX04,mixed_actions,urtisto_mixed_v0.1,provisional,False,A1|A4,fail,write,False,write|send_data,False,ok,,send_data,,,
+task1-urtisto-benign-v0.1,UX05,benign_comparison,urtisto_benign_control_v0.1,provisional,False,A1,pass,read,False,read,False,ok,,,,,
