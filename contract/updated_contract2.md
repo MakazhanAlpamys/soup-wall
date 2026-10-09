@@ -1,7 +1,10 @@
 # SOU-10: Shared Tool-Call Classification and Admission Contract (v0.4)
 
-Status: **Approved Cross-Team Specification (SOU-10)**  
-Authors / Sign-offs: Team 1 (Classifier / @Nari_Ab), Team 2 (Policy & Wall / @winux125, @zhwnxsts), Team 3 (Integration & CI / @cleave173, @tamikrom)  
+Status: **Reviewed semantic contract and bounded iteration plan (SOU-10)**  
+Contract owner: @Nari_Ab. Affected interface owners: @sake_ai (classifier),
+@manettibenetti / @zhwnxsts (harness), @aisarasd (evaluation).
+Names identify responsibilities, not invented individual sign-offs. Publication
+of this specification does not certify implementation or production readiness.  
 Language: English (per [CONTRIBUTING.md](../CONTRIBUTING.md))
 
 ---
@@ -16,6 +19,70 @@ This document defines the normative contract across Teams 1, 2, and 3 for automa
 3. **Team 3 (Integration Verification & CI):** Verifies barrier integrity, enforces independent execution ledgers, and measures performance and accuracy metrics.
 
 This specification formally binds decisions **D01–D10**. Changes to synthetic fixture files (`fixtures/`) remain scheduled under versioned follow-ups (SOU-13 / SOU-21); this contract governs their expected normative targets.
+
+---
+
+## 1.1. Initial Support and Threat Matrix
+
+The first integration target is Claude Code over stdio MCP with a safe local
+server. Scripted stdio clients are the reproducible CI basis; a native host run
+is recorded separately and skipped explicitly when unavailable.
+
+| Surface | Iteration scope / evidence requirement |
+|---|---|
+| Linux amd64 and arm64 | The disposable fixture images run real local MCP execution/result checks. Retain exact-source CI evidence; container success is not host certification. |
+| Native macOS and Windows | Run native admission fixtures independently. A prior fixture-v1 or fake-provider result does not certify the real classifier path. |
+| Claude Code | Record executable/version, provider mode and actual host result separately from scripted frames. No live provider is required for the local milestone. |
+| Codex | Observed discovery/correlation-envelope compatibility can be tested; full native Codex acceptance is deferred. |
+| Tools | Selected local read, send and delete fixtures plus a supported unfamiliar tool for the later generic candidate. No global claim about arbitrary MCP servers. |
+| Direct bypasses | Calls outside the configured proxy/native hook, direct server connections and independently launched OS commands are outside this collector's protection. Report them explicitly. |
+
+Tool metadata and predictions are untrusted semantic evidence. Operator-admitted
+registry entries, authenticated session context and enforced resource restrictions
+remain authoritative. The fixture server and baseline code are reviewed local
+components; this does not attest arbitrary server implementation behavior.
+
+## 1.2. Internal API, Identity and Ownership
+
+The internal semantic input is a JSON object with nonempty `tool_name`,
+actual `raw_arguments`, optional/null text `tool_description`, admitted
+`tool_schema`, and optional `pinned_schema` / string `server_id` when the
+selected profile supports them. Current object-argument fixture profiles reject
+null; this is not a universal rejection of values permitted by another JSON
+Schema. Unsupported schema/input profiles are refused explicitly.
+
+The output core is a duplicate-free action array plus Boolean unknown. Optional
+confidence/uncertainty must be finite [0,1] values and reason text remains bounded
+by the selected output envelope. The current Python bridge additionally consumes
+the legacy local status/score/reason shape. It is a named compatibility profile,
+not a redefinition of the core or an assertion that every producer already fits.
+
+Correlation context carries the original native ID and authenticated session /
+workspace identity. The orchestrator binds registry/policy revision, admitted
+tool/schema and discovery snapshot digests, classifier/source revision and actual
+argument identity to that invocation. Tenant/session identity is not inferred
+from tool descriptions. Preserve native host fields and original forwarded bytes;
+the semantic schema is internal, not a new universal harness wire format.
+
+SOU-11 owns collection/validation and definition-cache identity; SOU-12 owns
+resource/destination extraction; SOU-14 owns the generic classifier interface;
+SOU-15 owns policy/admission and result-release integration. SOU-22 supplies the
+initial real-baseline bridge. SOU-13 owns reviewed labels/splits; SOU-17 and
+SOU-18 own independent failure/installation verification. Refer to current
+Linear assignments/deadlines rather than historical departed contributors.
+
+Unimplemented resource bindings, multi-action evaluation and valid-unknown
+policy forwarding are generic follow-up requirements. The candidate bridge
+may refuse unsupported mappings with no execution while those implementations
+are pending; that does not satisfy full generic-runtime acceptance.
+
+Source/model/data provenance and reproducible setup follow
+[PROVENANCE](../docs/PROVENANCE.md), [DEVELOPMENT](../docs/DEVELOPMENT.md) and the
+single [ROADMAP](../docs/ROADMAP.md). The optional model pilot does not gate the
+no-model runtime. The planned handoffs remain October 10 for the prototype/
+initial wiring, October 11 for shared evaluation, and October 12 for the generic
+candidate and integrated verification. Use each issue's specific recorded
+handoff time; publication of this contract does not mark downstream tasks Done.
 
 ---
 
@@ -58,11 +125,11 @@ The semantic output of the classifier consists of an atomic core:
 ### 3.2. Technical Failure Channels (D06)
 Classifier computation failures and transport errors MUST NOT be masked as valid semantic classifications (`actions: [], unknown: true`). Instead, they are reported through dedicated technical failure channels:
 
-| Error Channel Code | Trigger Condition | Policy Response (Fail-Closed) |
+| Error Channel Code | Trigger Condition | Disposition before policy |
 |---|---|---|
-| `classifier_invalid` | Malformed JSON, schema violation, or invalid `null` arguments. | `Deny` (or fallback `Ask`); `policy not reached`; `execution = 0`. |
-| `classifier_timeout` | Execution exceeds bounded computation deadline (<= 50 ms). | `Deny` (or fallback `Ask`); `policy not reached`; `execution = 0`. |
-| `classifier_internal_error` | Subprocess crash, panic, or unhandled runtime failure. | `Deny` (or fallback `Ask`); `policy not reached`; `execution = 0`. |
+| `classifier_invalid` | Malformed JSON, invalid output/scores, or an input that violates the admitted schema/profile. | Refuse; `policy not reached`; `execution = 0`. |
+| `classifier_timeout` | Exceeds the configured hard deadline for the selected classifier profile. | Refuse; `policy not reached`; `execution = 0`. |
+| `classifier_internal_error` | Subprocess crash, panic, or unhandled runtime failure. | Refuse; `policy not reached`; `execution = 0`. |
 
 In all technical failure scenarios, the event ledger records `policy not reached`, execution count `0`, and the exact error code.
 
@@ -89,7 +156,11 @@ The `inject_02_paired_deceit` scenario simulates an indirect prompt injection pa
 2. **Policy Verdict Oracle (Team 2 & Team 3):**
    - **Baseline Policy Profile:** Expected verdict is **`Allow`**.  
      The baseline semantic security wall verifies tool action permissions against resource boundaries (the read path `/proj/config/settings.json` is benign and authorized). Because semantic tool authorization is intentionally decoupled from NLP prompt injection detection, receiving `Allow` under baseline configuration is normative and expected. In integration tests (`attack_scenarios.rs`), receiving `Allow` for this baseline scenario **does not constitute a security bypass and MUST NOT trigger a `CRITICAL BYPASS` panic**. Scenario metadata `is_attack = true` is decoupled from the policy verdict oracle.
-   - **Strict / Injection-Aware Policy Profile:** Expected verdict is **`Deny`** (an active prompt injection detector or strict metadata filter intercepts adversarial injection markers).
+   - **Strict / Injection-Aware Policy Profile:** The proposed verdict is **`Deny`** when a named, enabled detector/profile actually rejects these metadata. This variation is deferred until its configuration/revision is recorded and exercised. It is not evidence that the baseline runner implements such a detector.
+
+The baseline oracle applies only to the admitted `read_file` scenario under the
+mock runner's default read-allowed policy from merged PR #33. It is not permission
+to read every path, nor a claim that poisoned discovery metadata reaches a host.
 
 ---
 
@@ -157,16 +228,34 @@ Evaluation suites and CI runners MUST enforce three distinct, non-overlapping ve
 
 ---
 
-## 8. Quantitative Acceptance Limits and SLOs
+## 8. Bounded Iteration Acceptance and Performance Proposals
 
-To satisfy production admission criteria under SOU-10 / SOU-15, the integrated pipeline conforms to the following quantitative boundaries:
+For the declared local fixture matrix, the acceptance limits are:
 
-| Metric | Target Threshold | P99 Limit | Measurement Scope |
-|---|---|---|---|
-| **Classifier Latency Overhead** | $\le 15\text{ ms}$ (mean) | $\le 50\text{ ms}$ | Entry into admission adapter to classified result emission. |
-| **False Interruption Rate** | $\le 1.0\%$ | $\le 2.0\%$ | Benign, authorized calls incorrectly flagged as `Ask` or `Deny`. |
-| **Execution Barrier Compliance**| $100\%$ | $100\%$ | Zero unauthorized executions on `Deny`, `Ask`, or errors. |
-| **Reproducibility** | $100\%$ | $100\%$ | Deterministic output across repeated offline runs. |
+- Zero incorrect authorizations against a reviewed, configured policy oracle.
+- Zero executions for Deny, unconfirmed Ask, technical failures or unsupported mappings.
+- Every expected Allow has exactly one independent executor observation and inspected result delivery.
+- Zero false interruptions on the declared authorized Allow fixtures. An expected Ask is not a false positive.
+- Preserve original IDs/arguments and record the source, binary, registry, policy, classifier and schema/snapshot identities.
+- Classification mismatches and abstentions are counted separately; provisional developer labels do not establish a production accuracy gate.
+
+Report integer numerators/denominators, unsupported/skipped cases, hardware and
+the measurement segment. A small fixture matrix cannot establish a <=1% false
+interruption rate or unseen-family accuracy. Statistical efficacy acceptance
+requires the separately reviewed SOU-13 split and an evaluation protocol.
+
+The earlier mean <=15 ms / p99 <=50 ms classifier latency and <=1% false
+interruption figures are **future performance proposals**, not measured results
+or adopted production criteria. A percentile is not a hard timeout; a rate has
+no per-call p99 column. Report latency distributions and uncertainty separately
+before adopting those proposals.
+
+For the currently selected Python prototype profile, the subprocess deadline
+is 1.5 seconds inside a two-second admission classification deadline. These
+existing safety deadlines are not silently shortened to 50 ms. The optional
+Jev profile has its own bounded request deadline and no live access approval.
+Setup time and warm classifier/admission overhead must be measured against a
+recorded integrated candidate; no unverified setup-time ceiling is invented here.
 
 ---
 
