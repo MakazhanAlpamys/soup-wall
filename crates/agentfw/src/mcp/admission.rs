@@ -23,6 +23,17 @@ const MAX_REQUESTS: usize = 1024;
 const IO_TIMEOUT: Duration = Duration::from_secs(30);
 const CLASSIFICATION_CONTRACT: &str = "sw-classification/candidate-1";
 const CLASSIFIER_TIMEOUT: Duration = Duration::from_secs(2);
+// Verify and execute one immutable byte snapshot in the child, not a path
+// checked by the parent and reopened after another process can replace it.
+const PYTHON_CLASSIFIER_BOOTSTRAP: &str = r#"import hashlib, sys
+path, expected = sys.argv[1:]
+with open(path, "rb") as handle:
+    source = handle.read(1024 * 1024 + 1)
+if len(source) > 1024 * 1024 or hashlib.sha256(source).hexdigest() != expected:
+    raise SystemExit(78)
+sys.argv = [path]
+exec(compile(source, path, "exec"), {"__name__": "__main__", "__file__": path})
+"#;
 
 /// Internal classifier input. Discovery content is evidence; only the registry
 /// and successful admission establish the trusted baseline.
@@ -80,10 +91,6 @@ impl InvocationClassifier for RuleBaseline {
     }
     fn classify(&self, invocation: &Invocation) -> anyhow::Result<Classification> {
         // Do not inherit the daemon's credentials or change original MCP frames.
-        ensure!(
-            sha(&std::fs::read(&self.script)?) == self.digest,
-            "classifier revision changed"
-        );
         let mut bytes = serde_json::to_vec(&json!({
             "tool_name": invocation.tool, "raw_arguments": invocation.args,
             "server_id": invocation.server_id, "tool_description": invocation.description,
@@ -97,7 +104,14 @@ impl InvocationClassifier for RuleBaseline {
         let output = runtime.block_on(async {
             use tokio::io::AsyncReadExt;
             let mut command = Command::new(&self.python);
-            command.arg("-I").arg("-u").arg(&self.script).env_clear();
+            command
+                .arg("-I")
+                .arg("-u")
+                .arg("-c")
+                .arg(PYTHON_CLASSIFIER_BOOTSTRAP)
+                .arg(&self.script)
+                .arg(&self.digest)
+                .env_clear();
             // Windows Python needs its OS runtime directory; no application secrets.
             #[cfg(windows)]
             if let Some(root) = std::env::var_os("SystemRoot") {
@@ -170,7 +184,16 @@ pub fn classifier_from_env() -> anyhow::Result<Option<Arc<dyn InvocationClassifi
                 .context("AGENTFW_RULE_BASELINE must explicitly select a local script")?;
             let script = std::path::PathBuf::from(script).canonicalize()?;
             ensure!(script.is_file(), "classifier script missing");
-            let digest = sha(&std::fs::read(&script)?);
+            let mut source = Vec::new();
+            use std::io::Read;
+            std::fs::File::open(&script)?
+                .take(1024 * 1024 + 1)
+                .read_to_end(&mut source)?;
+            ensure!(
+                source.len() <= 1024 * 1024,
+                "classifier source exceeds limit"
+            );
+            let digest = sha(&source);
             let python = std::env::var_os("AGENTFW_CLASSIFIER_PYTHON").unwrap_or_else(|| {
                 if cfg!(windows) {
                     "python".into()
@@ -1160,4 +1183,69 @@ pub async fn run(config: AdmissionCfg) -> anyhow::Result<()> {
     operation?;
     ended?;
     Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod classifier_revision_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn quote(value: &str) -> String {
+        format!("'{}'", value.replace('\'', "'\\''"))
+    }
+
+    #[test]
+    fn classifier_changed_between_parent_check_and_launch_never_executes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let script = root.join("classifier.py");
+        let marker = root.join("unexpected-classifier-execution");
+        let wrapper = root.join("python-wrapper");
+        let reply = r#"{"status":"ok","actions":["read"],"unknown":false,"confidence":1.0,"uncertainty":0.0,"reason":"synthetic"}"#;
+        let original = format!("print({reply:?})\n");
+        std::fs::write(&script, &original).unwrap();
+        let digest = sha(original.as_bytes());
+        let actual_python = std::process::Command::new("python3")
+            .args(["-c", "import sys; print(sys.executable)"])
+            .output()
+            .unwrap();
+        assert!(actual_python.status.success());
+        let python = String::from_utf8(actual_python.stdout).unwrap();
+        let python = python.trim();
+        let replacement = format!(
+            "import pathlib\npathlib.Path({:?}).touch()\nprint({reply:?})\n",
+            marker.to_str().unwrap()
+        );
+        // The interpreter wrapper mutates the file only after the parent has
+        // selected the revision and begun launching the classification process.
+        let launcher = format!(
+            "#!/bin/sh\n{} -c {} {} {}\nexec {} \"$@\"\n",
+            quote(python),
+            quote("import pathlib,sys; pathlib.Path(sys.argv[1]).write_text(sys.argv[2])"),
+            quote(script.to_str().unwrap()),
+            quote(&replacement),
+            quote(python)
+        );
+        std::fs::write(&wrapper, launcher).unwrap();
+        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let classifier = RuleBaseline {
+            script,
+            python: wrapper.into_os_string(),
+            digest,
+        };
+        let invocation = Invocation {
+            server_id: "synthetic".into(),
+            host_call_id: json!(1),
+            registry_sha256: "registry".into(),
+            snapshot_sha256: "snapshot".into(),
+            schema_sha256: "schema".into(),
+            tool: "read_file".into(),
+            description: "synthetic read".into(),
+            schema: json!({"type":"object"}),
+            args: json!({"path":"fixture.txt"}),
+            baseline: ActionClass::ReadOnly,
+        };
+        assert!(classifier.classify(&invocation).is_err());
+        assert!(!marker.exists(), "changed classifier source executed");
+    }
 }

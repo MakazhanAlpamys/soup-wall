@@ -29,6 +29,8 @@
 !scripts/clean-setup-acceptance.py
 !scripts/tests/
 !scripts/tests/test_test_environment.py
+!rule_baseline/
+!rule_baseline/rule_baseline.py
 !deploy/
 !deploy/Dockerfile.test
 !deploy/Dockerfile.test.dockerignore

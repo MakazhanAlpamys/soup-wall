@@ -159,8 +159,13 @@ It maps the admitted tool name, original arguments, description, schema and serv
 identity into the baseline input. The trusted registry remains authoritative;
 no server schema is invented as a trusted `pinned_schema`. The original MCP frame,
 host ID and arguments are never rewritten. Python receives no inherited daemon
-credentials. The selected script digest is pinned at startup, checked before each
-call and recorded as `classifier_sha256`; no prediction cache is used.
+credentials. The selected script digest is pinned at startup and recorded as
+`classifier_sha256`; no prediction cache is used. For each invocation the isolated
+child reads a bounded source snapshot, checks its digest, and compiles those same
+bytes. It does not reopen a parent-checked pathname for execution, so replacement
+between the parent check and interpreter launch cannot execute unpinned code.
+The runtime fixture image includes the exact classifier source at the path
+embedded in the integration tests; missing source fails the fixture build.
 
 `status=error`, invalid JSON, nonzero process exit and process timeout are technical
 failures (`classifier_error`, policy not reached) with zero forwarding. Input is
