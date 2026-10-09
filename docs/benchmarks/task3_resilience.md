@@ -19,8 +19,9 @@ From the repository root, run both targets in one command:
 cargo test --locked -p soup-wall-adapter -p agentfw --test resilience_tests --test mcp_admission
 ```
 
-Expected result at this revision: **18 adapter tests and 18 MCP tests pass**, with no
-ignored or filtered cases. The three new daemon-failure tests extend 15 existing MCP
+The initial Task 3 contribution passed **18 adapter tests and 18 MCP tests**, with no
+ignored or filtered cases. The [SOU-17 extension](sou17_verification.md) discovers the
+current target cases and retains individual outcomes rather than assuming this historical count. The three new daemon-failure tests extend 15 existing MCP
 checks. The adapter suite contains 18 new test functions, several with input tables.
 The timeout case deliberately exercises the production five-second HTTP timeout.
 
@@ -98,8 +99,9 @@ validation commands and platform-dependent checks are listed in
 [CONTRIBUTING.md](../../CONTRIBUTING.md#before-opening-a-pull-request).
 
 The existing Linux workspace CI picks up both test targets. The new
-`Native macOS admission resilience` job runs them natively on `macos-15` and retains
-`environment.log`, `adapter-resilience.log` and `mcp-admission.log` as the
+`Native macOS admission resilience` job runs them natively on `macos-15`. The
+[SOU-17 extension](sou17_verification.md) now retains exact-source, per-case logs
+and JSON/Markdown reports plus `environment.log` in the
 `task3-native-macos-resilience` artifact for 14 days. A workflow definition is not a
 passed platform result: use the check results attached to the tested commit as evidence.
 
@@ -117,8 +119,8 @@ passed platform result: use the check results attached to the tested commit as e
 - The suite does not estimate classifier accuracy, false-block rates or end-to-end
   latency overhead. Use a labelled corpus, explicit treatment of benign `Ask`, and
   repeated measurements against a control path for those evaluations.
-- This contribution is stacked on PR #33. Merge that prerequisite first, refresh the
-  branch against `main`, then rerun the combined checks before merging this PR.
-- PR #35 already supplies the shared Docker launcher. After these branches converge,
-  add `("soup-wall-adapter", "resilience_tests")` to its suite list. Its existing
-  `agentfw/mcp_admission` target will discover the new daemon scenarios automatically.
+- PR #33 and the initial resilience contribution PR #37 are merged into `main`.
+  Final integrated runtime acceptance is tracked separately in SOU-15/SOU-17.
+- PR #35 supplies the shared Docker launcher. Its `agentfw/mcp_admission` target
+  discovers native cases automatically; the [SOU-17 local command](sou17_verification.md)
+  also covers the shared adapter runner and native HTTP endpoint.
