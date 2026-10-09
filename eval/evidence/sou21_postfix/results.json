@@ -1,0 +1,432 @@
+{
+  "meta": {
+    "runner": "eval_runner.py",
+    "runner_sha256": "7a224db9cf0eda0e2f508ec8d7c54f42ac2d7deb66ad5d2259a64a7a10464e15",
+    "python": "3.12.3",
+    "classifier": {
+      "spec": "rule_baseline:classify",
+      "module_file": "rule_baseline.py",
+      "module_sha256": "811af2e841c57914256a6bdb680d8e1c7443bf292505e08c8ae197a3c1b6da1d"
+    },
+    "fixtures": [
+      {
+        "file": "soup_task1_mixed_actions_urtisto_v0.1.json",
+        "fixture_version": "task1-urtisto-mixed-v0.1",
+        "sha256": "9cab289f9fda0c6ac3b6cca0ad74e1e19adff0f7898d67807f4219b6bdf0701a"
+      },
+      {
+        "file": "soup_task1_benign_comparison_urtisto_v0.1.json",
+        "fixture_version": "task1-urtisto-benign-v0.1",
+        "sha256": "636d31cd5248502ab8a07716671c5885827e47941748e121be9efa04e483f195"
+      }
+    ]
+  },
+  "summary": {
+    "overall": {
+      "scored": 5,
+      "pass": 5,
+      "fail": 0,
+      "technical_error": 0,
+      "unscored": 0
+    },
+    "buckets": {
+      "suite": {
+        "task1-urtisto-benign-v0.1": {
+          "scored": 1,
+          "pass": 1,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-urtisto-mixed-v0.1": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      },
+      "origin": {
+        "urtisto_benign_control_v0.1": {
+          "scored": 1,
+          "pass": 1,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "urtisto_mixed_v0.1": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      },
+      "group": {
+        "task1-urtisto-benign-v0.1 / benign_comparison": {
+          "scored": 1,
+          "pass": 1,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-urtisto-mixed-v0.1 / mixed_actions": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      },
+      "shell_dependent": {
+        "task1-urtisto-benign-v0.1 / no shell parsing": {
+          "scored": 1,
+          "pass": 1,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-urtisto-mixed-v0.1 / no shell parsing": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      },
+      "assumption": {
+        "A1": {
+          "scored": 5,
+          "pass": 5,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "A4": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      }
+    },
+    "per_label": {
+      "read": {
+        "missing": 0,
+        "spurious": 0,
+        "expected_present": 3
+      },
+      "write": {
+        "missing": 0,
+        "spurious": 0,
+        "expected_present": 3
+      },
+      "delete": {
+        "missing": 0,
+        "spurious": 0,
+        "expected_present": 0
+      },
+      "send_data": {
+        "missing": 0,
+        "spurious": 0,
+        "expected_present": 1
+      },
+      "change_permissions": {
+        "missing": 0,
+        "spurious": 0,
+        "expected_present": 0
+      }
+    },
+    "critical_misses": [],
+    "unknown_mismatches": {
+      "expected_true_predicted_false": [],
+      "expected_false_predicted_true": [],
+      "actions_right_but_unknown_wrong": []
+    },
+    "technical_errors": [],
+    "constraint_violations": [],
+    "constraint_checked": [],
+    "status_field": "not evaluated (expected.status is null in every case)"
+  },
+  "cases": [
+    {
+      "suite": "task1-urtisto-mixed-v0.1",
+      "id": "UX01",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read",
+          "args:send_data"
+        ],
+        "reason": "args: recipient plus content arguments; args: action='send'; args: action='read'",
+        "scores": {
+          "read": 0.65,
+          "send_data": 0.9
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-mixed-v0.1",
+      "id": "UX02",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read",
+          "args:write"
+        ],
+        "reason": "args: path plus content arguments; args: action='write'; args: action='read'",
+        "scores": {
+          "read": 0.65,
+          "write": 0.9
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-mixed-v0.1",
+      "id": "UX03",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.93,
+        "uncertainty": 0.07,
+        "reason_codes": [
+          "args:write",
+          "name:write",
+          "schema:write"
+        ],
+        "reason": "name: name token 'save'; args: path plus content arguments; schema: schema has path and content",
+        "scores": {
+          "write": 0.93
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-mixed-v0.1",
+      "id": "UX04",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.93,
+        "uncertainty": 0.07,
+        "reason_codes": [
+          "args:write",
+          "name:write",
+          "schema:write"
+        ],
+        "reason": "name: name token 'save'; args: path plus content arguments; schema: schema has path and content",
+        "scores": {
+          "write": 0.93
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-benign-v0.1",
+      "id": "UX05",
+      "group": "benign_comparison",
+      "origin": "urtisto_benign_control_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read"
+        ],
+        "reason": "args: action='read'",
+        "scores": {
+          "read": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    }
+  ]
+}

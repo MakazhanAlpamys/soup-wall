@@ -46,10 +46,25 @@ jobs:
         run: cargo build --locked -p llm-firewall
       - name: Isolated Gateway and SQLite Console acceptance
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
-      - name: Task 1 classification evaluation runner units
-        run: python3 -m unittest discover -s eval -p 'test_*.py' -v
       - name: Optional classifier adapter regressions (offline)
         run: python3 -m unittest experiments.classification.test_jev experiments.classification.test_shadow -v
+      - name: Task 1 classification evaluation runner units
+        run: python3 -m unittest discover -s eval -p 'test_*.py' -v
+      - name: Task 1 rule baseline unit regressions
+        run: python3 -m unittest discover -s rule_baseline -p 'test_*.py' -v
+      - name: Task 1 frozen core regression evaluation
+        run: python3 eval/eval_runner.py eval/fixtures/soup_task1_evaluation_cases_v0.4.json --classifier-path rule_baseline --out-dir target/task1-core-evaluation
+      - name: Task 1 mixed-action and benign regression evaluation
+        run: python3 eval/eval_runner.py eval/fixtures/soup_task1_mixed_actions_urtisto_v0.1.json eval/fixtures/soup_task1_benign_comparison_urtisto_v0.1.json --classifier-path rule_baseline --out-dir target/task1-mixed-evaluation
+      - name: Retain Task 1 classifier regression evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: task1-classifier-regression-evidence
+          path: |
+            target/task1-core-evaluation/
+            target/task1-mixed-evaluation/
+          if-no-files-found: warn
       - name: Disposable Agent setup and daemon status
         run: python3 scripts/clean-setup-acceptance.py --run --agentfw target/debug/agentfw --output target/clean-setup-linux.json
       - name: Retain setup and status evidence

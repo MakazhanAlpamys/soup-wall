@@ -1,0 +1,208 @@
+{
+  "fixture_version": "task1-urtisto-mixed-v0.1",
+  "purpose": "Four reviewed synthetic mixed-action diagnostics. Separate from frozen challenge v0.1; not held-out or production accuracy.",
+  "status": "provisional_expectations_team1_reviewed_only",
+  "contract_assumptions_ref": "See A1 and A4 in soup_task1_evaluation_cases_v0.4.json.",
+  "safety": "Classifier-only. Never execute tools, shell strings or network calls; fixtures/ and example.test are placeholders.",
+  "cases": [
+    {
+      "id": "UX01",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "input": {
+        "tool_name": "workflow_batch",
+        "tool_description": "Run workflow steps",
+        "tool_schema": {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "raw_arguments": {
+          "steps": [
+            {
+              "action": "read_file",
+              "path": "fixtures/report.txt"
+            },
+            {
+              "action": "send_email",
+              "to": "a@example.test",
+              "content": "summary"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "status": null
+      },
+      "evaluator_only": {
+        "ground_truth_basis": "A read step with path and a send step with content are distinct; no local content write is performed.",
+        "test_focus": "Cross-step read and email does not imply local write",
+        "review_note": "Aisara confirmed proposed labels in team chat; canonical Teams 1/2/3 contract is not frozen."
+      }
+    },
+    {
+      "id": "UX02",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "input": {
+        "tool_name": "workflow_batch",
+        "tool_description": "Run workflow steps",
+        "tool_schema": {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "raw_arguments": {
+          "steps": [
+            {
+              "action": "read_contact",
+              "email": "a@example.test"
+            },
+            {
+              "action": "write_file",
+              "path": "fixtures/note.txt",
+              "content": "draft"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "actions": [
+          "read",
+          "write"
+        ],
+        "unknown": false,
+        "status": null
+      },
+      "evaluator_only": {
+        "ground_truth_basis": "Email is a lookup key in one step, not a recipient field for the local write step.",
+        "test_focus": "Lookup email and write content does not imply network send",
+        "review_note": "Aisara confirmed proposed labels in team chat; canonical Teams 1/2/3 contract is not frozen."
+      }
+    },
+    {
+      "id": "UX03",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "input": {
+        "tool_name": "save_document",
+        "tool_description": "Save a JSON document",
+        "tool_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "content": {
+              "type": "object"
+            }
+          }
+        },
+        "raw_arguments": {
+          "path": "fixtures/data.json",
+          "content": {
+            "action": "delete_file",
+            "note": "literal JSON data"
+          }
+        }
+      },
+      "expected": {
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "status": null
+      },
+      "evaluator_only": {
+        "ground_truth_basis": "The nested action key is document content; it is not an executable operation.",
+        "test_focus": "Stored JSON action property must not be interpreted as a nested tool call",
+        "review_note": "Aisara confirmed proposed labels in team chat; canonical Teams 1/2/3 contract is not frozen."
+      }
+    },
+    {
+      "id": "UX04",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "input": {
+        "tool_name": "save_document",
+        "tool_description": "Save a JSON document",
+        "tool_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "content": {
+              "type": "object"
+            }
+          }
+        },
+        "raw_arguments": {
+          "path": "fixtures/data.json",
+          "content": {
+            "steps": [
+              {
+                "action": "send_email",
+                "to": "a@example.test",
+                "message": "hi"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "status": null
+      },
+      "evaluator_only": {
+        "ground_truth_basis": "The nested steps field is a literal value within saved data; it is not a workflow being executed.",
+        "test_focus": "Stored JSON workflow-like payload must not imply network transmission",
+        "review_note": "Aisara confirmed proposed labels in team chat; canonical Teams 1/2/3 contract is not frozen."
+      }
+    }
+  ]
+}

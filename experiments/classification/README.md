@@ -6,7 +6,7 @@ change permissions or replace a trusted baseline restriction.
 
 ## SOU-6: experimental Jev adapter
 
-The adapter implements the agreed semantic core `actions` plus Boolean `unknown`.
+The adapter implements the semantic core `actions` plus Boolean `unknown`.
 `call_id` and evaluator-only fields stay outside the semantic payload. Technical
 failure uses `ClassificationFailure` with `classifier_invalid`,
 `classifier_timeout` or `classifier_internal_error`; the orchestrator must stop
@@ -14,9 +14,11 @@ before policy/execution. A valid unknown classification reaches policy normally.
 The accepted D07 no-op is `actions=[]`, `unknown=false`; a model claiming this
 is still an untrusted prediction and grants no authority.
 
-Reference: [SOU-10 contract at the reviewed source](https://github.com/SoupTeam/soup-wall/blob/5a3ff08fae333cd15bdf80345a240ca527a8872b/contract/updated_contract2.md),
-version `0.4-approved`, D01-D10, confirmed by @Nari_Ab on 9 October.
-This experiment does not change the older in-crate test-support categories wire.
+Reference: [owner-recorded SOU-10 contract candidate](https://github.com/SoupTeam/soup-wall/blob/5a3ff08fae333cd15bdf80345a240ca527a8872b/contract/updated_contract2.md),
+labelled `0.4-approved` by its owner, D01-D10, recorded on 9 October.
+This experiment uses its semantic subset; full contract review and production
+compatibility remain separate SOU-10 work. It does not change the older in-crate
+test-support categories wire.
 
 ### Run offline
 
@@ -25,13 +27,13 @@ From the repository root, Python 3.10+ and its standard library suffice:
 ```sh
 python -m unittest experiments.classification.test_jev experiments.classification.test_shadow -v
 python -m experiments.classification.shadow \
-  --baseline-path ../soup-wall-baseline-pr53/rule_baseline \
+  --baseline-path rule_baseline \
   --fixtures eval/fixtures/soup_task1_evaluation_cases_v0.4.json \
              eval/fixtures/soup_task1_challenge_cases_v0.1.json \
   --output-dir target/jev-shadow
 ```
 
-Supply the owner-maintained baseline checkout from
+Use the owner-maintained baseline now merged into main in
 [PR #53](https://github.com/SoupTeam/soup-wall/pull/53); the experiment records
 the module hash. The initial comparison freezes source
 `000136c51884e0c204ac51b77c29c5c302f7256a` and shared evaluation from `main`.
