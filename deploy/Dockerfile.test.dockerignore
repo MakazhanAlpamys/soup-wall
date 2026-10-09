@@ -26,6 +26,7 @@
 !vendor/kryptering/**
 !scripts/
 !scripts/test-environment.py
+!scripts/clean-setup-acceptance.py
 !scripts/tests/
 !scripts/tests/test_test_environment.py
 !deploy/

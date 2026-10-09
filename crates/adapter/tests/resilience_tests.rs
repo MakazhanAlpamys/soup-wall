@@ -12,7 +12,8 @@ use std::sync::Mutex;
 
 use serde_json::{json, Value};
 use soup_wall_adapter::runner::{
-    execute_raw_json, run_enforcement_pipeline, MockExecutor, ToolExecutor,
+    evaluate_baseline_policy, execute_raw_json, run_enforcement_pipeline, MockExecutor,
+    ToolExecutor,
 };
 use soup_wall_adapter::{
     ToolActionCategory, ToolCallEvent, ToolClassification, Verdict, VerificationReceipt,
@@ -306,6 +307,10 @@ fn regression_invalid_classifier_scores_fail_closed() {
         ("confidence above one", 1.1, 0.05),
         ("NaN confidence", f32::NAN, 0.05),
         ("infinite confidence", f32::INFINITY, 0.05),
+        ("negative infinite confidence", f32::NEG_INFINITY, 0.05),
+        ("NaN uncertainty", 0.95, f32::NAN),
+        ("infinite uncertainty", 0.95, f32::INFINITY),
+        ("negative infinite uncertainty", 0.95, f32::NEG_INFINITY),
         ("negative uncertainty", 0.95, -0.1),
         ("uncertainty above one", 0.95, 1.1),
     ] {
@@ -376,4 +381,44 @@ fn regression_executor_error_does_not_erase_a_witnessed_effect() {
         receipt.refusal_message.is_some(),
         "executor failure must be reported"
     );
+}
+
+#[test]
+fn hard_deny_survives_overlapping_allow_and_confirmation_signals() {
+    use ToolActionCategory::{ChangePermissions, Delete, Read, SendData, Unknown, Write};
+
+    for hard_risk in [Delete, SendData, ChangePermissions] {
+        // Exercise each position and direction without implementing a test policy.
+        let mut actions = vec![Read, Write, Unknown, hard_risk];
+        for rotation in 0..actions.len() {
+            for reverse in [false, true] {
+                let mut ordered = actions.clone();
+                if reverse {
+                    ordered.reverse();
+                }
+                let executor = WitnessExecutor::new();
+                let mut event = read_event();
+                event.call_id = format!("overlap-{hard_risk:?}-{rotation}-{reverse}");
+                let prediction = classification(ordered, 1.0);
+                assert_eq!(evaluate_baseline_policy(&prediction).0, Verdict::Deny);
+                event.classification = Some(prediction);
+                let receipt = run_enforcement_pipeline(&mut event, &executor);
+                assert_refused(&receipt, &executor, Verdict::Deny);
+                eprintln!(
+                    "SOU17_EVIDENCE {}",
+                    json!({
+                        "call_id": event.call_id,
+                        "classification": event.classification,
+                        "verdict": receipt.verdict,
+                        "executor_entries": executor.counter.count(),
+                        "side_effect_exists": executor.marker().exists(),
+                        "receipt_executed": receipt.executed,
+                        "latency_ms": receipt.latency_ms,
+                        "boundary": "shared_adapter_runner_only"
+                    })
+                );
+            }
+            actions.rotate_left(1);
+        }
+    }
 }
