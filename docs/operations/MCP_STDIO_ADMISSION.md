@@ -143,6 +143,55 @@ and `AGENTFW_TEST_CLASSIFIER=fixture-v1`, which infers `send_data` from
 URL-valued arguments rather than tool names and injects faults named in argument
 values. Release builds refuse both. Team 1's classifier is not integrated yet.
 
+### Real Task 1 rule baseline (SOU-22)
+
+The explicit runtime adapter invokes the repository's `rule_baseline.py` through
+isolated Python (`-I -u`), using newline-delimited JSON on stdin/stdout. Set:
+
+```sh
+export AGENTFW_CLASSIFIER=rule-baseline
+export AGENTFW_RULE_BASELINE="$PWD/rule_baseline/rule_baseline.py"
+# Optional: an explicitly selected Python executable.
+export AGENTFW_CLASSIFIER_PYTHON="$(command -v python3)"
+```
+
+It maps the admitted tool name, original arguments, description, schema and server
+identity into the baseline input. The trusted registry remains authoritative;
+no server schema is invented as a trusted `pinned_schema`. The original MCP frame,
+host ID and arguments are never rewritten. Python receives no inherited daemon
+credentials. The selected script digest is pinned at startup, checked before each
+call and recorded as `classifier_sha256`; no prediction cache is used.
+
+`status=error`, invalid JSON, nonzero process exit and process timeout are technical
+failures (`classifier_error`, policy not reached) with zero forwarding. Input is
+bounded to 1 MiB and output to 16 KiB. The subprocess is killed and reaped after
+1.5 seconds, within the collector's existing two-second classification deadline.
+Invalid scores are refused by the existing mapping validator. Valid unknown and
+mixed classifications retain the candidate harness's explicit unsupported-mapping
+refusal; this increment does not claim acceptance of a final shared contract.
+Test and real classifier settings cannot be combined. Test doubles remain debug-only;
+the real adapter is also available in release builds.
+
+Reproduce the real baseline matrix with the same independent executor/receiver
+witnesses (the injected test-double fault cases are excluded rather than relabelled):
+
+```sh
+cargo build --locked -p agentfw
+python3 scripts/mcp-admission-demo.py --classifier rule-baseline --keep \
+  --out target/sou-22-real-baseline.json
+cargo test --locked -p agentfw --test mcp_admission
+python3 -m unittest discover -s rule_baseline -p 'test_*.py' -v
+```
+
+The integration suite separately injects Python crash, malformed output, error
+status, timeout, oversized output and invalid score responses and checks original
+host IDs, zero server execution and policy-not-reached evidence. These injected
+processes are identified test fixtures, not real baseline predictions. The real
+baseline test separately proves Allow execution, Deny/Ask non-execution and
+original request-byte preservation. The actual Claude host check is reported as
+skipped when its executable is unavailable; scripted frames do not establish
+live-model security effectiveness.
+
 ## Local demonstration
 
 The demonstration runs on Linux, macOS and Windows without a model, provider or

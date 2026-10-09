@@ -40,7 +40,7 @@ pub struct Invocation {
     pub baseline: ActionClass,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Classification {
     pub actions: Vec<String>,
     pub unknown: bool,
@@ -51,7 +51,141 @@ pub struct Classification {
 
 pub trait InvocationClassifier: Send + Sync {
     fn source(&self) -> &'static str;
+    fn revision(&self) -> Option<&str> {
+        None
+    }
     fn classify(&self, invocation: &Invocation) -> anyhow::Result<Classification>;
+}
+
+/// Explicit local Python adapter. Classification never grants authorization.
+struct RuleBaseline {
+    script: std::path::PathBuf,
+    python: std::ffi::OsString,
+    digest: String,
+}
+
+#[derive(Deserialize)]
+struct BaselineReply {
+    status: String,
+    #[serde(flatten)]
+    classification: Classification,
+}
+
+impl InvocationClassifier for RuleBaseline {
+    fn source(&self) -> &'static str {
+        "rule-baseline/python"
+    }
+    fn revision(&self) -> Option<&str> {
+        Some(&self.digest)
+    }
+    fn classify(&self, invocation: &Invocation) -> anyhow::Result<Classification> {
+        // Do not inherit the daemon's credentials or change original MCP frames.
+        ensure!(
+            sha(&std::fs::read(&self.script)?) == self.digest,
+            "classifier revision changed"
+        );
+        let mut bytes = serde_json::to_vec(&json!({
+            "tool_name": invocation.tool, "raw_arguments": invocation.args,
+            "server_id": invocation.server_id, "tool_description": invocation.description,
+            "tool_schema": invocation.schema
+        }))?;
+        ensure!(bytes.len() <= 1024 * 1024, "classifier input exceeds limit");
+        bytes.push(b'\n');
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let output = runtime.block_on(async {
+            use tokio::io::AsyncReadExt;
+            let mut command = Command::new(&self.python);
+            command.arg("-I").arg("-u").arg(&self.script).env_clear();
+            // Windows Python needs its OS runtime directory; no application secrets.
+            #[cfg(windows)]
+            if let Some(root) = std::env::var_os("SystemRoot") {
+                command.env("SystemRoot", root);
+            }
+            let mut child = command
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .kill_on_drop(true)
+                .spawn()?;
+            let mut input = child.stdin.take().context("classifier stdin missing")?;
+            let output = child.stdout.take().context("classifier stdout missing")?;
+            let exchange = async {
+                let write = async {
+                    input.write_all(&bytes).await?;
+                    input.shutdown().await?;
+                    drop(input);
+                    Ok::<_, anyhow::Error>(())
+                };
+                let read = async {
+                    let mut bytes = Vec::new();
+                    output.take(16 * 1024 + 1).read_to_end(&mut bytes).await?;
+                    ensure!(bytes.len() <= 16 * 1024, "classifier output exceeds limit");
+                    Ok::<_, anyhow::Error>(bytes)
+                };
+                let (_, bytes) = tokio::try_join!(write, read)?;
+                ensure!(child.wait().await?.success(), "classifier process failed");
+                Ok::<_, anyhow::Error>(bytes)
+            };
+            // Reclaim the subprocess before the outer two-second admission timeout.
+            let result = tokio::time::timeout(Duration::from_millis(1500), exchange).await;
+            match result {
+                Ok(Ok(bytes)) => Ok(bytes),
+                other => {
+                    let _ = child.kill().await;
+                    let _ = child.wait().await;
+                    match other {
+                        Ok(Err(error)) => Err(error),
+                        _ => Err(anyhow::anyhow!("classifier process timed out")),
+                    }
+                }
+            }
+        })?;
+        let reply: BaselineReply =
+            serde_json::from_slice(&output).context("invalid classifier output")?;
+        ensure!(
+            matches!(reply.status.as_str(), "ok" | "unknown"),
+            "classifier returned technical error"
+        );
+        ensure!(
+            reply.status != "unknown" || reply.classification.unknown,
+            "inconsistent unknown status"
+        );
+        Ok(reply.classification)
+    }
+}
+
+/// Select a real classifier explicitly; test doubles remain debug-only.
+pub fn classifier_from_env() -> anyhow::Result<Option<Arc<dyn InvocationClassifier>>> {
+    match std::env::var("AGENTFW_CLASSIFIER") {
+        Err(std::env::VarError::NotPresent) => test_classifier_from_env(),
+        Ok(value) if value == "rule-baseline" => {
+            ensure!(
+                std::env::var_os("AGENTFW_TEST_CLASSIFIER").is_none()
+                    && std::env::var_os("AGENTFW_TEST_CLASSIFIER_READ").is_none(),
+                "conflicting classifiers"
+            );
+            let script = std::env::var_os("AGENTFW_RULE_BASELINE")
+                .context("AGENTFW_RULE_BASELINE must explicitly select a local script")?;
+            let script = std::path::PathBuf::from(script).canonicalize()?;
+            ensure!(script.is_file(), "classifier script missing");
+            let digest = sha(&std::fs::read(&script)?);
+            let python = std::env::var_os("AGENTFW_CLASSIFIER_PYTHON").unwrap_or_else(|| {
+                if cfg!(windows) {
+                    "python".into()
+                } else {
+                    "python3".into()
+                }
+            });
+            Ok(Some(Arc::new(RuleBaseline {
+                script,
+                python,
+                digest,
+            })))
+        }
+        _ => bail!("unsupported classifier setting"),
+    }
 }
 
 struct ReadTestDouble;
@@ -455,6 +589,7 @@ impl<'a> Collector<'a> {
             baseline,
         };
         let source = classifier.source();
+        let revision = classifier.revision().map(str::to_owned);
         let started = std::time::Instant::now();
         let task = tokio::task::spawn_blocking(move || classifier.classify(&input));
         // ponytail: a timed-out classifier thread is abandoned, not killed; an
@@ -471,7 +606,7 @@ impl<'a> Collector<'a> {
         eprintln!(
             "{}",
             json!({"event":"mcp_classification","contract_version":CLASSIFICATION_CONTRACT,
-            "source":source,"host_call_id":host_call_id,"server_id":self.config.server_id,
+            "source":source,"classifier_sha256":revision,"host_call_id":host_call_id,"server_id":self.config.server_id,
             "tool":name,"snapshot_sha256":snapshot.sha256,
             "schema_sha256":tool.schema_sha256,"args_sha256":sha(canonical(args).to_string().as_bytes()),
             "registry_sha256":self.config.native.registry_sha256,

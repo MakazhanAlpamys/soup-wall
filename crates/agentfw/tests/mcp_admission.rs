@@ -202,11 +202,24 @@ fn spawn_gateway(
         directory,
     );
     command
+        .env_remove("AGENTFW_CLASSIFIER")
+        .env_remove("AGENTFW_RULE_BASELINE")
         .env_remove("AGENTFW_TEST_CLASSIFIER")
         .env_remove("AGENTFW_TEST_CLASSIFIER_READ");
     match classifier {
         Some("read") => {
             command.env("AGENTFW_TEST_CLASSIFIER_READ", "1");
+        }
+        Some("rule-baseline") => {
+            command.env("AGENTFW_CLASSIFIER", "rule-baseline").env(
+                "AGENTFW_RULE_BASELINE",
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rule_baseline/rule_baseline.py"),
+            );
+        }
+        Some(value) if value.starts_with("script:") => {
+            command
+                .env("AGENTFW_CLASSIFIER", "rule-baseline")
+                .env("AGENTFW_RULE_BASELINE", &value[7..]);
         }
         Some(value) => {
             command.env("AGENTFW_TEST_CLASSIFIER", value);
@@ -1615,4 +1628,77 @@ async fn native_mcp_replayed_id_with_changed_tool_and_arguments_adds_no_effect()
         None,
         "transport_refused_after_original_effect",
     );
+}
+
+#[tokio::test]
+async fn real_baseline_preserves_frames_and_policy_enforcement() {
+    let mut fixture = Fixture::with_classifier("normal", true, Some("rule-baseline")).await;
+    fixture.ready().await;
+    let read = r#"{ "jsonrpc":"2.0", "id":"original-read", "method":"tools/call", "params":{"name":"read_document","arguments":{}} }"#;
+    let reply: Value = serde_json::from_str(&fixture.exchange(read).await.unwrap()).unwrap();
+    assert_eq!(reply["id"], "original-read");
+    assert!(reply["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("7 red widgets"));
+    assert_eq!(
+        std::fs::read_to_string(&fixture.ledger).unwrap(),
+        format!("{read}\n")
+    );
+    for (id, tool, args, rule) in [
+        (
+            "deny-original",
+            "send_http",
+            json!({"url":"http://127.0.0.1:9/collect","body":"AKIAIOSFODNN7EXAMPLE"}),
+            "fixture-secret-egress",
+        ),
+        (
+            "ask-original",
+            "delete_note",
+            json!({"name":"inventory"}),
+            "fixture-destructive-confirmation",
+        ),
+    ] {
+        let request = json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":tool,"arguments":args}});
+        let reply: Value =
+            serde_json::from_str(&fixture.exchange(&request.to_string()).await.unwrap()).unwrap();
+        assert_eq!(reply["id"], id);
+        assert_eq!(reply["result"]["isError"], true);
+        assert!(reply.to_string().contains(rule));
+        assert_eq!(executed(&fixture.ledger).len(), 1);
+    }
+    let evidence = classifications(&fixture);
+    assert_eq!(evidence.len(), 3);
+    for row in evidence {
+        assert_eq!(row["source"], "rule-baseline/python");
+        assert_eq!(row["policy"], "reached");
+        assert_eq!(row["classifier_sha256"].as_str().unwrap().len(), 64);
+    }
+}
+
+#[tokio::test]
+async fn python_classifier_failures_block_before_execution() {
+    let root = std::env::temp_dir().canonicalize().unwrap();
+    let scripts = tempfile::tempdir_in(root).unwrap();
+    for (index, source) in [
+        "raise SystemExit(1)",
+        "print('not JSON')",
+        "print('{}')",
+        "import json; print(json.dumps({'status':'error','actions':[],'unknown':True,'confidence':0.0,'uncertainty':1.0,'reason':'invalid input'}))",
+        "import time; time.sleep(10)",
+        "print('x' * 20000)",
+        "import json; print(json.dumps({'status':'ok','actions':['read'],'unknown':False,'confidence':2.0,'uncertainty':0.0,'reason':'bad score'}))",
+    ].iter().enumerate() {
+        let script = scripts.path().join(format!("fault-{index}.py"));
+        std::fs::write(&script, source).unwrap();
+        let selection = format!("script:{}", script.display());
+        let mut fixture = Fixture::with_classifier("normal", true, Some(&selection)).await;
+        fixture.ready().await;
+        let request = json!({"jsonrpc":"2.0","id":"fault-original","method":"tools/call","params":{"name":"read_document","arguments":{}}});
+        let reply: Value = serde_json::from_str(&fixture.exchange(&request.to_string()).await.unwrap()).unwrap();
+        assert_eq!(reply["id"], "fault-original");
+        assert!(reply["error"]["message"].as_str().unwrap().contains("policy not reached"));
+        assert!(executed(&fixture.ledger).is_empty());
+        assert_eq!(classifications(&fixture)[0]["policy"], "not_reached");
+    }
 }
