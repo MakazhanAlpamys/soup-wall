@@ -213,7 +213,12 @@ fn spawn_gateway(
         Some("rule-baseline") => {
             command.env("AGENTFW_CLASSIFIER", "rule-baseline").env(
                 "AGENTFW_RULE_BASELINE",
-                Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rule_baseline/rule_baseline.py"),
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .parent()
+                    .expect("crate directory has a parent")
+                    .parent()
+                    .expect("workspace directory exists")
+                    .join("rule_baseline/rule_baseline.py"),
             );
         }
         Some(value) if value.starts_with("script:") => {

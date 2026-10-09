@@ -358,6 +358,17 @@ def host_run(args):
         report["finished_at"] = utc_now()
         write_report(out, report)
     print(f"Baseline: {report['status']}. Report: {out / 'report.md'}", flush=True)
+    if report["status"] != "pass":
+        for case in report.get("fixture", {}).get("cases", []):
+            if case.get("status") == "pass":
+                continue
+            print(json.dumps({key: case.get(key) for key in ("suite", "name", "status", "exit_code", "reason")}),
+                  file=sys.stderr, flush=True)
+            log = out / str(case.get("log", ""))
+            if log.parent.resolve() == out.resolve() and log.is_file():
+                # These are owned synthetic fixture logs, already retained in CI artifacts.
+                print("\n".join(log.read_text(encoding="utf-8", errors="replace").splitlines()[-24:]),
+                      file=sys.stderr, flush=True)
     if report.get("error"):
         print(f"Error: {report['error']}", file=sys.stderr)
     return 0 if report["status"] == "pass" else 1
