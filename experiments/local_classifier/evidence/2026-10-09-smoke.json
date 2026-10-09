@@ -1,0 +1,350 @@
+{
+  "config": {
+    "dimensions": 512,
+    "epochs": 60,
+    "learning_rate": 0.2,
+    "l2": 0.0001,
+    "seed": 42
+  },
+  "training": {
+    "rows": 8,
+    "known_labels": {
+      "read": 7,
+      "write": 6,
+      "delete": 6,
+      "send_data": 6,
+      "change_permissions": 6,
+      "unknown": 8
+    },
+    "masked_labels": {
+      "read": 1,
+      "write": 2,
+      "delete": 2,
+      "send_data": 2,
+      "change_permissions": 2,
+      "unknown": 0
+    }
+  },
+  "calibration": {
+    "rows": 8,
+    "negative_threshold": 0.2,
+    "positive_threshold": 0.7,
+    "objective": 23.0,
+    "objective_semantics": "critical FN=20, other FN=1, FP=2, lost unknown=20, abstention=0.5"
+  },
+  "elapsed_s": 0.09887999994680285,
+  "peak_traced_python_bytes": 152885,
+  "environment": {
+    "python": "3.11.14",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "machine": "AMD64",
+    "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+    "logical_cpus": 12,
+    "gpu_used": false,
+    "peak_process_rss_bytes": 21004288,
+    "source_sha256": {
+      "pilot.py": "ccfb4200d2273c3ede92e45a6a189fc9a608f8c7fe5d7aa88abeb46b7bc18db2",
+      "model.py": "d4149f39f0c077e371015448a2d2ca413e0580644ed4a96306d0ea652de537d8"
+    }
+  },
+  "format": "soup-wall/local-classifier-training/1",
+  "mode": "development_smoke",
+  "approval": null,
+  "official_heldout_run": false,
+  "api_requests": 0,
+  "api_cost_usd": 0,
+  "tool_executions": 0,
+  "recommendation": "continue_with_coordinator_accepted_linear_candidate_after_dataset_review",
+  "development_probe": {
+    "calls": 8,
+    "valid": 8,
+    "technical_errors": 0,
+    "per_label": {
+      "read": {
+        "known": 7,
+        "positive": 3,
+        "negative": 4,
+        "fn": 1,
+        "fp": 0,
+        "fn_rate": 0.3333333333333333,
+        "fp_rate": 0.0
+      },
+      "write": {
+        "known": 6,
+        "positive": 1,
+        "negative": 5,
+        "fn": 0,
+        "fp": 0,
+        "fn_rate": 0.0,
+        "fp_rate": 0.0
+      },
+      "delete": {
+        "known": 6,
+        "positive": 1,
+        "negative": 5,
+        "fn": 1,
+        "fp": 0,
+        "fn_rate": 1.0,
+        "fp_rate": 0.0
+      },
+      "send_data": {
+        "known": 6,
+        "positive": 2,
+        "negative": 4,
+        "fn": 0,
+        "fp": 0,
+        "fn_rate": 0.0,
+        "fp_rate": 0.0
+      },
+      "change_permissions": {
+        "known": 6,
+        "positive": 1,
+        "negative": 5,
+        "fn": 0,
+        "fp": 0,
+        "fn_rate": 0.0,
+        "fp_rate": 0.0
+      }
+    },
+    "unknown": {
+      "known": 8,
+      "lost_unknown": 0,
+      "false_unknown": 2
+    },
+    "abstentions": 4,
+    "coverage": 0.5,
+    "fully_annotated": 6,
+    "exact_matches": 4,
+    "mixed_cases": 1,
+    "mixed_exact_matches": 1,
+    "latency": {
+      "p50_ms": 0.08165009785443544,
+      "p95_ms": 0.2047000452876091
+    },
+    "cases": [
+      {
+        "id": "holdout-0",
+        "actions": [],
+        "unknown": true,
+        "fully_annotated": true,
+        "exact_match": false
+      },
+      {
+        "id": "holdout-1",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-2",
+        "actions": [],
+        "unknown": true,
+        "fully_annotated": true,
+        "exact_match": false
+      },
+      {
+        "id": "holdout-3",
+        "actions": [
+          "send_data"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-4",
+        "actions": [
+          "change_permissions"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-5",
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-6",
+        "actions": [],
+        "unknown": true,
+        "fully_annotated": false,
+        "exact_match": null
+      },
+      {
+        "id": "holdout-7",
+        "actions": [
+          "read"
+        ],
+        "unknown": true,
+        "fully_annotated": false,
+        "exact_match": null
+      }
+    ]
+  },
+  "development_baseline": {
+    "calls": 8,
+    "valid": 8,
+    "technical_errors": 0,
+    "per_label": {
+      "read": {
+        "known": 7,
+        "positive": 3,
+        "negative": 4,
+        "fn": 1,
+        "fp": 0,
+        "fn_rate": 0.3333333333333333,
+        "fp_rate": 0.0
+      },
+      "write": {
+        "known": 6,
+        "positive": 1,
+        "negative": 5,
+        "fn": 0,
+        "fp": 0,
+        "fn_rate": 0.0,
+        "fp_rate": 0.0
+      },
+      "delete": {
+        "known": 6,
+        "positive": 1,
+        "negative": 5,
+        "fn": 0,
+        "fp": 0,
+        "fn_rate": 0.0,
+        "fp_rate": 0.0
+      },
+      "send_data": {
+        "known": 6,
+        "positive": 2,
+        "negative": 4,
+        "fn": 0,
+        "fp": 0,
+        "fn_rate": 0.0,
+        "fp_rate": 0.0
+      },
+      "change_permissions": {
+        "known": 6,
+        "positive": 1,
+        "negative": 5,
+        "fn": 0,
+        "fp": 0,
+        "fn_rate": 0.0,
+        "fp_rate": 0.0
+      }
+    },
+    "unknown": {
+      "known": 8,
+      "lost_unknown": 1,
+      "false_unknown": 0
+    },
+    "abstentions": 1,
+    "coverage": 0.875,
+    "fully_annotated": 6,
+    "exact_matches": 5,
+    "mixed_cases": 1,
+    "mixed_exact_matches": 0,
+    "latency": {
+      "p50_ms": 0.06484996993094683,
+      "p95_ms": 0.40460005402565
+    },
+    "cases": [
+      {
+        "id": "holdout-0",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-1",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-2",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-3",
+        "actions": [
+          "send_data"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-4",
+        "actions": [
+          "change_permissions"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": true
+      },
+      {
+        "id": "holdout-5",
+        "actions": [
+          "send_data"
+        ],
+        "unknown": false,
+        "fully_annotated": true,
+        "exact_match": false
+      },
+      {
+        "id": "holdout-6",
+        "actions": [],
+        "unknown": true,
+        "fully_annotated": false,
+        "exact_match": null
+      },
+      {
+        "id": "holdout-7",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "fully_annotated": false,
+        "exact_match": null
+      }
+    ]
+  },
+  "baseline_sha256": "affe481dd188b7d9eaf6383276a86edb59b0088d70ce38703a623a477c7ffab3",
+  "model_sha256": "429573f0d8d3da0d3fedd9047a994ff1c4b23ba0217c8053786865a04a805573",
+  "measurement_date": "2026-10-09",
+  "baseline_commit": "000136c51884e0c204ac51b77c29c5c302f7256a",
+  "candidate_review": {
+    "coordinator": "@aisarasd",
+    "received_at": "2026-10-09T19:54:00+05:00",
+    "accepted": true,
+    "dataset_status": "preliminary; split manifests planned by October 11, data after review"
+  },
+  "limitations": [
+    "Development-only synthetic examples; names and patterns repeat across toy splits.",
+    "No approved dataset or untouched-family pilot has been run.",
+    "Single local run, no warm-up/repetitions; timing is not a latency gate.",
+    "This is a newly trained linear baseline, not a pretrained encoder or LLM.",
+    "API cost is zero; local compute cost is not monetized."
+  ]
+}

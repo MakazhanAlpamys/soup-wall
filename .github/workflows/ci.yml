@@ -46,6 +46,8 @@ jobs:
         run: cargo build --locked -p llm-firewall
       - name: Isolated Gateway and SQLite Console acceptance
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Optional learned classifier preparation regressions (offline)
+        run: python3 -m unittest experiments.local_classifier.test_model -v
       - name: Task 1 classification evaluation runner units
         run: python3 -m unittest discover -s eval -p 'test_*.py' -v
       - name: Disposable Agent setup and daemon status
