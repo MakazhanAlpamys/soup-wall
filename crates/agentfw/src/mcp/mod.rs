@@ -10,4 +10,5 @@ pub mod input;
 pub mod jsonrpc;
 pub mod manifest;
 pub mod proxy;
+pub mod resources;
 pub mod store;
