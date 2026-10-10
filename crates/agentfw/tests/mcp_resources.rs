@@ -290,7 +290,6 @@ fn windows_device_ads_drive_relative_and_unc_paths_are_refused() {
         "LPT\u{b9}.txt",
         "LPT\u{b2}",
         "LPT\u{b3}",
-
         "new.txt:stream",
         "C:relative.txt",
         "\\root-relative.txt",
@@ -317,7 +316,6 @@ fn windows_device_ads_drive_relative_and_unc_paths_are_refused() {
         .complete(),
         "ordinary Unicode file names remain supported"
     );
-
 }
 
 #[cfg(unix)]
