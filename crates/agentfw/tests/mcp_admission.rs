@@ -425,19 +425,21 @@ struct PeerGateway {
     input: ChildStdin,
     output: GatewayOutput,
     ledger: std::path::PathBuf,
+    stderr: std::path::PathBuf,
 }
 
 impl PeerGateway {
-    fn new(fixture: &Fixture) -> Self {
+    fn with_classifier(fixture: &Fixture, classifier: Option<&str>) -> Self {
         let ledger = fixture._dir.path().join("peer-executed.jsonl");
         let stderr = fixture._dir.path().join("peer-gateway-stderr.log");
         let (child, input, output) =
-            spawn_gateway(fixture._dir.path(), &ledger, "normal", &stderr, None);
+            spawn_gateway(fixture._dir.path(), &ledger, "normal", &stderr, classifier);
         Self {
             child,
             input,
             output,
             ledger,
+            stderr,
         }
     }
 
@@ -917,25 +919,142 @@ impl Drop for Fixture {
     }
 }
 
-fn evidence(test: &str, call_id: Value, ledger: &Path, delivered: Option<&str>, outcome: &str) {
+fn evidence_value(
+    test: &str,
+    call_id: Value,
+    ledger: &Path,
+    delivered: Option<&str>,
+    outcome: &str,
+) -> Value {
     let executions = executed(ledger).len();
     let registry_bytes = std::fs::read(ledger.parent().unwrap().join("registry.json")).unwrap();
+    json!({
+        "schema_version": "sou17-native-evidence/0.1",
+        "registry_sha256": sha(&registry_bytes),
+        "policy_sha256": sha(POLICY.as_bytes()),
+        "test": test,
+        "call_id": call_id,
+        "execution_count": executions,
+        "effect_observed": executions != 0,
+        "result_prepared": ledger.with_extension("jsonl.result-ready").exists(),
+        "client_result_bytes": delivered.map_or(0, str::len),
+        "gated_result_marker_released": delivered.is_some_and(|value| value.contains("RESULT-AFTER-DAEMON-OUTAGE")),
+        "outcome": outcome,
+    })
+}
+
+fn evidence(test: &str, call_id: Value, ledger: &Path, delivered: Option<&str>, outcome: &str) {
     eprintln!(
         "SOU17_EVIDENCE {}",
-        json!({
-            "schema_version": "sou17-native-evidence/0.1",
-            "registry_sha256": sha(&registry_bytes),
-            "policy_sha256": sha(POLICY.as_bytes()),
-            "test": test,
-            "call_id": call_id,
-            "execution_count": executions,
-            "effect_observed": executions != 0,
-            "result_prepared": ledger.with_extension("jsonl.result-ready").exists(),
-            "client_result_bytes": delivered.map_or(0, str::len),
-            "gated_result_marker_released": delivered.is_some_and(|value| value.contains("RESULT-AFTER-DAEMON-OUTAGE")),
-            "outcome": outcome,
-        })
+        evidence_value(test, call_id, ledger, delivered, outcome)
     );
+}
+
+/// These lifecycle checks must reach the actual pinned Python bridge, rather than
+/// pass because classification was disabled or replaced by a test double.
+fn assert_real_baseline_calls(stderr: &Path, ledger: &Path, calls: &[&str]) -> Vec<Value> {
+    let rows: Vec<Value> = std::fs::read_to_string(stderr)
+        .unwrap()
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|row| row["event"] == "mcp_classification")
+        .collect();
+    assert_eq!(rows.len(), calls.len());
+    let script = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("rule_baseline/rule_baseline.py");
+    let classifier_sha = sha(&std::fs::read(script).unwrap());
+    let registry_sha = sha(&std::fs::read(ledger.parent().unwrap().join("registry.json")).unwrap());
+    for (row, raw) in rows.iter().zip(calls) {
+        let call: Value = serde_json::from_str(raw).unwrap();
+        let action = match call["params"]["name"].as_str().unwrap() {
+            "read_document" => "read",
+            "send_http" => "send_data",
+            name => panic!("unexpected lifecycle fixture tool {name}"),
+        };
+        assert_eq!(row["source"], "rule-baseline/python");
+        assert_eq!(row["classifier_sha256"], classifier_sha);
+        assert_eq!(row["contract_version"], "sw-classification/candidate-1");
+        assert_eq!(row["registry_sha256"], registry_sha);
+        assert_eq!(row["host_call_id"], call["id"]);
+        assert_eq!(row["tool"], call["params"]["name"]);
+        assert_eq!(
+            row["args_sha256"],
+            sha(call["params"]["arguments"].to_string().as_bytes())
+        );
+        assert_eq!(row["classification"]["actions"], json!([action]));
+        assert_eq!(row["classification"]["unknown"], false);
+        for key in [
+            "snapshot_sha256",
+            "definition_sha256",
+            "input_sha256",
+            "schema_sha256",
+        ] {
+            let digest = row[key]
+                .as_str()
+                .expect("classification digest must be present");
+            assert!(digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        }
+        for key in ["confidence", "uncertainty"] {
+            let score = row["classification"][key].as_f64().unwrap();
+            assert!(score.is_finite() && (0.0..=1.0).contains(&score));
+        }
+        // This is classifier/composition telemetry, not a claim that an offline
+        // native daemon was consulted. All lifecycle fixtures use composed Allow.
+        assert_eq!(row["policy"], "reached");
+        assert_eq!(row["authoritative_verdict"], "allow");
+        assert!(row["failure"].is_null());
+    }
+    rows
+}
+
+fn production_evidence(
+    test: &str,
+    call_id: Value,
+    ledger: &Path,
+    delivered: Option<&str>,
+    outcome: &str,
+    classification: &Value,
+    extra: Value,
+) {
+    let mut row = evidence_value(test, call_id, ledger, delivered, outcome);
+    let fields = row.as_object_mut().unwrap();
+    // Lines removes LF/CRLF; this witness counts the retained JSON payload only.
+    fields.insert(
+        "client_result_byte_scope".into(),
+        json!("json_payload_without_line_ending"),
+    );
+    fields.insert("classifier_source".into(), classification["source"].clone());
+    for key in [
+        "classifier_sha256",
+        "classification",
+        "snapshot_sha256",
+        "definition_sha256",
+        "input_sha256",
+        "args_sha256",
+        "authoritative_verdict",
+    ] {
+        fields.insert(key.into(), classification[key].clone());
+    }
+    fields.insert(
+        "classifier_policy_status".into(),
+        classification["policy"].clone(),
+    );
+    fields.extend(extra.as_object().unwrap().clone());
+    eprintln!("SOU17_EVIDENCE {row}");
+}
+
+/// Missing means no dispatch; any other read error must fail the test instead of
+/// being silently converted to an empty execution witness.
+fn ledger_bytes(path: &Path) -> Vec<u8> {
+    match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(error) => panic!("could not read execution ledger: {error}"),
+    }
 }
 
 fn executed(path: &Path) -> Vec<Value> {
@@ -1434,7 +1553,7 @@ async fn native_mcp_never_releases_unbound_or_nontext_server_results() {
 
 #[tokio::test]
 async fn native_mcp_preserves_the_original_correlated_jsonrpc_error() {
-    let mut fixture = Fixture::new("error", true).await;
+    let mut fixture = Fixture::with_classifier("error", true, Some("rule-baseline")).await;
     fixture.ready().await;
     let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
     let delivered = fixture.exchange(call).await.unwrap();
@@ -1451,12 +1570,15 @@ async fn native_mcp_preserves_the_original_correlated_jsonrpc_error() {
         std::fs::read_to_string(&fixture.ledger).unwrap(),
         format!("{call}\n")
     );
-    evidence(
+    let rows = assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[call]);
+    production_evidence(
         "correlated_runtime_error_after_effect",
         json!(3),
         &fixture.ledger,
         Some(&delivered),
         "runtime_error_after_effect",
+        &rows[0],
+        json!({"original_error_payload_bytes_preserved": true}),
     );
 }
 
@@ -1481,30 +1603,39 @@ async fn native_mcp_daemon_shadow_and_outage_never_spawn_server() {
 
 #[tokio::test]
 async fn native_mcp_daemon_outage_after_manifest_never_executes_call() {
-    let mut fixture = Fixture::new("normal", true).await;
+    let mut fixture = Fixture::with_classifier("normal", true, Some("rule-baseline")).await;
     fixture.ready().await;
     assert!(
         fixture.ledger.with_extension("jsonl.started").exists(),
         "the server must already have started before daemon failure"
     );
     fixture.stop_daemon().await;
+    let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
     assert!(
-        fixture
-            .exchange(r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#)
-            .await
-            .is_none(),
+        fixture.exchange(call).await.is_none(),
         "daemon loss after setup must not release a call or its result"
     );
     fixture.assert_gateway_failed().await;
-    assert!(
-        executed(&fixture.ledger).is_empty(),
+    assert_eq!(
+        ledger_bytes(&fixture.ledger),
+        b"",
         "cached startup admission cannot authorize execution during an outage"
+    );
+    let rows = assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[call]);
+    production_evidence(
+        "production_classifier_call_daemon_outage",
+        json!(3),
+        &fixture.ledger,
+        None,
+        "transport_refused_before_effect",
+        &rows[0],
+        json!({}),
     );
 }
 
 #[tokio::test]
 async fn native_mcp_daemon_outage_after_execution_withholds_result() {
-    let mut fixture = Fixture::new("gated-result", true).await;
+    let mut fixture = Fixture::with_classifier("gated-result", true, Some("rule-baseline")).await;
     fixture.ready().await;
     let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
     fixture
@@ -1542,22 +1673,36 @@ async fn native_mcp_daemon_outage_after_execution_withholds_result() {
         1,
         "result withholding does not undo the already observed callable effect"
     );
+    let rows = assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[call]);
+    production_evidence(
+        "production_classifier_result_daemon_outage",
+        json!(3),
+        &fixture.ledger,
+        None,
+        "transport_refused_after_effect",
+        &rows[0],
+        json!({}),
+    );
 }
 
 #[tokio::test]
 async fn native_mcp_daemon_call_timeout_never_executes_call() {
-    let mut fixture = Fixture::new("normal", true).await;
+    let mut fixture = Fixture::with_classifier("normal", true, Some("rule-baseline")).await;
     fixture.ready().await;
     fixture
         .daemon_faults
         .stall_call_admission
         .store(true, Ordering::SeqCst);
+    let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    let started = std::time::Instant::now();
     assert!(
-        fixture
-            .exchange(r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#)
-            .await
-            .is_none(),
+        fixture.exchange(call).await.is_none(),
         "the collector's five-second HTTP timeout must close before execution"
+    );
+    let latency = started.elapsed();
+    assert!(
+        latency >= Duration::from_secs(4),
+        "must exercise the HTTP timeout, not an immediate classifier failure"
     );
     fixture.assert_gateway_failed().await;
     assert_eq!(
@@ -1568,10 +1713,171 @@ async fn native_mcp_daemon_call_timeout_never_executes_call() {
         1,
         "the test must reach the stalled call endpoint instead of failing startup"
     );
-    assert!(
-        executed(&fixture.ledger).is_empty(),
+    assert_eq!(
+        ledger_bytes(&fixture.ledger),
+        b"",
         "an unanswered admission request must never reach the real server"
     );
+    let rows = assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[call]);
+    production_evidence(
+        "production_classifier_call_daemon_timeout",
+        json!(3),
+        &fixture.ledger,
+        None,
+        "transport_timeout_before_effect",
+        &rows[0],
+        json!({"request_latency_ms": latency.as_secs_f64() * 1000.0, "native_call_requests_started": 1}),
+    );
+}
+
+#[tokio::test]
+async fn native_mcp_cancellation_while_call_admission_is_stalled_is_fail_closed() {
+    let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+    let cancelled = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":3,"reason":"synthetic native admission cancellation"}}"#;
+    for release_admission in [false, true] {
+        let mode = if release_admission {
+            "gated-result"
+        } else {
+            "normal"
+        };
+        let mut fixture = Fixture::with_classifier(mode, true, Some("rule-baseline")).await;
+        fixture.ready().await;
+        fixture
+            .daemon_faults
+            .stall_call_admission
+            .store(true, Ordering::SeqCst);
+        let started = std::time::Instant::now();
+        fixture
+            .input
+            .write_all(format!("{call}\n").as_bytes())
+            .await
+            .unwrap();
+        fixture.input.flush().await.unwrap();
+        // The actual native endpoint has received the classified request. No
+        // admission reply or server effect is allowed before cancellation is sent.
+        tokio::time::timeout(Duration::from_secs(3), async {
+            let mut poll = tokio::time::interval(Duration::from_millis(10));
+            while fixture
+                .daemon_faults
+                .call_requests_started
+                .load(Ordering::SeqCst)
+                == 0
+            {
+                poll.tick().await;
+            }
+        })
+        .await
+        .expect("the real classified call must reach native admission before cancellation");
+        assert_eq!(
+            fixture
+                .daemon_faults
+                .call_requests_started
+                .load(Ordering::SeqCst),
+            1
+        );
+        assert_eq!(ledger_bytes(&fixture.ledger), b"");
+        assert!(!fixture.ledger.exists());
+        fixture
+            .input
+            .write_all(format!("{cancelled}\n").as_bytes())
+            .await
+            .unwrap();
+        fixture.input.flush().await.unwrap();
+        let cancellation_written_after = started.elapsed();
+        assert!(
+            cancellation_written_after < Duration::from_secs(4),
+            "the cancellation must be written before the native HTTP timeout"
+        );
+        let release_written_after = if release_admission {
+            // Notify::notify_one retains a permit even if the middleware has not
+            // registered its waiter yet. The actual native policy returns Allow.
+            fixture.daemon_faults.release_stalled_calls.notify_one();
+            let released = started.elapsed();
+            assert!(released - cancellation_written_after < Duration::from_secs(1));
+            Some(released)
+        } else {
+            None
+        };
+        assert!(
+            fixture.receive().await.is_none(),
+            "no protected result or partial response may reach the client"
+        );
+        let latency = started.elapsed();
+        fixture.assert_gateway_failed().await;
+        let raw_ledger = ledger_bytes(&fixture.ledger);
+        assert!(!fixture.ledger.with_extension("jsonl.result-ready").exists());
+        let rows = assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[call]);
+        let stderr = std::fs::read_to_string(&fixture.stderr).unwrap();
+        let explicit_cancellation_refusal = stderr.contains("unsupported MCP notification")
+            || stderr.contains("unsupported MCP method")
+            || stderr.contains("concurrent MCP requests");
+        let (test, outcome, cancellation_handling) = if release_admission {
+            assert!(explicit_cancellation_refusal, "must observe cancellation refusal after releasing actual HTTP admission, not a generic timeout");
+            assert!(executed(&fixture.audit)
+                .iter()
+                .any(|row| row["event"] == "native_call"
+                    && row["tool"] == "read_document"
+                    && row["verdict"] == "allow"
+                    && row["released"] == true));
+            // An unsupported cancellation does not promise to undo a granted
+            // original call. Preserve either observed outcome without confusing
+            // result withholding with pre-execution prevention.
+            assert!(raw_ledger.is_empty() || raw_ledger == format!("{call}\n").as_bytes());
+            assert!(executed(&fixture.ledger).len() <= 1);
+            (
+                "production_classifier_cancellation_then_native_allow",
+                "transport_refused_after_admission",
+                "queued_cancellation_refused_after_native_allow",
+            )
+        } else {
+            assert_eq!(
+                raw_ledger, b"",
+                "EOF alone cannot prove the absence of an executor effect"
+            );
+            assert!(!fixture.ledger.exists());
+            if explicit_cancellation_refusal {
+                (
+                    "production_classifier_cancellation_during_native_timeout",
+                    "transport_refused_before_effect",
+                    "explicit_transport_refusal_before_effect",
+                )
+            } else {
+                // This is timeout fail-closed evidence, not prompt cancellation
+                // support or proof that cancellation alone prevented execution.
+                assert!(stderr.contains("MCP admission unavailable"));
+                assert!(latency >= Duration::from_secs(4));
+                (
+                    "production_classifier_cancellation_during_native_timeout",
+                    "transport_timeout_before_effect",
+                    "queued_until_native_admission_timeout",
+                )
+            }
+        };
+        production_evidence(
+            test,
+            json!(3),
+            &fixture.ledger,
+            None,
+            outcome,
+            &rows[0],
+            json!({
+                "native_call_requests_started": 1,
+                "native_admission_gate_released": release_admission,
+                "cancellation_request_id": 3,
+                "cancellation_frame_written": true,
+                "cancellation_written_after_ms": cancellation_written_after.as_secs_f64() * 1000.0,
+                "native_gate_released_after_ms": release_written_after.map(|value| value.as_secs_f64() * 1000.0),
+                "request_latency_ms": latency.as_secs_f64() * 1000.0,
+                "cancellation_handling": cancellation_handling,
+                "executor_ledger_raw": String::from_utf8(raw_ledger).unwrap(),
+                "executor_ledger_file_created": fixture.ledger.exists(),
+                "effect_observed": fixture.ledger.exists(),
+                "execution_count_semantics": "complete_dispatch_records",
+                "server_effect_marker_present": fixture.ledger.with_extension("jsonl.effect-recorded").exists(),
+                "pre_effect_cancellation_guarantee_asserted": false,
+            }),
+        );
+    }
 }
 
 #[tokio::test]
@@ -1691,22 +1997,36 @@ async fn native_mcp_concurrent_call_after_effect_never_reaches_second_executor()
 
 #[tokio::test]
 async fn native_mcp_denied_session_does_not_block_a_benign_peer_on_the_same_daemon() {
-    let mut fixture = Fixture::new("normal", true).await;
+    let mut fixture = Fixture::with_classifier("normal", true, Some("rule-baseline")).await;
     fixture.ready().await;
-    let mut peer = PeerGateway::new(&fixture);
+    let mut peer = PeerGateway::with_classifier(&fixture, Some("rule-baseline"));
     peer.ready().await;
-    let denied = fixture.exchange(r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/fixture","body":"AKIAIOSFODNN7EXAMPLE"}}}"#).await.unwrap();
+    let secret_send = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/fixture","body":"AKIAIOSFODNN7EXAMPLE"}}}"#;
+    let denied = fixture.exchange(secret_send).await.unwrap();
     let refused: Value = serde_json::from_str(&denied).unwrap();
     assert_eq!(refused["id"], 3);
     assert_eq!(refused["result"]["isError"], true);
+    assert!(
+        denied.contains("fixture-secret-egress"),
+        "must exercise the trusted native secret-egress Deny"
+    );
+    assert!(executed(&fixture.audit)
+        .iter()
+        .any(|row| row["event"] == "native_call"
+            && row["tool"] == "send_http"
+            && row["verdict"] == "deny"
+            && row["released"] == false));
     assert!(!denied.contains("AKIAIOSFODNN7EXAMPLE"));
-    assert!(executed(&fixture.ledger).is_empty());
-    evidence(
+    assert_eq!(ledger_bytes(&fixture.ledger), b"");
+    let denied_rows = assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[secret_send]);
+    production_evidence(
         "same_daemon_denied_call",
         json!(3),
         &fixture.ledger,
         Some(&denied),
         "policy_refused",
+        &denied_rows[0],
+        json!({"protected_result_bytes": 0}),
     );
     let read = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
     assert_eq!(
@@ -1721,33 +2041,39 @@ async fn native_mcp_denied_session_does_not_block_a_benign_peer_on_the_same_daem
     assert_eq!(executed(&peer.ledger).len(), 1);
     let followup = read.replace("\"id\":3", "\"id\":4");
     let reply = fixture.exchange(&followup).await.unwrap();
-    assert_eq!(serde_json::from_str::<Value>(&reply).unwrap()["id"], 4);
-    assert!(reply.contains("Inventory: 7 red widgets."));
+    assert_eq!(reply, READ_RESULT.replace("\"id\": 3", "\"id\": 4"));
     assert_eq!(
         std::fs::read_to_string(&fixture.ledger).unwrap(),
         format!("{followup}\n"),
         "the denied session must remain useful for a fresh benign call"
     );
     assert_eq!(executed(&fixture.ledger).len(), 1);
-    evidence(
+    let peer_rows = assert_real_baseline_calls(&peer.stderr, &peer.ledger, &[read]);
+    let followup_rows =
+        assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[secret_send, &followup]);
+    production_evidence(
         "same_daemon_benign_peer",
         json!(3),
         &peer.ledger,
         Some(READ_RESULT),
         "allow",
+        &peer_rows[0],
+        json!({"original_result_payload_bytes_preserved": true}),
     );
-    evidence(
+    production_evidence(
         "same_daemon_benign_followup",
         json!(4),
         &fixture.ledger,
         Some(&reply),
         "allow",
+        &followup_rows[1],
+        json!({"original_result_payload_bytes_preserved": true}),
     );
 }
 
 #[tokio::test]
 async fn native_mcp_restarted_daemon_rejects_old_completion_but_new_session_remains_useful() {
-    let mut fixture = Fixture::new("gated-result", true).await;
+    let mut fixture = Fixture::with_classifier("gated-result", true, Some("rule-baseline")).await;
     fixture.ready().await;
     let call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
     fixture
@@ -1774,7 +2100,7 @@ async fn native_mcp_restarted_daemon_rejects_old_completion_but_new_session_rema
         format!("{call}\n")
     );
     assert_eq!(executed(&fixture.ledger).len(), 1);
-    let mut peer = PeerGateway::new(&fixture);
+    let mut peer = PeerGateway::with_classifier(&fixture, Some("rule-baseline"));
     peer.ready().await;
     assert_eq!(
         peer.exchange(call).await.as_deref(),
@@ -1791,46 +2117,60 @@ async fn native_mcp_restarted_daemon_rejects_old_completion_but_new_session_rema
         1,
         "a fresh call cannot replay the old executor effect"
     );
-    evidence(
+    let old_rows = assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[call]);
+    let peer_rows = assert_real_baseline_calls(&peer.stderr, &peer.ledger, &[call]);
+    production_evidence(
         "daemon_restart_old_completion",
         json!(3),
         &fixture.ledger,
         None,
         "transport_refused_after_effect",
+        &old_rows[0],
+        json!({}),
     );
-    evidence(
+    production_evidence(
         "daemon_restart_fresh_session",
         json!(3),
         &peer.ledger,
         Some(READ_RESULT),
         "allow",
+        &peer_rows[0],
+        json!({"original_result_payload_bytes_preserved": true}),
     );
 }
 
 #[tokio::test]
 async fn native_mcp_replayed_id_with_changed_tool_and_arguments_adds_no_effect() {
-    let mut fixture = Fixture::new("normal", true).await;
-    fixture.ready().await;
     let read = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
-    assert_eq!(fixture.exchange(read).await.as_deref(), Some(READ_RESULT));
     let changed = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/fixture","body":"synthetic"}}}"#;
-    assert!(
-        fixture.exchange(changed).await.is_none(),
-        "reusing an admitted ID cannot dispatch a different valid tool and argument set"
-    );
-    fixture.assert_gateway_failed().await;
-    assert_eq!(
-        std::fs::read_to_string(&fixture.ledger).unwrap(),
-        format!("{read}\n")
-    );
-    assert_eq!(executed(&fixture.ledger).len(), 1);
-    evidence(
-        "replayed_id_changed_payload",
-        json!(3),
-        &fixture.ledger,
-        None,
-        "transport_refused_after_original_effect",
-    );
+    for (test, replay) in [
+        ("replayed_id_exact_payload", read),
+        ("replayed_id_changed_payload", changed),
+    ] {
+        let mut fixture = Fixture::with_classifier("normal", true, Some("rule-baseline")).await;
+        fixture.ready().await;
+        assert_eq!(fixture.exchange(read).await.as_deref(), Some(READ_RESULT));
+        assert!(
+            fixture.exchange(replay).await.is_none(),
+            "an admitted host ID cannot dispatch an exact duplicate or changed tool and arguments"
+        );
+        fixture.assert_gateway_failed().await;
+        assert_eq!(
+            ledger_bytes(&fixture.ledger),
+            format!("{read}\n").as_bytes()
+        );
+        assert_eq!(executed(&fixture.ledger).len(), 1);
+        let rows = assert_real_baseline_calls(&fixture.stderr, &fixture.ledger, &[read]);
+        production_evidence(
+            test,
+            json!(3),
+            &fixture.ledger,
+            None,
+            "transport_refused_after_original_effect",
+            &rows[0],
+            json!({"initial_client_result_bytes": READ_RESULT.len(), "initial_original_result_payload_bytes_preserved": true}),
+        );
+    }
 }
 
 #[tokio::test]

@@ -1,0 +1,365 @@
+{
+  "schema_version": "sou17-code-scanning-triage/0.1",
+  "observed_on": "2026-10-11",
+  "observation_timezone": "Asia/Almaty",
+  "repository": "https://github.com/SoupTeam/soup-wall",
+  "access": "authorized authenticated GitHub UI; read-only",
+  "inventory_scope": "Default-branch open alerts: is:open branch:main. Each observed alert lists only main among affected branches. This report does not certify unscanned branches.",
+  "open_alert_count": 6,
+  "open_severity_counts": {
+    "critical": 6
+  },
+  "closed_alert_count_observed": 74,
+  "analyzed_branch": "main",
+  "analyzed_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+  "source_review_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+  "status": "initial triage refreshed before the October 11 deadline; six evidence-backed false-positive recommendations remain open pending technical review",
+  "scanner": {
+    "tool": "CodeQL",
+    "setup": "Default setup",
+    "analysis_status": "working as expected",
+    "last_scan_date": "2026-10-11",
+    "tool_version": "2.27.2",
+    "category": "/language:rust",
+    "extensions": {
+      "codeql/rust-queries": "0.1.44",
+      "codeql/rust-all": "0.2.23",
+      "codeql/threat-models": "1.0.59"
+    },
+    "languages_shown": [
+      "rust",
+      "python",
+      "actions"
+    ],
+    "observed_last_scan_commits": {
+      "rust": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "python": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "actions": "9b055a6d97166a9b3f9347c45c305038c331cfcf"
+    },
+    "rust_matches_source_review_commit": true,
+    "status_url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/tools/CodeQL/status/configurations/automatic/2b7122206b8ac86cd7b88fd927bd502861908b2a6bfb3dfdcf2968009cb71086",
+    "analysis_followup": "Authorized UI follow-up shows a completed working Rust scan of the exact reviewed main revision; six alerts remain open."
+  },
+  "alerts": [
+    {
+      "number": 85,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/85",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "github_assignee": null,
+      "affected_branches_shown": [
+        "main"
+      ],
+      "path": "vendor/kryptering/tests/provider_baseline.rs",
+      "line": 165,
+      "analyzed_branch": "main",
+      "analyzed_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_baseline.rs#L165",
+      "source_review_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_baseline.rs#L165",
+      "test_function": "kdfs_match_known_answers",
+      "assessment": "evidence-backed false-positive recommendation for a production hard-coded-secret defect",
+      "rationale": "PBKDF2 known-answer input with fixed expected bytes; FIPS mode rejects undersized parameters.",
+      "disposition": "open; reviewer-supported disposition pending; no dismissal performed",
+      "file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_bytes_match_reviewed_source": true,
+      "matches_previous_triage_bytes": true,
+      "analysis_status": "Rust default-setup configuration working as expected at the recorded analyzed commit",
+      "followup_owner": "Nari_Ab coordinates affected-code technical review; no implementation-owner or CODEOWNERS assignment verified",
+      "initial_observation_analyzed_commit": "900cc3a03bb9fef32b62e0fc4eed6c92eb299ef8"
+    },
+    {
+      "number": 86,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/86",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "github_assignee": null,
+      "affected_branches_shown": [
+        "main"
+      ],
+      "path": "vendor/kryptering/tests/provider_baseline.rs",
+      "line": 193,
+      "analyzed_branch": "main",
+      "analyzed_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_baseline.rs#L193",
+      "source_review_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_baseline.rs#L193",
+      "test_function": "kdfs_match_known_answers",
+      "assessment": "evidence-backed false-positive recommendation for a production hard-coded-secret defect",
+      "rationale": "Compliant PBKDF2 known-answer input; fixed expected output, independently documented Python hashlib comparison.",
+      "disposition": "open; reviewer-supported disposition pending; no dismissal performed",
+      "file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_bytes_match_reviewed_source": true,
+      "matches_previous_triage_bytes": true,
+      "analysis_status": "Rust default-setup configuration working as expected at the recorded analyzed commit",
+      "followup_owner": "Nari_Ab coordinates affected-code technical review; no implementation-owner or CODEOWNERS assignment verified",
+      "initial_observation_analyzed_commit": "900cc3a03bb9fef32b62e0fc4eed6c92eb299ef8"
+    },
+    {
+      "number": 87,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/87",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "github_assignee": null,
+      "affected_branches_shown": [
+        "main"
+      ],
+      "path": "vendor/kryptering/tests/provider_baseline.rs",
+      "line": 524,
+      "analyzed_branch": "main",
+      "analyzed_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_baseline.rs#L524",
+      "source_review_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_baseline.rs#L524",
+      "test_function": "unsupported_operations_are_reported_before_key_parsing",
+      "assessment": "evidence-backed false-positive recommendation for a production hard-coded-secret defect",
+      "rationale": "Negative RustCrypto test asserts UnsupportedAlgorithm before input parsing; no credential is installed.",
+      "disposition": "open; reviewer-supported disposition pending; no dismissal performed",
+      "file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_bytes_match_reviewed_source": true,
+      "matches_previous_triage_bytes": true,
+      "analysis_status": "Rust default-setup configuration working as expected at the recorded analyzed commit",
+      "followup_owner": "Nari_Ab coordinates affected-code technical review; no implementation-owner or CODEOWNERS assignment verified",
+      "initial_observation_analyzed_commit": "900cc3a03bb9fef32b62e0fc4eed6c92eb299ef8"
+    },
+    {
+      "number": 88,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/88",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "github_assignee": null,
+      "affected_branches_shown": [
+        "main"
+      ],
+      "path": "vendor/kryptering/tests/provider_baseline.rs",
+      "line": 549,
+      "analyzed_branch": "main",
+      "analyzed_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_baseline.rs#L549",
+      "source_review_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_baseline.rs#L549",
+      "test_function": "unsupported_operations_are_reported_before_key_parsing",
+      "assessment": "evidence-backed false-positive recommendation for a production hard-coded-secret defect",
+      "rationale": "Negative FIPS test asserts refusal of SHA-1 PBKDF2 before parameter validation.",
+      "disposition": "open; reviewer-supported disposition pending; no dismissal performed",
+      "file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_bytes_match_reviewed_source": true,
+      "matches_previous_triage_bytes": true,
+      "analysis_status": "Rust default-setup configuration working as expected at the recorded analyzed commit",
+      "followup_owner": "Nari_Ab coordinates affected-code technical review; no implementation-owner or CODEOWNERS assignment verified",
+      "initial_observation_analyzed_commit": "900cc3a03bb9fef32b62e0fc4eed6c92eb299ef8"
+    },
+    {
+      "number": 89,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/89",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "github_assignee": null,
+      "affected_branches_shown": [
+        "main"
+      ],
+      "path": "vendor/kryptering/tests/provider_parity.rs",
+      "line": 502,
+      "analyzed_branch": "main",
+      "analyzed_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_parity.rs#L502",
+      "source_review_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_parity.rs#L502",
+      "test_function": "kdfs_match_rfc_vectors",
+      "assessment": "evidence-backed false-positive recommendation for a production hard-coded-secret defect",
+      "rationale": "Fixed PBKDF2 expected outputs check provider parity; FIPS mode rejects undersized parameters.",
+      "disposition": "open; reviewer-supported disposition pending; no dismissal performed",
+      "file_sha256": "29afd20f093375a539bb2efd8b0818bd6017671c966001be396bdafc0ad3889f",
+      "analyzed_file_sha256": "29afd20f093375a539bb2efd8b0818bd6017671c966001be396bdafc0ad3889f",
+      "analyzed_bytes_match_reviewed_source": true,
+      "matches_previous_triage_bytes": true,
+      "analysis_status": "Rust default-setup configuration working as expected at the recorded analyzed commit",
+      "followup_owner": "Nari_Ab coordinates affected-code technical review; no implementation-owner or CODEOWNERS assignment verified",
+      "initial_observation_analyzed_commit": "900cc3a03bb9fef32b62e0fc4eed6c92eb299ef8"
+    },
+    {
+      "number": 90,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/90",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "github_assignee": null,
+      "affected_branches_shown": [
+        "main"
+      ],
+      "path": "vendor/kryptering/tests/provider_parity.rs",
+      "line": 532,
+      "analyzed_branch": "main",
+      "analyzed_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_parity.rs#L532",
+      "source_review_commit": "9b055a6d97166a9b3f9347c45c305038c331cfcf",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/9b055a6d97166a9b3f9347c45c305038c331cfcf/vendor/kryptering/tests/provider_parity.rs#L532",
+      "test_function": "kdfs_match_rfc_vectors",
+      "assessment": "evidence-backed false-positive recommendation for a production hard-coded-secret defect",
+      "rationale": "Compliant PBKDF2 parameter variants check fixed expected outputs across providers.",
+      "disposition": "open; reviewer-supported disposition pending; no dismissal performed",
+      "file_sha256": "29afd20f093375a539bb2efd8b0818bd6017671c966001be396bdafc0ad3889f",
+      "analyzed_file_sha256": "29afd20f093375a539bb2efd8b0818bd6017671c966001be396bdafc0ad3889f",
+      "analyzed_bytes_match_reviewed_source": true,
+      "matches_previous_triage_bytes": true,
+      "analysis_status": "Rust default-setup configuration working as expected at the recorded analyzed commit",
+      "followup_owner": "Nari_Ab coordinates affected-code technical review; no implementation-owner or CODEOWNERS assignment verified",
+      "initial_observation_analyzed_commit": "900cc3a03bb9fef32b62e0fc4eed6c92eb299ef8"
+    }
+  ],
+  "shared_evidence": [
+    {
+      "path": "Cargo.toml",
+      "lines": [
+        4
+      ],
+      "observation": "The application workspace excludes vendor/kryptering."
+    },
+    {
+      "path": "vendor/kryptering/Cargo.toml",
+      "lines": [
+        99,
+        119,
+        124
+      ],
+      "observation": "Production library is src/lib.rs; affected files are separate integration-test targets."
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "lines": [
+        119,
+        138
+      ],
+      "observation": "Release packaging includes application binaries and vendored licence, not test targets."
+    },
+    {
+      "path": "vendor/kryptering/src/lib.rs",
+      "observation": "No production import or include of these test files found in source search."
+    }
+  ],
+  "source_hash_check": "git show of each affected file at both recorded commits yields identical SHA-256 values; the same values match the prior October 10 triage.",
+  "confirmed_defects": [],
+  "remediation_issues": [],
+  "fix_prs": [],
+  "dismissals_performed": [],
+  "remediation_rescan": {
+    "status": "not_applicable_no_confirmed_fix",
+    "fix_commit": null,
+    "analysis_url": null,
+    "limitation": "This refreshed inventory is not remediation verification: no confirmed defect or fix has been established for these six findings."
+  },
+  "review_coordination": {
+    "triage_owner": "konung3",
+    "pr_review_coordinator": "Nari_Ab",
+    "affected_code_review": "Nari_Ab coordinates technical review within the implementation team; no CODEOWNERS or affected-module owner assignment verified",
+    "configuration_owner": "userarlan via SOU-18"
+  },
+  "pending_actions": [
+    {
+      "owner": "Nari_Ab / affected-code reviewer",
+      "action": "Review each recommendation and record an evidence-supported disposition. An actual false-positive dismissal requires its recorded rationale; all six remain open in this report."
+    },
+    {
+      "owner": "konung3",
+      "action": "Link this inventory, source evidence and pending review status in SOU-17 before October 11 23:59. Refresh alerts and scan evidence for the final integrated exact source; report access, scan or review blockers rather than treating them as a clean scan."
+    },
+    {
+      "owner": "konung3 / affected implementation owner",
+      "action": "For a newly confirmed defect create a focused linked remediation issue, name the implementation owner and reviewer, prioritize Critical/High, record impact and capacity risks. The implementation owner provides the fix and boundary regression; konung3 verifies an exact-fix-commit scan by October 12 23:59."
+    },
+    {
+      "owner": "userarlan / SOU-18",
+      "action": "Verify scan/check configuration and live merge gate behavior; link its evidence separately. No settings or rules were changed by this triage."
+    }
+  ],
+  "remaining_limits": [
+    "All three observed language configurations and all six alert source links now identify reviewed main 9b055a6. This is an exact-source scan observation, not remediation or closure of the still-open findings.",
+    "Working analysis and historical or clean PR deltas do not establish a clean main inventory, actual merge-gate enforcement or tool-call enforcement effectiveness.",
+    "Reviewer-supported dispositions remain pending. No current confirmed production defect, remediation issue, fix PR or dismissal has been established for these six findings.",
+    "The upstream intake record documents retained tests; upstream archive identity was not independently re-verified in this triage."
+  ],
+  "local_evidence": {
+    "handling": "Sanitized structured inventory: no account/navigation details or literal cryptographic fixture values. Raw authenticated UI snapshots remain local and are not committed.",
+    "files": [
+      {
+        "path": "target/sou17-final-2026-10-11/code-scanning/inventory.txt",
+        "sha256": "7afa7cb9b8228d659a2b2e6b2feaa051a94572c8cd5602a20fbaad792af30706"
+      },
+      {
+        "path": "target/sou17-final-2026-10-11/code-scanning/alert-85.txt",
+        "sha256": "08a36eae4bf2c931172124044b2fb133e91a400dec4341efdf38391af566cd12"
+      },
+      {
+        "path": "target/sou17-final-2026-10-11/code-scanning/alert-86.txt",
+        "sha256": "89c929726fc26fa0748efc6aabe17a28bba0f5434202750e5a4f5990eef84b37"
+      },
+      {
+        "path": "target/sou17-final-2026-10-11/code-scanning/alert-87.txt",
+        "sha256": "f90e561e30a2cc21575806655aff2c3b7ca4df7b8645198ce7d6a2e5846f5dcb"
+      },
+      {
+        "path": "target/sou17-final-2026-10-11/code-scanning/alert-88.txt",
+        "sha256": "5c534a98cf328d742e02fb34758c0d7d69d75e563e436919a1a4cfa8616ba31f"
+      },
+      {
+        "path": "target/sou17-final-2026-10-11/code-scanning/alert-89.txt",
+        "sha256": "2cdaa82b8928a625965e9998bf39921bded2f638f5ef51f28bb634e66df93e17"
+      },
+      {
+        "path": "target/sou17-final-2026-10-11/code-scanning/alert-90.txt",
+        "sha256": "de3287067eafa89b58f42105a03c3fbbe3e3a61b03d785a63ac5950d3fedb486"
+      },
+      {
+        "path": "target/sou17-final-2026-10-11/code-scanning/rust-status.txt",
+        "sha256": "a5efcb6bcea34f8cd5b3523ce5c1b16c70ee5d438d1c188b6a13f6584fdc1437"
+      }
+    ]
+  },
+  "previous_inventory": "CODE_SCANNING_TRIAGE_2026-10-10_b76910a.json",
+  "initial_observation_analyzed_commit": "900cc3a03bb9fef32b62e0fc4eed6c92eb299ef8",
+  "rescan_followup_evidence": {
+    "alert-85-followup.txt": {
+      "sha256": "f616d45cef66c4ed04dca5608ad52a511234a87ae5fb45346619cc10a76c0bdb",
+      "bytes": 7572
+    },
+    "alert-86-followup.txt": {
+      "sha256": "3c9c607298f2f99f310681c439f13262f0130a015acc9e78c60948336339fedd",
+      "bytes": 7565
+    },
+    "alert-87-followup.txt": {
+      "sha256": "a4af2d63328b0ef777e11b982d5760f7c315cd78f4069150ec01d72a3d8e9c2f",
+      "bytes": 7605
+    },
+    "alert-88-followup.txt": {
+      "sha256": "3e1304b7ffbe2cb19ecedefcc3983fabd190ce80fee1875732e707a013a1f5d3",
+      "bytes": 7589
+    },
+    "alert-89-followup.txt": {
+      "sha256": "b5772f7fdb84a6b7fad939fb0d93d07ef2849171bdda4650b3323181e04847eb",
+      "bytes": 7543
+    },
+    "alert-90-followup.txt": {
+      "sha256": "9488fbd0b521e75656b1bd3eed81dcfba5a025dd1f940e28a0e708f5e5f75976",
+      "bytes": 7584
+    },
+    "rust-status-followup.txt": {
+      "sha256": "0394b85ef700e118adbca06277d146f251a7343bca26a9a8d6a08ec63d1287d1",
+      "bytes": 5710
+    }
+  }
+}

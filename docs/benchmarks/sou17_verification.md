@@ -15,7 +15,23 @@ resource receipt authorization, while generic classification and constrained
 resource execution remain unfinished. No competing test-local pipeline replaces
 those production components.
 
-## Current candidate recheck — 2026-10-10
+## Current candidate recheck — 2026-10-11
+
+The [main 9b055a6 recheck](evidence/sou17_candidate_9b055a6_2026-10-11.md)
+adds production-classifier lifecycle checks, pending-admission cancellation and
+hard-Deny overlap diagnostics, and paired local request latency measurement.
+The overlap diagnostic records a real Deny-to-Ask mismatch for Write on a
+ReadOnly tool at high uncertainty, with zero executor entries. Unknown/mixed
+technical refusals remain separate from ordinary policy outcomes. The dated
+report retains exact source/configuration, independent effects and result bytes,
+false interruptions, failures and unavailable-environment skips. **SOU-17 stays
+open** for the reviewed final SOU-15 candidate and recorded blockers.
+
+[October 11 CodeQL triage](../operations/evidence/CODE_SCANNING_TRIAGE_2026-10-11.md)
+records six open Critical findings and reviewer-pending false-positive
+recommendations. A working scan does not clear those alerts or prove enforcement.
+
+## Previous candidate recheck — c0add0b, 2026-10-10
 
 The [c0add0b recheck](evidence/sou17_candidate_c0add0b_2026-10-10.md) confirms the
 refusal-capacity repair: 64 Ask refusals leave zero effects and a subsequent useful
@@ -27,7 +43,7 @@ Unknown/mixed mappings and final production integration remain pending. **SOU-17
 stays open** for reviewed integration/configuration, remaining acceptance checks
 and agreed limits; this report preserves the earlier failure evidence below.
 
-## Previous candidate recheck — 2026-10-10
+## Previous candidate recheck — b76910a, 2026-10-10
 
 The [b76910a recheck](evidence/sou17_candidate_b76910a_2026-10-10.md) confirms that
 SOU-15's new authoritative Ask gate prevents the previously observed execution:
@@ -115,11 +131,14 @@ may reach the client without the original protected result. An error, EOF, or a
 self-reported `executed: false` alone is never evidence that nothing ran. Withholding
 a result cannot undo the tool's side effect.
 
-Cancellation is currently an unsupported notification and terminates the transport.
-These cases do **not** establish cancellation of an admission already in flight:
-the present relay awaits admission before reading another client frame. Define and
-verify that boundary on the integrated SOU-15 candidate before claiming cancellation
-support. Existing pipelined/concurrent checks test explicit refusal, not support for
+Cancellation is currently an unsupported notification. The pending-admission
+probe sends the original notification only after the production classifier's
+ready marker, then releases classification. Separate native HTTP gate checks
+record what happens when cancellation is queued during admission. These are
+negative transport diagnostics, not support for immediate cancellation or rollback.
+An effect recorded before transport refusal must remain visible. Define the
+supported cancellation semantics on the integrated candidate before claiming
+cancellation support. Existing pipelined/concurrent checks test explicit refusal, not support for
 parallel calls. Batch support is also refused.
 
 ## Local validation — 2026-10-09
@@ -152,7 +171,11 @@ The report records raw test outcomes and fixture elapsed time, including subproc
 startup, deliberate waits and cleanup. This is not classifier latency or enforcement
 overhead; do not subtract unrelated test durations as a performance estimate.
 Classification accuracy, uncertainty calibration and a held-out false-block rate are
-not measured here. The positive controls check useful calls and session isolation;
+not measured here. The separate latency probe compares paired calls to the same
+local server and requires original-call, executor and released-result witnesses.
+Its direct server is a measurement control only. Startup and the declared warmup
+are excluded; per-call Python classifier startup remains part of the protected
+request. Raw observations and the measurement scope accompany any percentiles. The positive controls check useful calls and session isolation;
 their regression pass count is not a general false-interruption rate.
 
 SOU-15 must supply one integrated exact commit, its stable interface and classifier,
@@ -160,14 +183,20 @@ registry/schema/resource/policy revisions and configuration. Then run the same s
 through that production boundary, including invalid classifier outputs, trusted
 hard-Deny versus weaker classification, Unknown/Ask, model-service failure, session
 isolation, replay/restart and both execution/release witnesses. Record any unsupported
-mapping, failure or skip explicitly. Unagreed or unmet accepted performance/error
-limits keep SOU-17 open; the local regression launcher cannot approve acceptance.
+mapping, failure or skip explicitly. [The accepted contract](../../contract/updated_contract2.md) requires zero
+forbidden executions and zero interruptions of declared authorized Allow fixtures.
+Its 15 ms mean / 50 ms p99 and 1% interruption proposals are future targets, not
+accepted production gates. Unsupported mappings and unmet accepted limits keep
+SOU-17 open; the local regression launcher cannot approve acceptance.
 
 The October 12 candidate is due at 15:00; run immediately, report blocking failures
 by 18:00, and finish verification by 23:59 as specified in the Linear task. Any code
 change after a run requires the affected checks again on the new revision.
 
-## Code scanning triage — 2026-10-09
+## Historical code scanning triage — 2026-10-09
+
+The [October 11 inventory](../operations/evidence/CODE_SCANNING_TRIAGE_2026-10-11.md)
+supersedes the scan revisions below while preserving this historical evidence.
 
 Authorized GitHub access showed **6 open Critical alerts and 74 closed alerts** for
 `is:open branch:main`. Each open alert lists only `main` among affected branches.
