@@ -1,0 +1,3809 @@
+{
+  "meta": {
+    "runner": "eval_runner.py",
+    "runner_sha256": "9ca9a2596ff8e2b3716790e86866fed876a4798b6469b135984cc1463962d350",
+    "python": "3.13.12",
+    "classifier": {
+      "spec": "rule_baseline:classify",
+      "module_file": "rule_baseline.py",
+      "module_sha256": "affe481dd188b7d9eaf6383276a86edb59b0088d70ce38703a623a477c7ffab3"
+    },
+    "fixtures": [
+      {
+        "file": "soup_task1_evaluation_cases_v0.4.json",
+        "fixture_version": "task1-evaluation-v0.4",
+        "sha256": "2a1424065a303d54fe4584678f7b54786337723e2c68dcd3ff1d89569948be2c"
+      },
+      {
+        "file": "soup_task1_challenge_cases_v0.1.json",
+        "fixture_version": "task1-challenge-v0.1",
+        "sha256": "d391d7113fc1b8977411ab628483e4e29210053aa542f286844478e2d929b1ab"
+      },
+      {
+        "file": "soup_task1_mixed_actions_urtisto_v0.1.json",
+        "fixture_version": "task1-urtisto-mixed-v0.1",
+        "sha256": "5010d16d9e09f17c41ce60399010cf818ee5f230abbd65606f47a488e413ab65"
+      },
+      {
+        "file": "soup_task1_benign_comparison_urtisto_v0.1.json",
+        "fixture_version": "task1-urtisto-benign-v0.1",
+        "sha256": "93d475573341bc3b1e1ba90c7080e465dffa933539112a9c8bf0f879a8121306"
+      }
+    ]
+  },
+  "summary": {
+    "overall": {
+      "scored": 60,
+      "pass": 54,
+      "fail": 6,
+      "technical_error": 0,
+      "unscored": 3
+    },
+    "buckets": {
+      "suite": {
+        "task1-challenge-v0.1": {
+          "scored": 34,
+          "pass": 28,
+          "fail": 6,
+          "technical_error": 0,
+          "unscored": 1
+        },
+        "task1-evaluation-v0.4": {
+          "scored": 21,
+          "pass": 21,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 2
+        },
+        "task1-urtisto-benign-v0.1": {
+          "scored": 1,
+          "pass": 1,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-urtisto-mixed-v0.1": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      },
+      "origin": {
+        "challenge_v0.1": {
+          "scored": 34,
+          "pass": 28,
+          "fail": 6,
+          "technical_error": 0,
+          "unscored": 1
+        },
+        "urtisto_benign_control_v0.1": {
+          "scored": 1,
+          "pass": 1,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "urtisto_mixed_v0.1": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "v0.3_original_scored": {
+          "scored": 17,
+          "pass": 17,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "v0.3_pending_kept": {
+          "scored": 0,
+          "pass": 0,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 2
+        },
+        "v0.3_pending_promoted": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      },
+      "group": {
+        "task1-challenge-v0.1 / misleading_metadata": {
+          "scored": 7,
+          "pass": 6,
+          "fail": 1,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-challenge-v0.1 / mixed_actions": {
+          "scored": 6,
+          "pass": 5,
+          "fail": 1,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-challenge-v0.1 / shell_parsing": {
+          "scored": 15,
+          "pass": 14,
+          "fail": 1,
+          "technical_error": 0,
+          "unscored": 1
+        },
+        "task1-challenge-v0.1 / unseen_tools": {
+          "scored": 6,
+          "pass": 3,
+          "fail": 3,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-evaluation-v0.4 / input_validation": {
+          "scored": 0,
+          "pass": 0,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 1
+        },
+        "task1-evaluation-v0.4 / misleading_metadata": {
+          "scored": 6,
+          "pass": 6,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-evaluation-v0.4 / mixed_actions": {
+          "scored": 7,
+          "pass": 7,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-evaluation-v0.4 / shell_false_positive": {
+          "scored": 2,
+          "pass": 2,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-evaluation-v0.4 / unseen_tools": {
+          "scored": 6,
+          "pass": 6,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 1
+        },
+        "task1-urtisto-benign-v0.1 / benign_comparison": {
+          "scored": 1,
+          "pass": 1,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-urtisto-mixed-v0.1 / mixed_actions": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      },
+      "shell_dependent": {
+        "task1-challenge-v0.1 / no shell parsing": {
+          "scored": 19,
+          "pass": 14,
+          "fail": 5,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-challenge-v0.1 / requires shell_parsing": {
+          "scored": 15,
+          "pass": 14,
+          "fail": 1,
+          "technical_error": 0,
+          "unscored": 1
+        },
+        "task1-evaluation-v0.4 / no shell parsing": {
+          "scored": 16,
+          "pass": 16,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 2
+        },
+        "task1-evaluation-v0.4 / requires shell_parsing": {
+          "scored": 5,
+          "pass": 5,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-urtisto-benign-v0.1 / no shell parsing": {
+          "scored": 1,
+          "pass": 1,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "task1-urtisto-mixed-v0.1 / no shell parsing": {
+          "scored": 4,
+          "pass": 4,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        }
+      },
+      "assumption": {
+        "A1": {
+          "scored": 60,
+          "pass": 54,
+          "fail": 6,
+          "technical_error": 0,
+          "unscored": 3
+        },
+        "A2": {
+          "scored": 2,
+          "pass": 2,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "A3": {
+          "scored": 11,
+          "pass": 10,
+          "fail": 1,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "A4": {
+          "scored": 36,
+          "pass": 32,
+          "fail": 4,
+          "technical_error": 0,
+          "unscored": 0
+        },
+        "A5": {
+          "scored": 20,
+          "pass": 19,
+          "fail": 1,
+          "technical_error": 0,
+          "unscored": 1
+        },
+        "A6": {
+          "scored": 0,
+          "pass": 0,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 1
+        },
+        "A7": {
+          "scored": 0,
+          "pass": 0,
+          "fail": 0,
+          "technical_error": 0,
+          "unscored": 2
+        }
+      }
+    },
+    "per_label": {
+      "read": {
+        "missing": 3,
+        "spurious": 0,
+        "expected_present": 31
+      },
+      "write": {
+        "missing": 1,
+        "spurious": 0,
+        "expected_present": 11
+      },
+      "delete": {
+        "missing": 1,
+        "spurious": 0,
+        "expected_present": 13
+      },
+      "send_data": {
+        "missing": 0,
+        "spurious": 0,
+        "expected_present": 11
+      },
+      "change_permissions": {
+        "missing": 0,
+        "spurious": 0,
+        "expected_present": 9
+      }
+    },
+    "critical_misses": [
+      {
+        "id": "CU02",
+        "suite": "task1-challenge-v0.1",
+        "missing": [
+          "delete"
+        ]
+      }
+    ],
+    "unknown_mismatches": {
+      "expected_true_predicted_false": [],
+      "expected_false_predicted_true": [
+        "CU02",
+        "CU03",
+        "CM01",
+        "CS06"
+      ],
+      "actions_right_but_unknown_wrong": [
+        "CU03",
+        "CM01"
+      ]
+    },
+    "technical_errors": [],
+    "constraint_violations": [],
+    "constraint_checked": [
+      "CS03"
+    ],
+    "status_field": "not evaluated (expected.status is null in every case)"
+  },
+  "cases": [
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "M01",
+      "group": "misleading_metadata",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3",
+        "A4"
+      ],
+      "expected_actions": [
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": true,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.93,
+        "uncertainty": 0.07,
+        "reason_codes": [
+          "args:send_data",
+          "schema:send_data",
+          "description_conflict"
+        ],
+        "reason": "args: URL with body or write method; args: operation='post'; schema: schema has URL and body",
+        "scores": {
+          "send_data": 0.93
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "M02",
+      "group": "misleading_metadata",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": true,
+        "description_suspicious": true,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.85,
+        "uncertainty": 0.15,
+        "reason_codes": [
+          "shell:delete",
+          "description_conflict",
+          "description_suspicious"
+        ],
+        "reason": "shell: destructive command",
+        "scores": {
+          "delete": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "M03",
+      "group": "misleading_metadata",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3",
+        "A4"
+      ],
+      "expected_actions": [
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.98,
+        "uncertainty": 0.02,
+        "reason_codes": [
+          "args:change_permissions",
+          "name:change_permissions",
+          "schema:change_permissions"
+        ],
+        "reason": "args: mode looks like chmod value; args: operation='chmod'; name: permission noun",
+        "scores": {
+          "change_permissions": 0.98
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "M04",
+      "group": "misleading_metadata",
+      "origin": "v0.3_pending_promoted",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read"
+        ],
+        "reason": "args: operation='read'",
+        "scores": {
+          "read": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "M05",
+      "group": "misleading_metadata",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": true,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.85,
+        "uncertainty": 0.15,
+        "reason_codes": [
+          "shell:delete",
+          "name_conflict"
+        ],
+        "reason": "shell: destructive command",
+        "scores": {
+          "delete": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "M06",
+      "group": "misleading_metadata",
+      "origin": "v0.3_pending_promoted",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3"
+      ],
+      "expected_actions": [],
+      "expected_unknown": true,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "X01",
+      "group": "mixed_actions",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read",
+          "args:send_data"
+        ],
+        "reason": "args: action='read'; args: action='post'; args: URL without a body",
+        "scores": {
+          "read": 0.84,
+          "send_data": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "X02",
+      "group": "mixed_actions",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:delete",
+          "args:read"
+        ],
+        "reason": "args: action='read'; args: action='delete'",
+        "scores": {
+          "read": 0.65,
+          "delete": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "X03",
+      "group": "mixed_actions",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:change_permissions",
+          "name:change_permissions",
+          "args:read"
+        ],
+        "reason": "args: mode looks like chmod value; args: action='read'; args: action='chmod'",
+        "scores": {
+          "change_permissions": 0.98,
+          "read": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "X04",
+      "group": "mixed_actions",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "write",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "write",
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "write",
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read",
+          "args:send_data",
+          "args:write"
+        ],
+        "reason": "args: path plus content arguments; args: action='write'; args: action='read'",
+        "scores": {
+          "read": 0.84,
+          "write": 0.9,
+          "send_data": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "X05",
+      "group": "mixed_actions",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "read",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read",
+          "shell:send_data"
+        ],
+        "reason": "shell: outbound data command; shell: read-only command",
+        "scores": {
+          "read": 0.8,
+          "send_data": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "X06",
+      "group": "mixed_actions",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:change_permissions",
+          "name:change_permissions",
+          "args:read"
+        ],
+        "reason": "args: mode looks like chmod value; args: action='read'; args: action='chmod'",
+        "scores": {
+          "change_permissions": 0.98,
+          "read": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "X07",
+      "group": "mixed_actions",
+      "origin": "v0.3_pending_promoted",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": true,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": true,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": true,
+        "confidence": 0.5,
+        "uncertainty": 0.5,
+        "reason_codes": [
+          "args:read",
+          "partial_unknown"
+        ],
+        "reason": "args: action='read'",
+        "scores": {
+          "read": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U01",
+      "group": "unseen_tools",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read"
+        ],
+        "reason": "args: operation='read'",
+        "scores": {
+          "read": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U02",
+      "group": "unseen_tools",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:delete"
+        ],
+        "reason": "args: operation='delete'",
+        "scores": {
+          "delete": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U03",
+      "group": "unseen_tools",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [],
+      "expected_unknown": true,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U04",
+      "group": "unseen_tools",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.92,
+        "uncertainty": 0.08,
+        "reason_codes": [
+          "args:write",
+          "schema:write"
+        ],
+        "reason": "args: path plus content arguments; args: operation='write'; schema: schema has path and content",
+        "scores": {
+          "write": 0.92
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U05",
+      "group": "unseen_tools",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:delete"
+        ],
+        "reason": "args: mode='purge'",
+        "scores": {
+          "delete": 0.65,
+          "change_permissions": 0.25
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U06",
+      "group": "unseen_tools",
+      "origin": "v0.3_pending_promoted",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A2"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.84,
+        "uncertainty": 0.16,
+        "reason_codes": [
+          "args:read"
+        ],
+        "reason": "args: method='get'; args: URL without a body",
+        "scores": {
+          "read": 0.84
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U07",
+      "group": "unseen_tools",
+      "origin": "v0.3_pending_kept",
+      "expectation_status": "pending",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A7"
+      ],
+      "expected_actions": null,
+      "expected_unknown": null,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": null,
+      "unknown_match": null,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "unscored"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U08",
+      "group": "shell_false_positive",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read"
+        ],
+        "reason": "shell: read-only command",
+        "scores": {
+          "read": 0.8
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "U09",
+      "group": "shell_false_positive",
+      "origin": "v0.3_original_scored",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read"
+        ],
+        "reason": "shell: read-only command",
+        "scores": {
+          "read": 0.8
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-evaluation-v0.4",
+      "id": "E01",
+      "group": "input_validation",
+      "origin": "v0.3_pending_kept",
+      "expectation_status": "pending",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A6"
+      ],
+      "expected_actions": null,
+      "expected_unknown": null,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": null,
+      "unknown_match": null,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "unscored"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CU01",
+      "group": "unseen_tools",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [
+        "read",
+        "write"
+      ],
+      "expected_unknown": true,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": false,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [
+        "read",
+        "write"
+      ],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "fail"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CU02",
+      "group": "unseen_tools",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": false,
+      "unknown_match": false,
+      "status_check": "not_evaluated",
+      "missing": [
+        "delete"
+      ],
+      "spurious": [],
+      "critical_missing": [
+        "delete"
+      ],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "fail"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CU03",
+      "group": "unseen_tools",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "send_data"
+      ],
+      "predicted_unknown": true,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "send_data"
+        ],
+        "unknown": true,
+        "confidence": 0.5,
+        "uncertainty": 0.5,
+        "reason_codes": [
+          "args:send_data",
+          "schema:send_data",
+          "partial_unknown"
+        ],
+        "reason": "args: URL with body or write method; schema: schema has URL and body",
+        "scores": {
+          "send_data": 0.81
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": false,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "fail"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CU04",
+      "group": "unseen_tools",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [],
+      "expected_unknown": true,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CU05",
+      "group": "unseen_tools",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": true,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:delete",
+          "name_conflict"
+        ],
+        "reason": "args: operation='drop'",
+        "scores": {
+          "delete": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CU06",
+      "group": "unseen_tools",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.7,
+        "uncertainty": 0.3,
+        "reason_codes": [
+          "name:read"
+        ],
+        "reason": "name: name token 'count'",
+        "scores": {
+          "read": 0.7
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CM01",
+      "group": "misleading_metadata",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3"
+      ],
+      "expected_actions": [
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write"
+      ],
+      "predicted_unknown": true,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": true,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write"
+        ],
+        "unknown": true,
+        "confidence": 0.5,
+        "uncertainty": 0.5,
+        "reason_codes": [
+          "args:write",
+          "schema:write",
+          "partial_unknown",
+          "description_conflict"
+        ],
+        "reason": "args: path plus content arguments; schema: schema has path and content",
+        "scores": {
+          "write": 0.77
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": false,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "fail"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CM02",
+      "group": "misleading_metadata",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read"
+        ],
+        "reason": "args: operation='stat'",
+        "scores": {
+          "read": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CM03",
+      "group": "misleading_metadata",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3",
+        "A4"
+      ],
+      "expected_actions": [
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": true,
+        "description_suspicious": true,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.93,
+        "uncertainty": 0.07,
+        "reason_codes": [
+          "args:send_data",
+          "schema:send_data",
+          "description_conflict",
+          "description_suspicious"
+        ],
+        "reason": "args: URL with body or write method; args: operation='upload'; schema: schema has URL and body",
+        "scores": {
+          "send_data": 0.93
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CM04",
+      "group": "misleading_metadata",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3",
+        "A4"
+      ],
+      "expected_actions": [
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.84,
+        "uncertainty": 0.16,
+        "reason_codes": [
+          "args:change_permissions",
+          "name:change_permissions"
+        ],
+        "reason": "args: operation='revoke'; name: permission noun",
+        "scores": {
+          "change_permissions": 0.84
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CM05",
+      "group": "misleading_metadata",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3",
+        "A4"
+      ],
+      "expected_actions": [
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.84,
+        "uncertainty": 0.16,
+        "reason_codes": [
+          "args:change_permissions",
+          "name:change_permissions"
+        ],
+        "reason": "args: operation='revoke'; name: permission noun",
+        "scores": {
+          "change_permissions": 0.84
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CM06",
+      "group": "misleading_metadata",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.84,
+        "uncertainty": 0.16,
+        "reason_codes": [
+          "args:change_permissions",
+          "name:change_permissions"
+        ],
+        "reason": "args: operation='revoke'; name: permission noun",
+        "scores": {
+          "change_permissions": 0.84
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CM07",
+      "group": "misleading_metadata",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A3",
+        "A4"
+      ],
+      "expected_actions": [
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": true,
+        "description_suspicious": false,
+        "name_conflict": true,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.91,
+        "uncertainty": 0.09,
+        "reason_codes": [
+          "args:change_permissions",
+          "schema:change_permissions",
+          "description_conflict",
+          "name_conflict"
+        ],
+        "reason": "args: permission/role argument; args: operation='chown'; schema: schema has permission fields",
+        "scores": {
+          "change_permissions": 0.91
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CX01",
+      "group": "mixed_actions",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.7,
+        "uncertainty": 0.3,
+        "reason_codes": [
+          "args:read",
+          "args:send_data",
+          "schema:send_data"
+        ],
+        "reason": "args: recipient plus content arguments; args: local file attachment path; schema: schema has recipient and content",
+        "scores": {
+          "send_data": 0.77,
+          "read": 0.7
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CX02",
+      "group": "mixed_actions",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "write",
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write",
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write",
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.9,
+        "uncertainty": 0.1,
+        "reason_codes": [
+          "args:change_permissions",
+          "args:write"
+        ],
+        "reason": "args: mode looks like chmod value; args: path plus content arguments; args: action='write'",
+        "scores": {
+          "write": 0.9,
+          "change_permissions": 0.95
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CX03",
+      "group": "mixed_actions",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:delete",
+          "args:read"
+        ],
+        "reason": "args: op='read'; args: op='delete'",
+        "scores": {
+          "read": 0.65,
+          "delete": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CX04",
+      "group": "mixed_actions",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": true,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": true,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": true,
+        "confidence": 0.5,
+        "uncertainty": 0.5,
+        "reason_codes": [
+          "args:delete",
+          "partial_unknown"
+        ],
+        "reason": "args: action='delete'",
+        "scores": {
+          "delete": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CX05",
+      "group": "mixed_actions",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.9,
+        "uncertainty": 0.1,
+        "reason_codes": [
+          "args:read",
+          "name:read",
+          "args:send_data",
+          "name:send_data"
+        ],
+        "reason": "args: URL with body or write method; name: name token 'read'; name: name token 'notify'",
+        "scores": {
+          "send_data": 0.97,
+          "read": 0.9
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CX06",
+      "group": "mixed_actions",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": true,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:delete",
+          "name_conflict"
+        ],
+        "reason": "args: action='delete'",
+        "scores": {
+          "delete": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": false,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [
+        "read"
+      ],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "fail"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS01",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read"
+        ],
+        "reason": "shell: read-only command",
+        "scores": {
+          "read": 0.8
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS02",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.85,
+        "uncertainty": 0.15,
+        "reason_codes": [
+          "shell:write"
+        ],
+        "reason": "shell: output redirection",
+        "scores": {
+          "write": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS03",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "pending",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5",
+        "A7"
+      ],
+      "expected_actions": null,
+      "expected_unknown": null,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": null,
+      "unknown_match": null,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [
+        "write",
+        "delete",
+        "send_data",
+        "change_permissions"
+      ],
+      "constraint_violations": [],
+      "outcome": "unscored"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS04",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read"
+        ],
+        "reason": "shell: read-only command",
+        "scores": {
+          "read": 0.8
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS05",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "read",
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:delete",
+          "shell:read"
+        ],
+        "reason": "shell: destructive command; shell: read-only command",
+        "scores": {
+          "read": 0.8,
+          "delete": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS06",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "read",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "send_data"
+      ],
+      "predicted_unknown": true,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "send_data"
+        ],
+        "unknown": true,
+        "confidence": 0.5,
+        "uncertainty": 0.5,
+        "reason_codes": [
+          "shell:send_data",
+          "partial_unknown"
+        ],
+        "reason": "shell: outbound data command",
+        "scores": {
+          "send_data": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": false,
+      "unknown_match": false,
+      "status_check": "not_evaluated",
+      "missing": [
+        "read"
+      ],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "fail"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS07",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "read",
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read",
+          "shell:write"
+        ],
+        "reason": "shell: output redirection; shell: read-only command",
+        "scores": {
+          "write": 0.85,
+          "read": 0.8
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS08",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "change_permissions"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "change_permissions"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "change_permissions"
+        ],
+        "unknown": false,
+        "confidence": 0.85,
+        "uncertainty": 0.15,
+        "reason_codes": [
+          "shell:change_permissions"
+        ],
+        "reason": "shell: permission command",
+        "scores": {
+          "change_permissions": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS09",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read"
+        ],
+        "reason": "shell: read-only command",
+        "scores": {
+          "read": 0.8
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS10",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.85,
+        "uncertainty": 0.15,
+        "reason_codes": [
+          "shell:delete"
+        ],
+        "reason": "shell: destructive command",
+        "scores": {
+          "delete": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS11",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "delete"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "delete"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "delete"
+        ],
+        "unknown": false,
+        "confidence": 0.85,
+        "uncertainty": 0.15,
+        "reason_codes": [
+          "shell:delete"
+        ],
+        "reason": "shell: destructive command",
+        "scores": {
+          "delete": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS12",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.85,
+        "uncertainty": 0.15,
+        "reason_codes": [
+          "shell:write"
+        ],
+        "reason": "shell: file/repo write command",
+        "scores": {
+          "write": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS13",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read"
+        ],
+        "reason": "shell: read-only command",
+        "scores": {
+          "read": 0.8
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS14",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A5"
+      ],
+      "expected_actions": [],
+      "expected_unknown": true,
+      "expected_status": null,
+      "predicted_actions": [],
+      "predicted_unknown": true,
+      "predicted_status": "unknown",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "unknown",
+        "actions": [],
+        "unknown": true,
+        "confidence": 0.0,
+        "uncertainty": 1.0,
+        "reason_codes": [
+          "no_rule_matched"
+        ],
+        "reason": "no rule matched; weak signals: none",
+        "scores": {}
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS15",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A2",
+        "A5"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read"
+        ],
+        "reason": "shell: read-only command",
+        "scores": {
+          "read": 0.8
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-challenge-v0.1",
+      "id": "CS16",
+      "group": "shell_parsing",
+      "origin": "challenge_v0.1",
+      "expectation_status": "provisional",
+      "requires": [
+        "shell_parsing"
+      ],
+      "contract_assumptions": [
+        "A1",
+        "A4",
+        "A5"
+      ],
+      "expected_actions": [
+        "read",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.8,
+        "uncertainty": 0.2,
+        "reason_codes": [
+          "shell:read",
+          "shell:send_data"
+        ],
+        "reason": "shell: outbound data command; shell: read-only command",
+        "scores": {
+          "read": 0.8,
+          "send_data": 0.85
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-mixed-v0.1",
+      "id": "UX01",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "send_data"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "send_data"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "send_data"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read",
+          "args:send_data"
+        ],
+        "reason": "args: recipient plus content arguments; args: action='send'; args: action='read'",
+        "scores": {
+          "read": 0.65,
+          "send_data": 0.9
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-mixed-v0.1",
+      "id": "UX02",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "read",
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read",
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read",
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read",
+          "args:write"
+        ],
+        "reason": "args: path plus content arguments; args: action='write'; args: action='read'",
+        "scores": {
+          "read": 0.65,
+          "write": 0.9
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-mixed-v0.1",
+      "id": "UX03",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.93,
+        "uncertainty": 0.07,
+        "reason_codes": [
+          "args:write",
+          "name:write",
+          "schema:write"
+        ],
+        "reason": "name: name token 'save'; args: path plus content arguments; schema: schema has path and content",
+        "scores": {
+          "write": 0.93
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-mixed-v0.1",
+      "id": "UX04",
+      "group": "mixed_actions",
+      "origin": "urtisto_mixed_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1",
+        "A4"
+      ],
+      "expected_actions": [
+        "write"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "write"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "write"
+        ],
+        "unknown": false,
+        "confidence": 0.93,
+        "uncertainty": 0.07,
+        "reason_codes": [
+          "args:write",
+          "name:write",
+          "schema:write"
+        ],
+        "reason": "name: name token 'save'; args: path plus content arguments; schema: schema has path and content",
+        "scores": {
+          "write": 0.93
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    },
+    {
+      "suite": "task1-urtisto-benign-v0.1",
+      "id": "UX05",
+      "group": "benign_comparison",
+      "origin": "urtisto_benign_control_v0.1",
+      "expectation_status": "provisional",
+      "requires": [],
+      "contract_assumptions": [
+        "A1"
+      ],
+      "expected_actions": [
+        "read"
+      ],
+      "expected_unknown": false,
+      "expected_status": null,
+      "predicted_actions": [
+        "read"
+      ],
+      "predicted_unknown": false,
+      "predicted_status": "ok",
+      "raw_output": {
+        "description_conflict": false,
+        "description_suspicious": false,
+        "name_conflict": false,
+        "schema_mismatch": false,
+        "truncated": false,
+        "status": "ok",
+        "actions": [
+          "read"
+        ],
+        "unknown": false,
+        "confidence": 0.65,
+        "uncertainty": 0.35,
+        "reason_codes": [
+          "args:read"
+        ],
+        "reason": "args: action='read'",
+        "scores": {
+          "read": 0.65
+        }
+      },
+      "technical_error": null,
+      "actions_match": true,
+      "unknown_match": true,
+      "status_check": "not_evaluated",
+      "missing": [],
+      "spurious": [],
+      "critical_missing": [],
+      "forbidden_actions": [],
+      "constraint_violations": [],
+      "outcome": "pass"
+    }
+  ]
+}

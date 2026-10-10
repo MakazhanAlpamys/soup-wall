@@ -5,7 +5,7 @@ This directory publishes the shared **classification-only** Python evaluation ru
 ## Scope and provenance
 
 - `eval_runner.py`: stdlib-only runner; compares the complete set of five action labels and separate Boolean `unknown`, without executing fixture tool calls.
-- `test_eval_runner.py`: 26 local runner unit tests (stub classifiers, no project baseline required).
+- `test_eval_runner.py` and `test_eval_scores.py`: runner unit tests using stub classifiers, including optional score validation (no project baseline required).
 - `fixtures/soup_task1_evaluation_cases_v0.4.json`: Task 1 regression suite (23 entries, some unscored/pending).
 - `fixtures/soup_task1_challenge_cases_v0.1.json`: independent *developer challenge* suite (35 entries, some unscored/pending). **It is not a held-out training benchmark.**
 - `tools/make_challenge_v01.py`: reproduction script for frozen challenge fixture.
@@ -21,7 +21,7 @@ The frozen files above have not been relabeled to match current classifier outpu
 From `eval/` with Python 3.10+:
 
 ```sh
-python -m unittest test_eval_runner -v
+python -m unittest discover -s . -p 'test_*.py' -v
 python eval_runner.py fixtures/soup_task1_evaluation_cases_v0.4.json \
   fixtures/soup_task1_challenge_cases_v0.1.json \
   --classifier-path <directory-containing-rule_baseline.py> --out-dir /tmp/sou5-eval-results
@@ -63,6 +63,16 @@ label promotion requires separate review. Invalid outputs remain technical
 errors, including a non-string local `status` field. The local `status` convention
 is retained for historical diagnostics; this runner is not the runtime failure
 channel or an approval of the complete SOU-10 interface.
+
+Under the [SOU-10 contract](../contract/updated_contract2.md), optional
+`confidence` and `uncertainty`, when supplied, must be JSON numbers in [0,1].
+NaN, infinities, booleans, strings and null are technical errors rather than
+successful unknown classifications. Core-only results remain supported,
+including explicit no-op. This diagnostic validation does not implement the
+runtime failure channel or validate every legacy per-action `scores` extension.
+
+The [SOU-19 review record](evidence/sou19_review/README.md) pins the reviewed
+source, contract, commands, results and outstanding integration checks.
 
 CI runs the runner unit suite explicitly. Evaluation with the separately owned
 classifier remains a reproducible diagnostic run; existing classification
