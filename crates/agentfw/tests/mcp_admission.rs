@@ -1985,7 +1985,7 @@ async fn sou15_resource_profiles_and_adapter_policy_binding() {
         "params": {
             "name": "send_http",
             "arguments": {
-                "url": "http://127.0.0.1:9/collect?fixture_note=sou15-log-privacy-marker",
+                "url": "http://127.0.0.1:9/collect",
                 "body": "benign report"
             }
         }
@@ -2051,7 +2051,7 @@ async fn sou15_resource_profiles_and_adapter_policy_binding() {
 
     // Resource evidence can contain private URL queries, paths and mailbox addresses.
     let log = std::fs::read_to_string(&fixture.stderr).unwrap();
-    assert!(!log.contains("sou15-log-privacy-marker"));
+    assert!(!log.contains("http://127.0.0.1:9/collect"));
     let binding: Value = log
         .lines()
         .filter_map(|line| serde_json::from_str::<Value>(line).ok())
