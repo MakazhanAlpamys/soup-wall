@@ -8,12 +8,37 @@ safe local fixtures. Owner: konung3; PR review coordinator: Nari_Ab.
 **Final runtime acceptance is pending SOU-15.** On preparation base
 `fdf4bf716a87b88f17a6241e710bb447885fb8df`, adapter tests import
 `soup_wall_adapter::runner::{run_enforcement_pipeline, evaluate_baseline_policy}`.
-Native/MCP tests launch the actual `agentfw` gateway and native admission service,
-but that production path does not yet call the shared adapter runner. Passing the
-two surfaces separately does not establish the integrated milestone. No test-local
-classifier or policy pipeline is substituted for the missing integration.
+On that historical preparation base, Native/MCP fixtures and the adapter runner
+were tested separately; those results did not establish the integrated milestone.
+The current candidate below adds production classification/policy gating and
+resource receipt authorization, while generic classification and constrained
+resource execution remain unfinished. No competing test-local pipeline replaces
+those production components.
 
-## Candidate verification — 2026-10-10
+## Current candidate recheck — 2026-10-10
+
+The [c0add0b recheck](evidence/sou17_candidate_c0add0b_2026-10-10.md) confirms the
+refusal-capacity repair: 64 Ask refusals leave zero effects and a subsequent useful
+call executes once with its original result released. The unchanged verification
+probes observed all 12 matrix expectations; 105 discovered regressions and two
+additional receipt tests passed. Typed native resource authorization/receipt checks
+now have regressions, while generic resource execution is explicitly unsupported.
+Unknown/mixed mappings and final production integration remain pending. **SOU-17
+stays open** for reviewed integration/configuration, remaining acceptance checks
+and agreed limits; this report preserves the earlier failure evidence below.
+
+## Previous candidate recheck — 2026-10-10
+
+The [b76910a recheck](evidence/sou17_candidate_b76910a_2026-10-10.md) confirms that
+SOU-15's new authoritative Ask gate prevents the previously observed execution:
+zero effects and original result bytes. Existing 91 regressions and 17 additional
+tests pass. New production classifier probes retain technical Unknown/mixed refusals
+as a separate outcome. A repeated-refusal regression fails: after 64 Ask calls,
+a fresh benign Allow does not execute. New standalone probes and strict witness
+graders make both observations reproducible. **Acceptance remains blocked** by
+this regression and the outstanding SOU-15 boundary/review requirements.
+
+## Historical candidate verification — 2026-10-10
 
 The [dated candidate report](evidence/sou17_candidate_a8b237d_2026-10-10.md)
 records an independent clean-source run of SOU-15 PR #62 at
