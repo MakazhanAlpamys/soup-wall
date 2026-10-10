@@ -28,6 +28,7 @@ import hashlib
 import importlib
 import io
 import json
+import math
 import platform
 import re
 import sys
@@ -126,6 +127,14 @@ def check_output(out: Any) -> str | None:
         return "invalid_output: duplicate actions"
     if not isinstance(out.get("unknown"), bool):
         return "invalid_output: unknown missing or not a Boolean"
+    # SOU-10 allows these fields to be absent; supplied values must be finite
+    # probabilities. Booleans are JSON booleans, not numeric confidence values.
+    for field in ("confidence", "uncertainty"):
+        if field in out:
+            value = out[field]
+            if (type(value) not in (int, float) or not 0 <= value <= 1
+                    or not math.isfinite(value)):
+                return f"invalid_output: {field} must be a finite number in [0,1]"
     return None
 
 
