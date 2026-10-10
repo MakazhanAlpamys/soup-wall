@@ -18,6 +18,8 @@ use tokio::process::Command;
 
 use super::input::InputSchema;
 use crate::native::{NativeState, CONTRACT, MAX_CONTENT};
+use soup_wall_adapter::runner::evaluate_baseline_policy;
+use soup_wall_adapter::{ToolActionCategory, ToolClassification, Verdict as AdapterVerdict};
 use soup_wall_agent::ActionClass;
 
 const MAX_REQUESTS: usize = 1024;
@@ -377,6 +379,46 @@ fn prediction_identity(
     )
 }
 
+pub fn classification_to_adapter(
+    result: &Classification,
+) -> Result<ToolClassification, &'static str> {
+    let valid = result.confidence.is_finite()
+        && (0.0..=1.0).contains(&result.confidence)
+        && result.uncertainty.is_finite()
+        && (0.0..=1.0).contains(&result.uncertainty)
+        && !result.reason.is_empty()
+        && result.reason.len() <= 1024
+        && result.actions.iter().all(|action| {
+            matches!(
+                action.as_str(),
+                "read" | "write" | "delete" | "send_data" | "change_permissions"
+            )
+        });
+    if !valid {
+        return Err("classifier_invalid");
+    }
+    let mut categories = Vec::new();
+    for action in &result.actions {
+        categories.push(match action.as_str() {
+            "read" => ToolActionCategory::Read,
+            "write" => ToolActionCategory::Write,
+            "delete" => ToolActionCategory::Delete,
+            "send_data" => ToolActionCategory::SendData,
+            "change_permissions" => ToolActionCategory::ChangePermissions,
+            _ => ToolActionCategory::Unknown,
+        });
+    }
+    if result.unknown {
+        categories.push(ToolActionCategory::Unknown);
+    }
+    Ok(ToolClassification {
+        categories,
+        confidence: result.confidence as f32,
+        uncertainty: result.uncertainty as f32,
+        reason: Some(result.reason.clone()),
+    })
+}
+
 pub struct AdmissionCfg {
     pub daemon_url: String,
     pub manifest_url: String,
@@ -386,6 +428,31 @@ pub struct AdmissionCfg {
     pub command: String,
     pub args: Vec<String>,
     pub classifier: Option<Arc<dyn InvocationClassifier>>,
+    pub resource_profiles: BTreeMap<String, super::resources::ResourceProfile>,
+}
+
+pub fn resource_profiles_from_env(
+) -> anyhow::Result<BTreeMap<String, super::resources::ResourceProfile>> {
+    match std::env::var_os("AGENTFW_RESOURCE_PROFILES") {
+        None => Ok(BTreeMap::new()),
+        Some(val) => {
+            let path = std::path::PathBuf::from(&val);
+            let content = if path.is_file() {
+                std::fs::read_to_string(&path)?
+            } else {
+                val.to_str()
+                    .context("invalid AGENTFW_RESOURCE_PROFILES")?
+                    .to_owned()
+            };
+            let profiles: Vec<super::resources::ResourceProfile> =
+                serde_json::from_str(&content).context("invalid resource profiles format")?;
+            let mut map = BTreeMap::new();
+            for profile in profiles {
+                map.insert(profile.tool_name.clone(), profile);
+            }
+            Ok(map)
+        }
+    }
 }
 
 /// Debug fixtures only. The release build refuses both switches.
@@ -623,6 +690,15 @@ impl<'a> Collector<'a> {
                 (Some(result), mapped)
             }
         };
+        let adapter_eval = if let Some(ref res) = result {
+            if let Ok(tc) = classification_to_adapter(res) {
+                Some(evaluate_baseline_policy(&tc))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         eprintln!(
             "{}",
             json!({"event":"mcp_classification","contract_version":CLASSIFICATION_CONTRACT,
@@ -636,6 +712,11 @@ impl<'a> Collector<'a> {
                 "reason_sha256":sha(result.reason.as_bytes())})),
             "mapped_action_class":mapped.ok(),"trusted_baseline":baseline,
             "baseline_mismatch":mapped.ok().map(|class| class != baseline),
+            "adapter_verdict":adapter_eval.as_ref().map(|(v, _)| match v {
+                AdapterVerdict::Allow => "allow",
+                AdapterVerdict::Ask => "ask",
+                AdapterVerdict::Deny => "deny",
+            }),
             "policy":if mapped.is_ok() { "reached" } else { "not_reached" },
             "failure":mapped.err(),"latency_us":started.elapsed().as_micros()})
         );
@@ -1140,6 +1221,43 @@ where
                         let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
                         ensure!(args.is_object(), "MCP call arguments must be an object");
                         schemas.get(name).context("MCP tool schema not installed")?.validate(&args)?;
+                        if let Some(profile) = collector.config.resource_profiles.get(name) {
+                            let snapshot = admitted_snapshot.as_ref().context("classifier discovery state missing")?;
+                            let tool = snapshot.tools.get(name).context("classifier discovery state missing")?;
+                            let input = Invocation {
+                                server_id: collector.config.server_id.clone(),
+                                host_call_id: request_id.clone(),
+                                registry_sha256: collector.config.native.registry_sha256.clone(),
+                                snapshot_sha256: snapshot.sha256.clone(),
+                                schema_sha256: tool.schema_sha256.clone(),
+                                tool: name.into(),
+                                description: tool.description.clone(),
+                                schema: tool.schema.clone(),
+                                definition: tool.definition.clone(),
+                                server_info: snapshot.server_info.clone(),
+                                definition_sha256: tool.definition_sha256.clone(),
+                                input_sha256: String::new(),
+                                classifier_revision: None,
+                                args: args.clone(),
+                                baseline: installed.action_class,
+                            };
+                            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                            let workspace = std::env::var_os("AGENTFW_WORKSPACE")
+                                .map(std::path::PathBuf::from)
+                                .unwrap_or_else(|| cwd.clone());
+                            let executor_ctx = super::resources::ExecutorContext {
+                                os: std::env::consts::OS,
+                                workspace: &workspace,
+                                cwd: &cwd,
+                                fixed_destinations: true,
+                            };
+                            let extraction = super::resources::extract(&input, profile, &executor_ctx);
+                            if !extraction.complete() {
+                                let issue_codes: Vec<Value> = extraction.issues.iter().map(|i| json!(i.reason)).collect();
+                                write(host, &withheld(request_id, "invocation", &Value::Array(issue_codes))).await?;
+                                continue;
+                            }
+                        }
                         if collector.config.classifier.is_some() {
                             let snapshot = admitted_snapshot.as_ref().context("classifier discovery state missing")?;
                             if let Err(failure) = collector.classify(snapshot, request_id, name, &args, installed.action_class).await? {

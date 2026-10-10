@@ -337,6 +337,7 @@ fn main() -> anyhow::Result<()> {
                     command: cmd.clone(),
                     args: args.to_vec(),
                     classifier: agentfw::mcp::admission::classifier_from_env()?,
+                    resource_profiles: agentfw::mcp::admission::resource_profiles_from_env()?,
                 };
                 let runtime = tokio::runtime::Builder::new_multi_thread()
                     .enable_all()

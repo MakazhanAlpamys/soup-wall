@@ -316,6 +316,17 @@ fn spawn_gateway(
     stderr: &Path,
     classifier: Option<&str>,
 ) -> (Child, ChildStdin, GatewayOutput) {
+    spawn_gateway_with_profiles(directory, ledger, mode, stderr, classifier, None)
+}
+
+fn spawn_gateway_with_profiles(
+    directory: &Path,
+    ledger: &Path,
+    mode: &str,
+    stderr: &Path,
+    classifier: Option<&str>,
+    profiles: Option<&str>,
+) -> (Child, ChildStdin, GatewayOutput) {
     let python = if cfg!(windows) { "python" } else { "python3" };
     let mut command = Command::new(env!("CARGO_BIN_EXE_agentfw"));
     command.args([
@@ -342,7 +353,11 @@ fn spawn_gateway(
         .env_remove("AGENTFW_CLASSIFIER")
         .env_remove("AGENTFW_RULE_BASELINE")
         .env_remove("AGENTFW_TEST_CLASSIFIER")
-        .env_remove("AGENTFW_TEST_CLASSIFIER_READ");
+        .env_remove("AGENTFW_TEST_CLASSIFIER_READ")
+        .env_remove("AGENTFW_RESOURCE_PROFILES");
+    if let Some(p) = profiles {
+        command.env("AGENTFW_RESOURCE_PROFILES", p);
+    }
     match classifier {
         Some("read") => {
             command.env("AGENTFW_TEST_CLASSIFIER_READ", "1");
@@ -501,8 +516,16 @@ impl Fixture {
         Self::with_classifier(mode, enforce, None).await
     }
 
-    /// `read` installs the classified-read double; `fixture-v1` the fault-injecting one.
     async fn with_classifier(mode: &str, enforce: bool, classifier: Option<&str>) -> Self {
+        Self::with_profiles(mode, enforce, classifier, None).await
+    }
+
+    async fn with_profiles(
+        mode: &str,
+        enforce: bool,
+        classifier: Option<&str>,
+        profiles: Option<&str>,
+    ) -> Self {
         let classified_read = classifier == Some("read");
         // macOS places the default temp directory under the /var -> /private/var
         // symlink, which the native registry guard correctly refuses.
@@ -571,7 +594,8 @@ impl Fixture {
         let private_before_launch = [home.clone(), home.join("token"), home.join("native-token")]
             .iter()
             .all(|path| protected_dacl(path));
-        let (child, input, output) = spawn_gateway(dir.path(), &ledger, mode, &stderr, classifier);
+        let (child, input, output) =
+            spawn_gateway_with_profiles(dir.path(), &ledger, mode, &stderr, classifier, profiles);
         Self {
             _dir: dir,
             port,
@@ -1849,4 +1873,86 @@ async fn python_classifier_failures_block_before_execution() {
         assert!(executed(&fixture.ledger).is_empty());
         assert_eq!(classifications(&fixture)[0]["policy"], "not_reached");
     }
+}
+
+#[tokio::test]
+async fn sou15_resource_profiles_and_adapter_policy_binding() {
+    let root = std::env::temp_dir();
+    #[cfg(unix)]
+    let root = root.canonicalize().unwrap();
+    let temp = tempfile::tempdir_in(root).unwrap();
+
+    let send_schema = json!({"type":"object","properties":{"url":{"type":"string"},"body":{"type":"string"}},"required":["url","body"],"additionalProperties":false});
+    let send_schema_digest = sha(send_schema.to_string().as_bytes());
+
+    let profile = json!([{
+        "server_id": "fixture",
+        "tool_name": "send_http",
+        "schema_sha256": send_schema_digest,
+        "selectors": [
+            {
+                "pointer": "/url",
+                "kind": "url",
+                "optional": false
+            }
+        ]
+    }]);
+    let profiles_file = temp.path().join("profiles.json");
+    std::fs::write(&profiles_file, profile.to_string()).unwrap();
+
+    let mut fixture = Fixture::with_profiles(
+        "normal",
+        true,
+        Some("rule-baseline"),
+        Some(profiles_file.to_str().unwrap()),
+    )
+    .await;
+    fixture.ready().await;
+
+    // 1. Valid destination matching the profile extracts resources and executes
+    let allowed_req = json!({
+        "jsonrpc": "2.0",
+        "id": "sou15-valid",
+        "method": "tools/call",
+        "params": {
+            "name": "send_http",
+            "arguments": {
+                "url": "http://127.0.0.1:9/collect",
+                "body": "benign report"
+            }
+        }
+    });
+    let reply: Value =
+        serde_json::from_str(&fixture.exchange(&allowed_req.to_string()).await.unwrap()).unwrap();
+    assert_eq!(reply["id"], "sou15-valid");
+    assert!(!reply.to_string().contains("isError"));
+    assert_eq!(executed(&fixture.ledger).len(), 1);
+
+    // 2. Ambiguous destination (unsupported scheme/credentials) withholds call before server execution
+    let bad_req = json!({
+        "jsonrpc": "2.0",
+        "id": "sou15-bad",
+        "method": "tools/call",
+        "params": {
+            "name": "send_http",
+            "arguments": {
+                "url": "http://user:pass@127.0.0.1:9/collect",
+                "body": "credentials in url"
+            }
+        }
+    });
+    let bad_reply: Value =
+        serde_json::from_str(&fixture.exchange(&bad_req.to_string()).await.unwrap()).unwrap();
+    assert_eq!(bad_reply["id"], "sou15-bad");
+    assert_eq!(bad_reply["result"]["isError"], true);
+    assert_eq!(
+        executed(&fixture.ledger).len(),
+        1,
+        "ambiguous destination must not execute"
+    );
+
+    // 3. Adapter baseline policy evaluation is recorded in classification telemetry
+    let evidence = classifications(&fixture);
+    assert!(!evidence.is_empty());
+    assert_eq!(evidence[0]["adapter_verdict"], "deny");
 }

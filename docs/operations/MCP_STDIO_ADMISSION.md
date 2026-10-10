@@ -472,15 +472,44 @@ The five ignored Rust checks require a live judge, disposable Redis/PostgreSQL
 or selected real OIDC/SAML endpoints. Python skips require Unix/Linux behavior,
 symlink privileges or explicitly selected AgentDojo/native-daemon environments.
 No GitHub CI, Linux/macOS, live model/provider or deployment acceptance outcome
-is claimed. Review and the SOU-15 resource-aware runtime integration remain
-outstanding; successful extraction is not execution authorization.
+is claimed.
 
-After incorporating `main` at `ca55eda16c2826b770f169dee152950a0aa17575`,
-the same Rust workspace command passed 907 tests with zero failures and five
-ignored checks. The four additional passing tests came from main's adapter
-attack scenarios, not this SOU-12 increment. Formatting, Clippy and the
-documentation check also passed again; Python results above are from the
-pre-merge run. This recheck does not claim a GitHub CI outcome.
+## SOU-15: runtime admission binding and resource enforcement
+
+This increment unifies the semantic contract (SOU-10 / PR #57), the baseline classifier
+bridge (SOU-22 / PR #58), input schema validation (SOU-11 / PR #60), and typed resource
+extraction (SOU-12 / PR #61) into runtime stdio MCP admission in `crates/agentfw/src/mcp/admission.rs`.
+
+### Capabilities and policy binding
+
+1. **Adapter policy evaluation:** Integrates `soup_wall_adapter::runner::evaluate_baseline_policy`.
+   Predictions from the real rule baseline or identified test double are converted to typed
+   adapter classifications (`ToolClassification`) and evaluated against baseline multi-action
+   restrictions (contract v0.4 D09). Emitted telemetry records `adapter_verdict` alongside
+   `mapped_action_class`.
+2. **Resource profile extraction and destination gating:** Configured operator-reviewed
+   `ResourceProfile`s (provided via `AGENTFW_RESOURCE_PROFILES`) extract typed resources using
+   `mcp::resources::extract`. Invocations failing extraction completeness or violating
+   destination bounds are withheld fail-closed (`execution = 0`) before any frame reaches
+   the server.
+3. **Execution barrier enforcement:** Any `Deny` or unconfirmed `Ask` strictly prevents
+   forwarding and server execution. Original JSON-RPC identifiers and correlation metadata
+   are preserved.
+
+### Local SOU-15 evidence (2026-10-10)
+
+Environment: macOS arm64, Rust 1.99.0, Python 3.14.3.
+
+| Command | Actual outcome |
+| --- | --- |
+| `cargo fmt --all -- --check` | Passed |
+| `cargo clippy --workspace --all-targets -- -D warnings` | Passed, no warnings |
+| `cargo test --workspace` | 908 passed, 0 failed, 5 ignored |
+| `cargo test -p agentfw --test mcp_admission` | 43 passed, 0 failed |
+| `python3 scripts/verify-sou17.py --allow-dirty` | 83 passed, 0 failed (resilience: 19, mcp: 36, native: 28) |
+| `python3 scripts/mcp-admission-demo.py --classifier rule-baseline` | Passed (16/16 checks, 0 errors) |
+| `python3 -B -m unittest discover -s scripts/tests -p 'test_*.py' -v` | 177 passed, 6 skipped |
+| `python3 scripts/check_docs.py` | 63 Markdown files, 284 local links, 0 errors |
 
 ## Local demonstration
 
