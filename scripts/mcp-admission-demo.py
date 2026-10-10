@@ -69,6 +69,8 @@ egress_allowlist: [127.0.0.1]
 default: allow
 """
 RULE_VERDICTS = dict(re.findall(r"name: (\S+)\n\s+when: .*\n\s+action: (\w+)", POLICY))
+# The composed production gate may refuse before native fixture policy is reached.
+RULE_VERDICTS.update(policy_denied="deny", policy_unconfirmed_ask="ask")
 CLASSES = {"read_document": ("read_only", "untrusted"), "send_http": ("network", "local_system"),
            "publish_report": ("network", "local_system"), "delete_note": ("destructive", "local_system")}
 LATENCY_SCOPE = ("harness request written to harness response read: collector, classifier test double, "

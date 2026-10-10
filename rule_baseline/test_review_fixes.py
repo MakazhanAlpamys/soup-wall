@@ -81,5 +81,76 @@ class UnknownIsNotLost(unittest.TestCase):
         self.assertTrue(unk)
 
 
+class ProvenNoopD07(unittest.TestCase):
+    def test_noop_commands(self):
+        from rule_baseline import classify
+        for cmd in ("echo hi", "true", "sleep 1", "echo a; echo b"):
+            r = classify({"tool_name": "bash", "raw_arguments": {"command": cmd}})
+            self.assertEqual((r["actions"], r["unknown"]), ([], False), cmd)
+
+    def test_noop_with_real_action_keeps_action(self):
+        from rule_baseline import classify
+        r = classify({"tool_name": "bash", "raw_arguments": {"command": "echo hi; rm x"}})
+        self.assertIn("delete", r["actions"])
+
+    def test_unrecognised_command_stays_unknown(self):
+        from rule_baseline import classify
+        r = classify({"tool_name": "bash", "raw_arguments": {"command": "frobnicate --now"}})
+        self.assertTrue(r["unknown"])
+        r = classify({"tool_name": "bash", "raw_arguments": {"command": "echo hi; frobnicate"}})
+        self.assertTrue(r["unknown"])
+
+
+class ProvenNoopBoundaries(unittest.TestCase):
+    """Review fixes for D07: a recognised command name is not proof of no effect."""
+
+    def run_cmd(self, cmd):
+        return classify({"tool_name": "bash", "raw_arguments": {"command": cmd}})
+
+    def test_redirect_with_file_target_is_a_write(self):
+        for cmd in ("echo hi >& out.txt", "echo hi &> out.txt", "echo hi >out.txt"):
+            r = self.run_cmd(cmd)
+            self.assertIn("write", r["actions"], cmd)
+
+    def test_noise_redirect_targets_are_complete_tokens(self):
+        for cmd in ("echo hi >&1file", "echo hi >&12file", "echo hi >/dev/null-report"):
+            with self.subTest(command=cmd):
+                r = self.run_cmd(cmd)
+                self.assertIn("write", r["actions"])
+                self.assertNotIn("proven_noop", r["reason_codes"])
+        r = self.run_cmd("echo hi 2>/dev/null-report")
+        self.assertTrue(r["unknown"])
+        self.assertNotIn("proven_noop", r["reason_codes"])
+
+    def test_unsupported_syntax_is_not_proven_noop(self):
+        for cmd in ("echo <(cat private.txt)", "echo hi 2>err.txt", "cat <<EOF\nhi\nEOF"):
+            r = self.run_cmd(cmd)
+            self.assertTrue(r["unknown"] or r["actions"], cmd)
+            self.assertNotIn("proven_noop", r["reason_codes"], cmd)
+
+    def test_harmless_noise_redirects_stay_noop(self):
+        for cmd in ("echo hi 2>&1", "echo hi 2>&10", "echo hi > /dev/null", "true 2>/dev/null"):
+            r = self.run_cmd(cmd)
+            self.assertEqual((r["actions"], r["unknown"]), ([], False), cmd)
+
+    def test_deep_substitution_is_unknown(self):
+        r = self.run_cmd("true $(echo $(echo $(echo $(frobnicate))))")
+        self.assertTrue(r["unknown"])
+        self.assertEqual(r["actions"], [])
+
+    def test_deep_substitution_keeps_recognised_actions(self):
+        r = self.run_cmd("rm x $(echo $(echo $(echo $(frobnicate))))")
+        self.assertIn("delete", r["actions"])
+        self.assertTrue(r["unknown"])
+
+    def test_colon_is_a_complete_token(self):
+        r = self.run_cmd(":")
+        self.assertEqual((r["actions"], r["unknown"]), ([], False))
+        for cmd in (":frobnicate", "echo-x", "true-x"):
+            r = self.run_cmd(cmd)
+            self.assertTrue(r["unknown"], cmd)
+            self.assertNotIn("proven_noop", r["reason_codes"], cmd)
+
+
 if __name__ == "__main__":
     unittest.main()

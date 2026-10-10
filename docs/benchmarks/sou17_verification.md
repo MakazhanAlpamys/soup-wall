@@ -8,10 +8,12 @@ safe local fixtures. Owner: konung3; PR review coordinator: Nari_Ab.
 **Final runtime acceptance is pending SOU-15.** On preparation base
 `fdf4bf716a87b88f17a6241e710bb447885fb8df`, adapter tests import
 `soup_wall_adapter::runner::{run_enforcement_pipeline, evaluate_baseline_policy}`.
-Native/MCP tests launch the actual `agentfw` gateway and native admission service,
-but that production path does not yet call the shared adapter runner. Passing the
-two surfaces separately does not establish the integrated milestone. No test-local
-classifier or policy pipeline is substituted for the missing integration.
+On that historical preparation base, Native/MCP fixtures and the adapter runner
+were tested separately; those results did not establish the integrated milestone.
+The current candidate below adds production classification/policy gating and
+resource receipt authorization, while generic classification and constrained
+resource execution remain unfinished. No competing test-local pipeline replaces
+those production components.
 
 ## Current candidate recheck — 2026-10-10
 
