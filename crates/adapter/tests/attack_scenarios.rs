@@ -241,7 +241,10 @@ fn evaluate_ml_metrics_and_attack_scenarios() {
         if !execution_evidence_matches(receipt.verdict, receipt.executed, executor.count()) {
             let error = format!(
                 "EXECUTION VIOLATION: '{}' verdict {:?}, executed {}, executor count {}",
-                case.id, receipt.verdict, receipt.executed, executor.count()
+                case.id,
+                receipt.verdict,
+                receipt.executed,
+                executor.count()
             );
             execution_errors.push(json!({"scenario_id": case.id, "error": error}));
             critical_failures.push(error);
