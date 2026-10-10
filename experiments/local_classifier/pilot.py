@@ -65,7 +65,8 @@ def validate_dataset(record: dict) -> dict[str, list[dict]]:
     ids, families, identities = set(), {}, {}
     splits = {s: [] for s in SPLITS}
     for row in rows:
-        if not isinstance(row, dict) or set(row) != {'id', 'family', 'split', 'input', 'labels'}:
+        required = {'id', 'family', 'split', 'input', 'labels'}
+        if not isinstance(row, dict) or not required <= set(row) or set(row) - required - {'accepted_outputs'}:
             raise ValueError('unexpected or missing dataset row fields')
         case_id, family, split = row['id'], row['family'], row['split']
         if not isinstance(case_id, str) or not case_id or case_id in ids:
@@ -78,6 +79,7 @@ def validate_dataset(record: dict) -> dict[str, list[dict]]:
         if identity in identities and identities[identity] != split:
             raise ValueError('semantic duplicate leaked across splits')
         check_labels(row['labels'])
+        check_accepted_outputs(row)
         ids.add(case_id)
         families[family], identities[identity] = split, split
         splits[split].append(row)
@@ -200,12 +202,36 @@ def validate_prediction(out: dict) -> None:
         raise ValueError('baseline reported a technical failure')
 
 
+def check_accepted_outputs(row: dict) -> None:
+    """Review-only alternative oracles for uncertain calls, never training targets."""
+    if 'accepted_outputs' not in row:
+        return
+    outputs = row['accepted_outputs']
+    if (row['labels']['unknown'] is not True or not isinstance(outputs, list)
+            or not 1 <= len(outputs) <= 16):
+        raise ValueError('bounded reviewed alternatives require expected unknown=true')
+    positive = {a for a in ACTIONS if row['labels'][a] is True}
+    seen = set()
+    for out in outputs:
+        if not isinstance(out, dict) or set(out) != {'actions', 'unknown'}:
+            raise ValueError('alternative oracle must contain only the classification core')
+        validate_prediction(out)
+        if out['unknown'] is not True or not set(out['actions']) <= positive:
+            raise ValueError('alternative oracle must retain unknown and only proven actions')
+        identity = frozenset(out['actions'])
+        if identity in seen:
+            raise ValueError('duplicate alternative classification oracle')
+        seen.add(identity)
+
+
 def evaluate(rows: list[dict], classify) -> dict:
     results, latencies = [], []
     per_label = {a: {'known': 0, 'positive': 0, 'negative': 0, 'fn': 0, 'fp': 0} for a in ACTIONS}
     unknown = {'known': 0, 'lost_unknown': 0, 'false_unknown': 0}
     valid = abstentions = exact = fully_annotated = mixed = mixed_exact = 0
+    contract_scored = contract_matches = 0
     for row in rows:
+        check_accepted_outputs(row)
         start = time.perf_counter()
         try:
             # Nothing from id/family/split/gold labels reaches inference.
@@ -234,6 +260,15 @@ def evaluate(rows: list[dict], classify) -> dict:
         all_known = all(gold[h] is not None for h in HEADS)
         expected = [a for a in ACTIONS if gold[a] is True]
         match = set(expected) == set(out['actions']) and gold['unknown'] == out['unknown']
+        contract_match = None
+        if 'accepted_outputs' in row:
+            contract_match = any(set(item['actions']) == set(out['actions'])
+                                 and item['unknown'] == out['unknown'] for item in row['accepted_outputs'])
+        elif all_known:
+            contract_match = match
+        if contract_match is not None:
+            contract_scored += 1
+            contract_matches += int(contract_match)
         if all_known:
             fully_annotated += 1
             exact += int(match)
@@ -241,7 +276,8 @@ def evaluate(rows: list[dict], classify) -> dict:
             mixed += 1
             mixed_exact += int(match)
         results.append({'id': row['id'], 'actions': out['actions'], 'unknown': out['unknown'],
-                        'fully_annotated': all_known, 'exact_match': match if all_known else None})
+                        'fully_annotated': all_known, 'exact_match': match if all_known else None,
+                        'contract_match': contract_match})
     ordered = sorted(latencies)
     for values in per_label.values():
         values['fn_rate'] = values['fn'] / values['positive'] if values['positive'] else None
@@ -250,6 +286,7 @@ def evaluate(rows: list[dict], classify) -> dict:
             'per_label': per_label, 'unknown': unknown, 'abstentions': abstentions,
             'coverage': (valid - abstentions) / valid if valid else None,
             'fully_annotated': fully_annotated, 'exact_matches': exact,
+            'contract_scored': contract_scored, 'contract_matches': contract_matches,
             'mixed_cases': mixed, 'mixed_exact_matches': mixed_exact,
             'latency': {'p50_ms': statistics.median(ordered) if ordered else None,
                         'p95_ms': ordered[max(0, math_ceil_95(len(ordered)) - 1)] if ordered else None},

@@ -190,6 +190,29 @@ family partition. A separate test custodian reviews held-out gold without exposi
 it to the candidate author during development. Lock the same baseline source for
 both the model comparison and the externally recorded experiment.
 
+For D05 out-of-scope shell calls, the contract owner confirmed on 10 October
+that both safely retained actions and complete abstention are valid with unknown
+true. A reviewed experimental row can optionally carry `accepted_outputs`:
+
+```json
+{
+  "accepted_outputs": [
+    {"actions": ["read"], "unknown": true},
+    {"actions": [], "unknown": true}
+  ]
+}
+```
+
+This field is evaluation metadata, never inference input or training supervision.
+It requires gold unknown true; each alternative retains unknown and contains only
+proven positive actions. The approved dataset digest covers the alternatives.
+Report `contract_scored` / `contract_matches` separately from action-label errors,
+exact fully annotated matches and abstentions. For the accepted empty answer above,
+read retention still records an FN while contract matching passes. Null action
+labels remain masked. This does not approve unknown=false or change the runtime
+contract. DEV-09's missing admission remains a separate barrier test; an admitted
+opaque tool with neutral identity is the suggested classification replacement.
+
 Evidence reports per-label critical misses/false positives with known-label
 denominators, technical failures, unknown/coverage, mixed examples, p50/p95,
 source/model/dataset hashes and peak process RSS. Traced Python allocation and

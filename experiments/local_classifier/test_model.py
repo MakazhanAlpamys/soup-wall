@@ -189,6 +189,54 @@ class DatasetAndExperimentSafety(unittest.TestCase):
             return {'actions': ['read'], 'unknown': False}
         evaluate([row], classify)
 
+    def test_d05_alternatives_accept_abstention_but_keep_read_retention_error(self):
+        row = toy_data()['cases'][0]
+        row['labels'] = labels(read=True, unknown=True)
+        row['accepted_outputs'] = [{'actions': ['read'], 'unknown': True},
+                                   {'actions': [], 'unknown': True}]
+        for actions in (['read'], []):
+            def classify(inp):
+                self.assertEqual(inp, row['input'])
+                self.assertNotIn('accepted_outputs', inp)
+                return {'actions': actions, 'unknown': True}
+            result = evaluate([row], classify)
+            self.assertEqual(result['contract_scored'], 1)
+            self.assertEqual(result['contract_matches'], 1)
+            self.assertEqual(result['per_label']['read']['fn'], int(not actions))
+            self.assertEqual(result['per_label']['delete']['known'], 0)
+            self.assertEqual(result['abstentions'], 1)
+        result = evaluate([row], lambda _: {'actions': ['read'], 'unknown': False})
+        self.assertEqual(result['contract_matches'], 0)
+        self.assertEqual(result['unknown']['lost_unknown'], 1)
+
+    def test_invalid_alternative_oracles_are_not_dataset_labels(self):
+        for alternatives in ([], [{'actions': [], 'unknown': False}],
+                             [{'actions': ['delete'], 'unknown': True}],
+                             [{'actions': ['read', 'read'], 'unknown': True}],
+                             [{'actions': [], 'unknown': True}] * 2):
+            data = toy_data()
+            data['cases'][0]['labels'] = labels(read=True, unknown=True)
+            data['cases'][0]['accepted_outputs'] = alternatives
+            with self.subTest(alternatives=alternatives), self.assertRaises(ValueError):
+                validate_dataset(data)
+
+    def test_reviewed_alternatives_do_not_change_train_or_calibration(self):
+        data = toy_data()
+        for index in (0, 8):
+            data['cases'][index]['labels'] = labels(read=True, unknown=True)
+        original = validate_dataset(copy.deepcopy(data))
+        for index in (0, 8):
+            data['cases'][index]['accepted_outputs'] = [{'actions': ['read'], 'unknown': True},
+                                                       {'actions': [], 'unknown': True}]
+        revised = validate_dataset(data)
+        candidates = []
+        for splits in (original, revised):
+            candidate = LinearClassifier(Config(dimensions=32, epochs=2))
+            candidate.fit(splits['train'])
+            candidate.calibrate(splits['calibration'])
+            candidates.append(candidate.artifact())
+        self.assertEqual(candidates[0], candidates[1])
+
     def test_official_modes_without_review_do_not_train(self):
         for mode in ('train', 'evaluate'):
             with self.subTest(mode=mode), patch('experiments.local_classifier.pilot.train_model') as train, patch('sys.stderr'):
