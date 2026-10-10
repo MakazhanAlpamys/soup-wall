@@ -316,7 +316,7 @@ fn spawn_gateway(
     stderr: &Path,
     classifier: Option<&str>,
 ) -> (Child, ChildStdin, GatewayOutput) {
-    spawn_gateway_with_profiles(directory, ledger, mode, stderr, classifier, None)
+    spawn_gateway_with_profiles(directory, ledger, mode, stderr, classifier, None, false)
 }
 
 fn spawn_gateway_with_profiles(
@@ -326,6 +326,7 @@ fn spawn_gateway_with_profiles(
     stderr: &Path,
     classifier: Option<&str>,
     profiles: Option<&str>,
+    fixed_destinations: bool,
 ) -> (Child, ChildStdin, GatewayOutput) {
     let python = if cfg!(windows) { "python" } else { "python3" };
     let mut command = Command::new(env!("CARGO_BIN_EXE_agentfw"));
@@ -354,9 +355,13 @@ fn spawn_gateway_with_profiles(
         .env_remove("AGENTFW_RULE_BASELINE")
         .env_remove("AGENTFW_TEST_CLASSIFIER")
         .env_remove("AGENTFW_TEST_CLASSIFIER_READ")
-        .env_remove("AGENTFW_RESOURCE_PROFILES");
+        .env_remove("AGENTFW_RESOURCE_PROFILES")
+        .env_remove("AGENTFW_EXECUTOR_FIXED_DESTINATIONS");
     if let Some(p) = profiles {
         command.env("AGENTFW_RESOURCE_PROFILES", p);
+    }
+    if fixed_destinations {
+        command.env("AGENTFW_EXECUTOR_FIXED_DESTINATIONS", "1");
     }
     match classifier {
         Some("read") => {
@@ -517,7 +522,7 @@ impl Fixture {
     }
 
     async fn with_classifier(mode: &str, enforce: bool, classifier: Option<&str>) -> Self {
-        Self::with_profiles(mode, enforce, classifier, None).await
+        Self::with_profiles(mode, enforce, classifier, None, false).await
     }
 
     async fn with_profiles(
@@ -525,6 +530,7 @@ impl Fixture {
         enforce: bool,
         classifier: Option<&str>,
         profiles: Option<&str>,
+        fixed_destinations: bool,
     ) -> Self {
         let classified_read = classifier == Some("read");
         // macOS places the default temp directory under the /var -> /private/var
@@ -594,8 +600,15 @@ impl Fixture {
         let private_before_launch = [home.clone(), home.join("token"), home.join("native-token")]
             .iter()
             .all(|path| protected_dacl(path));
-        let (child, input, output) =
-            spawn_gateway_with_profiles(dir.path(), &ledger, mode, &stderr, classifier, profiles);
+        let (child, input, output) = spawn_gateway_with_profiles(
+            dir.path(),
+            &ledger,
+            mode,
+            &stderr,
+            classifier,
+            profiles,
+            fixed_destinations,
+        );
         Self {
             _dir: dir,
             port,
@@ -1900,16 +1913,71 @@ async fn sou15_resource_profiles_and_adapter_policy_binding() {
     let profiles_file = temp.path().join("profiles.json");
     std::fs::write(&profiles_file, profile.to_string()).unwrap();
 
+    // 1. Without fixed_destinations capability, destination control fails-closed per SOU-12
+    let mut fixture_unconfined = Fixture::with_profiles(
+        "normal",
+        true,
+        Some("rule-baseline"),
+        Some(profiles_file.to_str().unwrap()),
+        false,
+    )
+    .await;
+    fixture_unconfined.ready().await;
+
+    let unconfined_req = json!({
+        "jsonrpc": "2.0",
+        "id": "sou15-unconfined",
+        "method": "tools/call",
+        "params": {
+            "name": "send_http",
+            "arguments": {
+                "url": "http://127.0.0.1:9/collect",
+                "body": "benign report"
+            }
+        }
+    });
+    let unconfined_reply: Value = serde_json::from_str(
+        &fixture_unconfined
+            .exchange(&unconfined_req.to_string())
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(unconfined_reply["id"], "sou15-unconfined");
+    assert_eq!(unconfined_reply["result"]["isError"], true);
+    assert!(unconfined_reply
+        .to_string()
+        .contains("resource_destination_control_unsupported"));
+    assert_eq!(executed(&fixture_unconfined.ledger).len(), 0);
+
+    // 2. With fixed_destinations capability: valid execution, ambiguous refusal, and policy composition
     let mut fixture = Fixture::with_profiles(
         "normal",
         true,
         Some("rule-baseline"),
         Some(profiles_file.to_str().unwrap()),
+        true,
     )
     .await;
     fixture.ready().await;
 
-    // 1. Valid destination matching the profile extracts resources and executes
+    // 2a. Allowed read executes and records adapter_verdict=allow
+    let read_req = json!({
+        "jsonrpc": "2.0",
+        "id": "sou15-read",
+        "method": "tools/call",
+        "params": {
+            "name": "read_document",
+            "arguments": {}
+        }
+    });
+    let read_reply: Value =
+        serde_json::from_str(&fixture.exchange(&read_req.to_string()).await.unwrap()).unwrap();
+    assert_eq!(read_reply["id"], "sou15-read");
+    assert!(!read_reply.to_string().contains("isError"));
+    assert_eq!(executed(&fixture.ledger).len(), 1);
+
+    // 2b. Valid destination matching the profile extracts resources and executes
     let allowed_req = json!({
         "jsonrpc": "2.0",
         "id": "sou15-valid",
@@ -1926,9 +1994,9 @@ async fn sou15_resource_profiles_and_adapter_policy_binding() {
         serde_json::from_str(&fixture.exchange(&allowed_req.to_string()).await.unwrap()).unwrap();
     assert_eq!(reply["id"], "sou15-valid");
     assert!(!reply.to_string().contains("isError"));
-    assert_eq!(executed(&fixture.ledger).len(), 1);
+    assert_eq!(executed(&fixture.ledger).len(), 2);
 
-    // 2. Ambiguous destination (unsupported scheme/credentials) withholds call before server execution
+    // 2c. Ambiguous destination (unsupported credentials in URL) withholds call before server execution
     let bad_req = json!({
         "jsonrpc": "2.0",
         "id": "sou15-bad",
@@ -1947,12 +2015,37 @@ async fn sou15_resource_profiles_and_adapter_policy_binding() {
     assert_eq!(bad_reply["result"]["isError"], true);
     assert_eq!(
         executed(&fixture.ledger).len(),
-        1,
+        2,
         "ambiguous destination must not execute"
     );
 
-    // 3. Adapter baseline policy evaluation is recorded in classification telemetry
+    // 2d. Denied call (delete_note) is withheld fail-closed with zero server execution
+    let delete_req = json!({
+        "jsonrpc": "2.0",
+        "id": "sou15-delete",
+        "method": "tools/call",
+        "params": {
+            "name": "delete_note",
+            "arguments": {
+                "name": "inventory"
+            }
+        }
+    });
+    let delete_reply: Value =
+        serde_json::from_str(&fixture.exchange(&delete_req.to_string()).await.unwrap()).unwrap();
+    assert_eq!(delete_reply["id"], "sou15-delete");
+    assert_eq!(delete_reply["result"]["isError"], true);
+    assert_eq!(
+        executed(&fixture.ledger).len(),
+        2,
+        "denied call must not execute"
+    );
+
+    // 3. Telemetry records adapter_verdict for calls
     let evidence = classifications(&fixture);
-    assert!(!evidence.is_empty());
-    assert_eq!(evidence[0]["adapter_verdict"], "deny");
+    assert!(evidence.len() >= 3);
+    assert_eq!(evidence[0]["tool"], "read_document");
+    assert_eq!(evidence[0]["adapter_verdict"], "allow");
+    assert_eq!(evidence[2]["tool"], "delete_note");
+    assert_eq!(evidence[2]["adapter_verdict"], "deny");
 }

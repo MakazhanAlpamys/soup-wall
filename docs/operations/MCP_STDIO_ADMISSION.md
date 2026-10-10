@@ -472,7 +472,15 @@ The five ignored Rust checks require a live judge, disposable Redis/PostgreSQL
 or selected real OIDC/SAML endpoints. Python skips require Unix/Linux behavior,
 symlink privileges or explicitly selected AgentDojo/native-daemon environments.
 No GitHub CI, Linux/macOS, live model/provider or deployment acceptance outcome
-is claimed.
+is claimed. Review and the SOU-15 resource-aware runtime integration remain
+outstanding; successful extraction is not execution authorization.
+
+After incorporating `main` at `ca55eda16c2826b770f169dee152950a0aa17575`,
+the same Rust workspace command passed 907 tests with zero failures and five
+ignored checks. The four additional passing tests came from main's adapter
+attack scenarios, not this SOU-12 increment. Formatting, Clippy and the
+documentation check also passed again; Python results above are from the
+pre-merge run. This recheck does not claim a GitHub CI outcome.
 
 ## SOU-15: runtime admission binding and resource enforcement
 
@@ -482,19 +490,25 @@ extraction (SOU-12 / PR #61) into runtime stdio MCP admission in `crates/agentfw
 
 ### Capabilities and policy binding
 
-1. **Adapter policy evaluation:** Integrates `soup_wall_adapter::runner::evaluate_baseline_policy`.
+1. **Adapter policy evaluation & telemetry:** Integrates `soup_wall_adapter::runner::evaluate_baseline_policy`.
    Predictions from the real rule baseline or identified test double are converted to typed
    adapter classifications (`ToolClassification`) and evaluated against baseline multi-action
-   restrictions (contract v0.4 D09). Emitted telemetry records `adapter_verdict` alongside
-   `mapped_action_class`.
-2. **Resource profile extraction and destination gating:** Configured operator-reviewed
+   restrictions (contract v0.4 D09). Emitted telemetry in `mcp_classification` records
+   `adapter_verdict` alongside `mapped_action_class`. This provides advisory evidence
+   correlating classifier predictions with adapter policy; authoritative execution gating
+   continues to be enforced by the reviewed native daemon policy (preserving trusted registry
+   restrictions against destructive actions and secret egress).
+2. **Resource profile extraction & destination confinement:** Configured operator-reviewed
    `ResourceProfile`s (provided via `AGENTFW_RESOURCE_PROFILES`) extract typed resources using
-   `mcp::resources::extract`. Invocations failing extraction completeness or violating
-   destination bounds are withheld fail-closed (`execution = 0`) before any frame reaches
-   the server.
-3. **Execution barrier enforcement:** Any `Deny` or unconfirmed `Ask` strictly prevents
-   forwarding and server execution. Original JSON-RPC identifiers and correlation metadata
-   are preserved.
+   `mcp::resources::extract`. Invocations failing extraction completeness or carrying ambiguous
+   credentials are withheld fail-closed (`execution = 0`) before frames reach the server.
+   Executor destination control capability is explicitly derived from `AGENTFW_EXECUTOR_FIXED_DESTINATIONS`:
+   when false (default), network extraction fail-closes with `resource_destination_control_unsupported`
+   per SOU-12 fallback; when asserted true by an authorized executor, verified resources emit
+   correlated `mcp_resource_binding` telemetry.
+3. **Execution barrier enforcement:** Denied calls and unconfirmed `Ask` verdicts strictly
+   prevent forwarding and server execution. Original JSON-RPC identifiers and correlation
+   metadata are preserved.
 
 ### Local SOU-15 evidence (2026-10-10)
 

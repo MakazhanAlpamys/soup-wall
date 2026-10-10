@@ -429,6 +429,13 @@ pub struct AdmissionCfg {
     pub args: Vec<String>,
     pub classifier: Option<Arc<dyn InvocationClassifier>>,
     pub resource_profiles: BTreeMap<String, super::resources::ResourceProfile>,
+    pub executor_fixed_destinations: bool,
+}
+
+pub fn executor_fixed_destinations_from_env() -> bool {
+    std::env::var("AGENTFW_EXECUTOR_FIXED_DESTINATIONS")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
 }
 
 pub fn resource_profiles_from_env(
@@ -1249,7 +1256,7 @@ where
                                 os: std::env::consts::OS,
                                 workspace: &workspace,
                                 cwd: &cwd,
-                                fixed_destinations: true,
+                                fixed_destinations: collector.config.executor_fixed_destinations,
                             };
                             let extraction = super::resources::extract(&input, profile, &executor_ctx);
                             if !extraction.complete() {
@@ -1257,6 +1264,20 @@ where
                                 write(host, &withheld(request_id, "invocation", &Value::Array(issue_codes))).await?;
                                 continue;
                             }
+                            eprintln!(
+                                "{}",
+                                json!({
+                                    "event": "mcp_resource_binding",
+                                    "contract_version": CLASSIFICATION_CONTRACT,
+                                    "host_call_id": request_id,
+                                    "server_id": collector.config.server_id,
+                                    "tool": name,
+                                    "profile_sha256": extraction.profile_sha256,
+                                    "executor_sha256": extraction.executor_sha256,
+                                    "args_sha256": extraction.args_sha256,
+                                    "resources": extraction.resources,
+                                })
+                            );
                         }
                         if collector.config.classifier.is_some() {
                             let snapshot = admitted_snapshot.as_ref().context("classifier discovery state missing")?;
