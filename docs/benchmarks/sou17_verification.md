@@ -15,6 +15,18 @@ classifier or policy pipeline is substituted for the missing integration.
 
 ## Current candidate recheck — 2026-10-10
 
+The [c0add0b recheck](evidence/sou17_candidate_c0add0b_2026-10-10.md) confirms the
+refusal-capacity repair: 64 Ask refusals leave zero effects and a subsequent useful
+call executes once with its original result released. The unchanged verification
+probes observed all 12 matrix expectations; 105 discovered regressions and two
+additional receipt tests passed. Typed native resource authorization/receipt checks
+now have regressions, while generic resource execution is explicitly unsupported.
+Unknown/mixed mappings and final production integration remain pending. **SOU-17
+stays open** for reviewed integration/configuration, remaining acceptance checks
+and agreed limits; this report preserves the earlier failure evidence below.
+
+## Previous candidate recheck — 2026-10-10
+
 The [b76910a recheck](evidence/sou17_candidate_b76910a_2026-10-10.md) confirms that
 SOU-15's new authoritative Ask gate prevents the previously observed execution:
 zero effects and original result bytes. Existing 91 regressions and 17 additional

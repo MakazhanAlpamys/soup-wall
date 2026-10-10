@@ -1,0 +1,30 @@
+SOU-17 c0add0b raw witness excerpts; complete artifact hashes/outcomes retained in adjacent JSON.
+CAPACITY executor-ledger.jsonl:
+{"jsonrpc":"2.0","id":"sou17-benign-after-asks","method":"tools/call","params":{"name":"read_document","arguments":{"name":"inventory"},"_meta":{"claudecode/toolUseId":"toolu_capacity_control","progressToken":65}}}
+
+CAPACITY native-audit.jsonl:
+{"at_ms":1791657438173,"binding_sha256":null,"call_id":null,"content_sha256":null,"delivery":null,"egress_hosts":[],"event":"native_session_start","findings":[],"latency_us":54,"reason_codes":[],"registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","released":true,"risk_score":0,"rule":null,"seq":1,"session":"native:vNTrK3BLP78OCKPkJTVmbgxhxkq9iTxY-sz8w0XsRlI","shadow":false,"taint":null,"tool":null,"truncated":false,"verdict":"allow"}
+{"at_ms":1791657438266,"session":"demo","seq":0,"event":"mcp_handshake","verdict":"allow","shadow":false,"risk_score":0,"findings":[],"egress_hosts":[],"latency_us":0,"truncated":false}
+{"at_ms":1791657440332,"binding_sha256":"b5904003501a963f706f16da039ac2afcf05efc0911db41e964f8e386285e8a7","call_id":"8N3vzIfM27SZXNI_i2vkHTBLQmXX9zrhBFOmRG9Y078","content_sha256":null,"delivery":null,"egress_hosts":[],"event":"native_call","findings":[],"latency_us":31690,"reason_codes":[],"registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","released":true,"risk_score":0,"rule":null,"seq":2,"session":"native:vNTrK3BLP78OCKPkJTVmbgxhxkq9iTxY-sz8w0XsRlI","shadow":false,"taint":null,"tool":"read_document","truncated":false,"verdict":"allow"}
+{"at_ms":1791657440334,"binding_sha256":"b5904003501a963f706f16da039ac2afcf05efc0911db41e964f8e386285e8a7","call_id":"8N3vzIfM27SZXNI_i2vkHTBLQmXX9zrhBFOmRG9Y078","content_sha256":"94676bc88a130c306eedfef101f5b7e2f306031036de0828b9b912058591785e","delivery":"mcp_host","egress_hosts":[],"event":"native_result","findings":[],"latency_us":144,"reason_codes":[],"registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","released":true,"risk_score":0,"rule":null,"seq":4,"session":"native:vNTrK3BLP78OCKPkJTVmbgxhxkq9iTxY-sz8w0XsRlI","shadow":false,"taint":null,"tool":"read_document","truncated":false,"verdict":"allow"}
+{"at_ms":1791657440336,"binding_sha256":null,"call_id":null,"content_sha256":null,"delivery":null,"egress_hosts":[],"event":"native_session_end","findings":[],"latency_us":10,"reason_codes":[],"registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","released":true,"risk_score":0,"rule":null,"seq":5,"session":"native:vNTrK3BLP78OCKPkJTVmbgxhxkq9iTxY-sz8w0XsRlI","shadow":false,"taint":null,"tool":null,"truncated":false,"verdict":"allow"}
+
+CAPACITY server-responses.jsonl (useful followup):
+{"jsonrpc":"2.0","id":"sou17-benign-after-asks","result":{"content":[{"type":"text","text":"Inventory: 7 red widgets."}]}}
+CAPACITY client-output.jsonl (first/last refusal and useful followup):
+{"id":"sou17-ask-01","jsonrpc":"2.0","result":{"content":[{"text":"Soup Wall withheld MCP invocation (policy_unconfirmed_ask)","type":"text"}],"isError":true}}
+{"id":"sou17-ask-64","jsonrpc":"2.0","result":{"content":[{"text":"Soup Wall withheld MCP invocation (policy_unconfirmed_ask)","type":"text"}],"isError":true}}
+{"jsonrpc":"2.0","id":"sou17-benign-after-asks","result":{"content":[{"type":"text","text":"Inventory: 7 red widgets."}]}}
+MATRIX each exact client call response:
+benign_read: {"jsonrpc":"2.0","id":"matrix-benign_read","result":{"content":[{"type":"text","text":"Inventory: 7 red widgets."}]}}
+high_uncertainty_read: {"id":"matrix-high_uncertainty_read","jsonrpc":"2.0","result":{"content":[{"text":"Soup Wall withheld MCP invocation (policy_unconfirmed_ask)","type":"text"}],"isError":true}}
+unknown: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (unsupported_classification_mapping); policy not reached"},"id":"matrix-unknown","jsonrpc":"2.0"}
+read_plus_unknown: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (unsupported_classification_mapping); policy not reached"},"id":"matrix-read_plus_unknown","jsonrpc":"2.0"}
+read_plus_delete: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (unsupported_classification_mapping); policy not reached"},"id":"matrix-read_plus_delete","jsonrpc":"2.0"}
+read_plus_send_data: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (unsupported_classification_mapping); policy not reached"},"id":"matrix-read_plus_send_data","jsonrpc":"2.0"}
+read_plus_change_permissions: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (unsupported_classification_mapping); policy not reached"},"id":"matrix-read_plus_change_permissions","jsonrpc":"2.0"}
+nan_confidence: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (classifier_error); policy not reached"},"id":"matrix-nan_confidence","jsonrpc":"2.0"}
+confidence_out_of_range: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (classifier_invalid); policy not reached"},"id":"matrix-confidence_out_of_range","jsonrpc":"2.0"}
+uncertainty_out_of_range: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (classifier_invalid); policy not reached"},"id":"matrix-uncertainty_out_of_range","jsonrpc":"2.0"}
+missing_confidence: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (classifier_error); policy not reached"},"id":"matrix-missing_confidence","jsonrpc":"2.0"}
+malformed_json: {"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (classifier_error); policy not reached"},"id":"matrix-malformed_json","jsonrpc":"2.0"}
