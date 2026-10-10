@@ -1977,7 +1977,7 @@ async fn sou15_resource_profiles_and_adapter_policy_binding() {
     assert!(!read_reply.to_string().contains("isError"));
     assert_eq!(executed(&fixture.ledger).len(), 1);
 
-    // 2b. Valid destination matching the profile extracts resources and executes
+    // 2b. Valid extraction still executes under native policy without logging raw destinations.
     let allowed_req = json!({
         "jsonrpc": "2.0",
         "id": "sou15-valid",
@@ -1985,7 +1985,7 @@ async fn sou15_resource_profiles_and_adapter_policy_binding() {
         "params": {
             "name": "send_http",
             "arguments": {
-                "url": "http://127.0.0.1:9/collect",
+                "url": "http://127.0.0.1:9/collect?fixture_note=sou15-log-privacy-marker",
                 "body": "benign report"
             }
         }
@@ -2048,4 +2048,19 @@ async fn sou15_resource_profiles_and_adapter_policy_binding() {
     assert_eq!(evidence[0]["adapter_verdict"], "allow");
     assert_eq!(evidence[2]["tool"], "delete_note");
     assert_eq!(evidence[2]["adapter_verdict"], "deny");
+
+    // Resource evidence can contain private URL queries, paths and mailbox addresses.
+    let log = std::fs::read_to_string(&fixture.stderr).unwrap();
+    assert!(!log.contains("sou15-log-privacy-marker"));
+    let binding: Value = log
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .find(|record| record["event"] == "mcp_resource_binding")
+        .unwrap();
+    assert_eq!(binding["host_call_id"], "sou15-valid");
+    assert_eq!(binding["resource_count"], 1);
+    assert!(binding.get("resources").is_none());
+    let resource_hash = binding["resources_sha256"].as_str().unwrap();
+    assert_eq!(resource_hash.len(), 64);
+    assert!(resource_hash.chars().all(|ch| ch.is_ascii_hexdigit()));
 }

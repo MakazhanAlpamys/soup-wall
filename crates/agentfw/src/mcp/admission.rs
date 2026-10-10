@@ -1275,7 +1275,8 @@ where
                                     "profile_sha256": extraction.profile_sha256,
                                     "executor_sha256": extraction.executor_sha256,
                                     "args_sha256": extraction.args_sha256,
-                                    "resources": extraction.resources,
+                                    "resource_count": extraction.resources.len(),
+                                    "resources_sha256": sha(serde_json::to_string(&extraction.resources)?.as_bytes()),
                                 })
                             );
                         }

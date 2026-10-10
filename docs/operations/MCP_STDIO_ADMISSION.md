@@ -505,7 +505,8 @@ extraction (SOU-12 / PR #61) into runtime stdio MCP admission in `crates/agentfw
    Executor destination control capability is explicitly derived from `AGENTFW_EXECUTOR_FIXED_DESTINATIONS`:
    when false (default), network extraction fail-closes with `resource_destination_control_unsupported`
    per SOU-12 fallback; when asserted true by an authorized executor, verified resources emit
-   correlated `mcp_resource_binding` telemetry.
+   correlated `mcp_resource_binding` telemetry. Resource telemetry contains only
+   digests and counts; raw URL queries, paths and mailbox addresses are not logged.
 3. **Execution barrier enforcement:** Denied calls and unconfirmed `Ask` verdicts strictly
    prevent forwarding and server execution. Original JSON-RPC identifiers and correlation
    metadata are preserved.
