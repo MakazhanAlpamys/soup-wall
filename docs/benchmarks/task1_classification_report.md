@@ -87,10 +87,14 @@ Unit checks on the same commit: baseline 59/59, runner 32/32.
 | Mixed actions | 16/17 |
 | Shell-dependent (D05 scope) | 19/20 |
 
-### 4.3 Per-label errors (known-label denominators)
+### 4.3 Per-label errors (fixture-output denominators)
 
-Each label has 60 provisional scored, non-technical observations. Positive
-and negative denominators are separate; pending rows enter neither.
+The legacy exact-output scorer compares each label on 60 provisional scored,
+non-technical cases; pending rows enter neither column. Expected absent means
+omitted from the required classifier output, not a reviewed false target for the
+actual tool effect. These fixtures have no per-action tri-state known masks, so
+an actual known-negative-effect denominator is unavailable. In particular, do
+not turn omissions on unknown calls into negative SOU-13 training labels.
 
 | Label | Expected present | Expected absent | Missed | Spurious |
 |---|---|---|---|---|
@@ -177,7 +181,8 @@ results. SOU-13 pilot data will extend this report; it does not block it.
 
 ## 7. Classification vs policy vs execution
 
-This report measures **classification only**: which actions a call performs.
+This report measures **classification only**: whether the predicted observable
+action output matches the frozen synthetic fixture expectations.
 
 - **Policy** (Allow/Ask/Deny) belongs to Team 2. D08 requires unresolved effects
   to receive Ask or a trusted Deny. The selected current MCP bridge instead
