@@ -282,6 +282,15 @@ fn windows_device_ads_drive_relative_and_unc_paths_are_refused() {
     for path in [
         "NUL",
         "COM1.txt",
+        "CONIN$",
+        "CONOUT$",
+        "COM\u{b9}.txt",
+        "COM\u{b2}",
+        "COM\u{b3}",
+        "LPT\u{b9}.txt",
+        "LPT\u{b2}",
+        "LPT\u{b3}",
+
         "new.txt:stream",
         "C:relative.txt",
         "\\root-relative.txt",
@@ -299,6 +308,16 @@ fn windows_device_ads_drive_relative_and_unc_paths_are_refused() {
             "accepted {path}"
         );
     }
+    assert!(
+        extract(
+            &invocation(json!({"path":"report-\u{b9}.txt"})),
+            &reviewed,
+            &context(dir.path())
+        )
+        .complete(),
+        "ordinary Unicode file names remain supported"
+    );
+
 }
 
 #[cfg(unix)]

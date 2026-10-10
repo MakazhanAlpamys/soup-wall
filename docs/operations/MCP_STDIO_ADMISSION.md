@@ -380,7 +380,7 @@ unknown profile fields and non-string resources are refused explicitly.
 | Resource | Bounded behavior |
 | --- | --- |
 | Path | Uses the explicitly selected local OS, workspace and process working directory. Relative paths resolve against that working directory. Existing objects must remain in the workspace; a new final component requires `allow_missing_leaf: true` and an existing parent. No file is created during extraction. |
-| Path ambiguity | Rejects traversal, foreign path syntax, missing parents, special files, symlink components and Windows reparse points/junctions. Windows device names, alternate data streams, drive-relative/root-relative names, UNC/device paths and trailing dots/spaces are refused. |
+| Path ambiguity | Rejects traversal, foreign path syntax, missing parents, special files, symlink components and Windows reparse points/junctions. Windows device names (including console aliases and superscript COM/LPT digits), alternate data streams, drive-relative/root-relative names, UNC/device paths and trailing dots/spaces are refused. |
 | URL | Explicit HTTP(S) syntax, parsed using the same `reqwest::Url` type as native admission. Preserves canonical URL and port, normalizes the host, and rejects credentials, whitespace, backslashes and ambiguous missing authorities. IPv6 hosts are supported. |
 | Domain | Lowercases a bounded ASCII DNS name and removes a final root dot. Numeric-only forms, Unicode domain strings and URL/port syntax are unsupported for this selector; URL selectors use the URL parser's host semantics. |
 | Recipient | Retains each simple mailbox and normalized ASCII domain. Display names, groups, quoted local parts and comma-separated strings are unsupported; use an explicit array for multiple recipients. |

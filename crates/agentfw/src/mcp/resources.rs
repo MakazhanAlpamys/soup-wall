@@ -312,6 +312,17 @@ fn canonical_path(
             if part.contains(':')
                 || (part != "." && (part.ends_with('.') || part.ends_with(' ')))
                 || matches!(device.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+                || [
+                    "CONIN$",
+                    "CONOUT$",
+                    "COM\u{b9}",
+                    "COM\u{b2}",
+                    "COM\u{b3}",
+                    "LPT\u{b9}",
+                    "LPT\u{b2}",
+                    "LPT\u{b3}",
+                ]
+                .contains(&device.as_str())
                 || (device.len() == 4
                     && (device.starts_with("COM") || device.starts_with("LPT"))
                     && device.as_bytes()[3].is_ascii_digit())
