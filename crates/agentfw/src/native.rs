@@ -107,12 +107,40 @@ fn args_hash(value: &Value) -> String {
     hash(canonical(value).to_string().as_bytes())
 }
 
-fn binding(registry: &str, epoch: &str, tool: &str, schema: &str, args: &Value) -> String {
+#[allow(clippy::too_many_arguments)]
+fn binding(
+    registry: &str,
+    epoch: &str,
+    tool: &str,
+    schema: &str,
+    args: &Value,
+    resources: Option<&Value>,
+    profile_sha256: Option<&str>,
+    executor_sha256: Option<&str>,
+    classifier_sha256: Option<&str>,
+) -> String {
     let mut h = Sha256::new();
     h.update(b"sw-native/call/1\0");
     for field in [registry, epoch, tool, schema, &canonical(args).to_string()] {
         h.update((field.len() as u64).to_be_bytes());
         h.update(field.as_bytes());
+    }
+    if resources.is_some()
+        || profile_sha256.is_some()
+        || executor_sha256.is_some()
+        || classifier_sha256.is_some()
+    {
+        h.update(b"sw-native/call-ext/1\0");
+        let res_str = resources
+            .map(|r| canonical(r).to_string())
+            .unwrap_or_default();
+        let prof = profile_sha256.unwrap_or_default();
+        let exec = executor_sha256.unwrap_or_default();
+        let class = classifier_sha256.unwrap_or_default();
+        for field in [&res_str, prof, exec, class] {
+            h.update((field.len() as u64).to_be_bytes());
+            h.update(field.as_bytes());
+        }
     }
     format!("{:x}", h.finalize())
 }
@@ -287,6 +315,14 @@ struct Request {
     content: Option<String>,
     result_kind: Option<String>,
     delivery: Option<String>,
+    #[serde(default)]
+    resources: Option<Value>,
+    #[serde(default)]
+    profile_sha256: Option<String>,
+    #[serde(default)]
+    executor_sha256: Option<String>,
+    #[serde(default)]
+    classifier_sha256: Option<String>,
 }
 
 fn parse(body: &str) -> Result<Request, &'static str> {
@@ -302,9 +338,22 @@ fn parse(body: &str) -> Result<Request, &'static str> {
         .and_then(Value::as_str)
         .ok_or("native_invalid_event")?;
     let mut keys = BTreeSet::from(["contract_version", "registry_sha256", "session_id", "event"]);
+    let object = value.as_object().ok_or("native_invalid_json")?;
     match event {
         "session_start" | "session_end" => {}
-        "call" => keys.extend(["tool", "args", "schema_sha256"]),
+        "call" => {
+            keys.extend(["tool", "args", "schema_sha256"]);
+            for extra in [
+                "resources",
+                "profile_sha256",
+                "executor_sha256",
+                "classifier_sha256",
+            ] {
+                if object.contains_key(extra) {
+                    keys.insert(extra);
+                }
+            }
+        }
         "result" => keys.extend([
             "call_id",
             "tool",
@@ -316,12 +365,31 @@ fn parse(body: &str) -> Result<Request, &'static str> {
         "context" => keys.extend(["call_id", "tool", "args", "content"]),
         _ => return Err("native_invalid_event"),
     }
-    let object = value.as_object().ok_or("native_invalid_json")?;
     if object.keys().map(String::as_str).collect::<BTreeSet<_>>() != keys {
         return Err("native_invalid_fields");
     }
     if request.contract_version != CONTRACT || !identifier(&request.session_id) {
         return Err("native_invalid_identity");
+    }
+    if let Some(profile) = &request.profile_sha256 {
+        if !is_digest(profile) {
+            return Err("native_invalid_identity");
+        }
+    }
+    if let Some(executor) = &request.executor_sha256 {
+        if !is_digest(executor) {
+            return Err("native_invalid_identity");
+        }
+    }
+    if let Some(classifier) = &request.classifier_sha256 {
+        if !is_digest(classifier) {
+            return Err("native_invalid_identity");
+        }
+    }
+    if let Some(resources) = &request.resources {
+        if !resources.is_array() || resources.to_string().len() > MAX_CONTENT {
+            return Err("native_args_over_cap");
+        }
     }
     if let Some(args) = &request.args {
         if !args.is_object() || args.to_string().len() > MAX_CONTENT {
@@ -348,6 +416,8 @@ struct Response {
     call_id: Option<String>,
     binding_sha256: Option<String>,
     content_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resources_sha256: Option<String>,
     reason_codes: Vec<String>,
 }
 
@@ -601,6 +671,7 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
         call_id: None,
         binding_sha256: None,
         content_sha256: request.content.as_ref().map(|c| hash(c.as_bytes())),
+        resources_sha256: None,
         reason_codes: vec![],
     };
     if request.event == "session_start" {
@@ -695,10 +766,17 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
             name,
             &tool.schema_sha256,
             args,
+            request.resources.as_ref(),
+            request.profile_sha256.as_deref(),
+            request.executor_sha256.as_deref(),
+            request.classifier_sha256.as_deref(),
         );
         if response.release {
             response.binding_sha256 = Some(bound.clone());
             response.call_id = Some(crate::token::generate());
+            if let Some(res) = &request.resources {
+                response.resources_sha256 = Some(hash(canonical(res).to_string().as_bytes()));
+            }
         }
         audit(
             st,
