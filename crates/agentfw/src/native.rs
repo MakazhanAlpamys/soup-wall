@@ -18,6 +18,8 @@ use soup_wall_agent::{ActionClass, AgentEvent, EventKind, Outcome, Provenance, T
 use crate::config::NativeCfg;
 use crate::handlers::Shared;
 
+pub mod resource;
+
 pub const CONTRACT: &str = "sw-native/1";
 pub const MAX_BODY: usize = 1024 * 1024;
 pub const MAX_CONTENT: usize = 262_144;
@@ -42,6 +44,8 @@ pub struct Tool {
     pub action_class: ActionClass,
     pub result_provenance: ResultProvenance,
     pub egress: Vec<Egress>,
+    #[serde(default)]
+    pub resource_policy: Option<resource::Policy>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -107,12 +111,30 @@ fn args_hash(value: &Value) -> String {
     hash(canonical(value).to_string().as_bytes())
 }
 
-fn binding(registry: &str, epoch: &str, tool: &str, schema: &str, args: &Value) -> String {
+pub fn canonical_digest(value: &Value) -> String {
+    hash(canonical(value).to_string().as_bytes())
+}
+
+fn binding(
+    registry: &str,
+    epoch: &str,
+    tool: &str,
+    schema: &str,
+    args: &Value,
+    admission: Option<&resource::Admission>,
+) -> String {
     let mut h = Sha256::new();
     h.update(b"sw-native/call/1\0");
     for field in [registry, epoch, tool, schema, &canonical(args).to_string()] {
         h.update((field.len() as u64).to_be_bytes());
         h.update(field.as_bytes());
+    }
+    if let Some(admission) = admission {
+        h.update(b"sw-native/resources/1\0");
+        let context =
+            canonical(&serde_json::to_value(admission).expect("context serializes")).to_string();
+        h.update((context.len() as u64).to_be_bytes());
+        h.update(context.as_bytes());
     }
     format!("{:x}", h.finalize())
 }
@@ -179,6 +201,8 @@ enum Stage {
 }
 
 struct Call {
+    host_call_id: Option<Value>,
+    contract_version: &'static str,
     tool: String,
     args_sha256: String,
     binding_sha256: String,
@@ -229,6 +253,9 @@ impl NativeState {
                     && tool.egress.len() <= 32,
                 "invalid native tool"
             );
+            if let Some(policy) = &tool.resource_policy {
+                policy.validate(tool)?;
+            }
             for selector in &tool.egress {
                 anyhow::ensure!(
                     json_pointer(&selector.pointer),
@@ -287,6 +314,7 @@ struct Request {
     content: Option<String>,
     result_kind: Option<String>,
     delivery: Option<String>,
+    resource_admission: Option<resource::Admission>,
 }
 
 fn parse(body: &str) -> Result<Request, &'static str> {
@@ -302,9 +330,15 @@ fn parse(body: &str) -> Result<Request, &'static str> {
         .and_then(Value::as_str)
         .ok_or("native_invalid_event")?;
     let mut keys = BTreeSet::from(["contract_version", "registry_sha256", "session_id", "event"]);
+    let object = value.as_object().ok_or("native_invalid_json")?;
     match event {
         "session_start" | "session_end" => {}
-        "call" => keys.extend(["tool", "args", "schema_sha256"]),
+        "call" => {
+            keys.extend(["tool", "args", "schema_sha256"]);
+            if request.contract_version == resource::CONTRACT {
+                keys.insert("resource_admission");
+            }
+        }
         "result" => keys.extend([
             "call_id",
             "tool",
@@ -316,12 +350,27 @@ fn parse(body: &str) -> Result<Request, &'static str> {
         "context" => keys.extend(["call_id", "tool", "args", "content"]),
         _ => return Err("native_invalid_event"),
     }
-    let object = value.as_object().ok_or("native_invalid_json")?;
     if object.keys().map(String::as_str).collect::<BTreeSet<_>>() != keys {
         return Err("native_invalid_fields");
     }
-    if request.contract_version != CONTRACT || !identifier(&request.session_id) {
+    if !identifier(&request.session_id)
+        || !matches!(
+            request.contract_version.as_str(),
+            CONTRACT | resource::CONTRACT
+        )
+        || (matches!(event, "session_start" | "session_end")
+            && request.contract_version != CONTRACT)
+    {
         return Err("native_invalid_identity");
+    }
+    if event == "call" && request.contract_version == resource::CONTRACT {
+        request
+            .resource_admission
+            .as_ref()
+            .ok_or("native_resource_context_missing")?
+            .validate_shape()?;
+    } else if request.resource_admission.is_some() {
+        return Err("native_invalid_fields");
     }
     if let Some(args) = &request.args {
         if !args.is_object() || args.to_string().len() > MAX_CONTENT {
@@ -348,6 +397,8 @@ struct Response {
     call_id: Option<String>,
     binding_sha256: Option<String>,
     content_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resources_sha256: Option<String>,
     reason_codes: Vec<String>,
 }
 
@@ -550,6 +601,10 @@ pub async fn handler(
             .args
             .as_ref()
             .is_some_and(|args| args.to_string().len() > st.config.max_record_bytes)
+        || request.resource_admission.as_ref().is_some_and(|context| {
+            serde_json::to_vec(context)
+                .map_or(true, |bytes| bytes.len() > st.config.max_record_bytes)
+        })
     {
         return failure("native_record_over_cap", StatusCode::PAYLOAD_TOO_LARGE);
     }
@@ -591,7 +646,11 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
         session.calls.retain(|_, call| call.expires > now);
     }
     let mut response = Response {
-        contract_version: CONTRACT,
+        contract_version: if request.contract_version == resource::CONTRACT {
+            resource::CONTRACT
+        } else {
+            CONTRACT
+        },
         registry_sha256: native.registry_sha256.clone(),
         session_id: request.session_id.clone(),
         event: request.event.clone(),
@@ -601,6 +660,7 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
         call_id: None,
         binding_sha256: None,
         content_sha256: request.content.as_ref().map(|c| hash(c.as_bytes())),
+        resources_sha256: None,
         reason_codes: vec![],
     };
     if request.event == "session_start" {
@@ -672,6 +732,30 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
         if request.schema_sha256.as_deref() != Some(tool.schema_sha256.as_str()) {
             return Err("native_schema_mismatch");
         }
+        if let Some(policy) = &tool.resource_policy {
+            let Some(admission) = &request.resource_admission else {
+                return Err("native_resource_contract_required");
+            };
+            if let Err(reason) =
+                resource::authorize(policy, tool, &native.registry_sha256, args, admission)
+            {
+                response.verdict = "deny";
+                response.release = false;
+                response.reason_codes.push(reason.into());
+                audit(
+                    st,
+                    &request,
+                    &session.epoch,
+                    session.seq,
+                    &response,
+                    None,
+                    started.elapsed().as_micros(),
+                )?;
+                return Ok(response);
+            }
+        } else if request.resource_admission.is_some() {
+            return Err("native_resource_policy_missing");
+        }
         if total_calls >= MAX_CALLS || session.calls.len() >= MAX_SESSION_CALLS {
             return Err("native_call_cap");
         }
@@ -695,10 +779,14 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
             name,
             &tool.schema_sha256,
             args,
+            request.resource_admission.as_ref(),
         );
         if response.release {
             response.binding_sha256 = Some(bound.clone());
             response.call_id = Some(crate::token::generate());
+            if let Some(admission) = &request.resource_admission {
+                response.resources_sha256 = Some(admission.resources_sha256());
+            }
         }
         audit(
             st,
@@ -713,6 +801,11 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
             session.calls.insert(
                 id.clone(),
                 Call {
+                    host_call_id: request
+                        .resource_admission
+                        .as_ref()
+                        .map(|context| context.host_call_id.clone()),
+                    contract_version: response.contract_version,
                     tool: name.into(),
                     args_sha256: args_hash(args),
                     binding_sha256: bound,
@@ -731,9 +824,22 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
         .calls
         .remove(id)
         .ok_or("native_call_unknown_or_spent")?;
+    if request.event == "result" && request.delivery.as_deref() == Some("mcp_host") {
+        if let Some(host_id) = &call.host_call_id {
+            let envelope: Value =
+                serde_json::from_str(request.content.as_deref().ok_or("native_content_missing")?)
+                    .map_err(|_| "native_mcp_result_shape")?;
+            if envelope.get("id") != Some(host_id) {
+                return Err("native_host_call_mismatch");
+            }
+        }
+    }
     response.call_id = Some(id.into());
     response.binding_sha256 = Some(call.binding_sha256.clone());
-    if call.tool != name || call.args_sha256 != args_hash(args) {
+    if call.contract_version != request.contract_version
+        || call.tool != name
+        || call.args_sha256 != args_hash(args)
+    {
         return Err("native_call_binding_mismatch");
     }
     let content = request.content.as_deref().ok_or("native_content_missing")?;

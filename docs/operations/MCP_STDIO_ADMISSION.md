@@ -482,6 +482,26 @@ attack scenarios, not this SOU-12 increment. Formatting, Clippy and the
 documentation check also passed again; Python results above are from the
 pre-merge run. This recheck does not claim a GitHub CI outcome.
 
+## SOU-15: production gate and resource boundary
+
+The collector composes baseline predictions with operator-installed semantics. Delete and permission changes are denied; high uncertainty requires confirmation. Composed Deny and unconfirmed Ask return correlated refusals **before** native call admission, so repeated refusals cannot reserve the session's 64 live slots. A composed Allow still requires native policy admission. Legacy permitted reads and sends preserve original call/result bytes.
+
+Current mapping accepts supported singleton classifications. Unknown and mixed outputs fail closed as `unsupported_classification_mapping` before production policy. They are not successful classification or ordinary policy decisions. Generic classification (SOU-14) and full integration acceptance remain outstanding.
+
+### Resources and execution
+
+The [versioned native resource contract](NATIVE_RESOURCE_ADMISSION.md) adds operator-installed resource permissions, repeats extraction from actual arguments and binds complete typed evidence/revisions to a one-shot receipt. A matching digest alone does not authorize a destination. Legacy `sw-native/1` calls retain their strict shape; resource extensions cannot be accepted silently and resource policies cannot be downgraded.
+
+The generic stdio relay launches a trusted process with the configured working directory. This is **not an execution sandbox**: a script inside a workspace can still access other files or open sockets. The relay therefore refuses a call with `resource_executor_unsupported` when its tool has a configured resource profile or native resource policy. Neither `AGENTFW_EXECUTOR_FIXED_DESTINATIONS` nor script location enables this mode. Unsupported calls reserve no grant and reach no tool executor. Unprofiled tools keep the existing trusted-server admission flow.
+
+Resource-aware stdio execution requires a reviewed executor that enforces grants at actual file/network operations. Native resource authorization checks permissions and correlation for an authenticated trusted collector; it does not prove containment of arbitrary server code. Earlier candidate confinement claims based on command flags, script location and working directory are superseded by this explicit unsupported boundary.
+
+### Maintainer repair preparation (2026-10-10)
+
+Environment: Linux in an isolated Docker container, Rust 1.98.0, Python 3.11. Regressions cover repeated Ask/Deny followed by useful execution, missing/tampered/unexpected receipt hashes, URL port/path and mailbox permissions, canonical paths, forged evidence, contract downgrade, original host ID and metadata limits. Independent server ledgers verify zero tool effects on refusals; useful legacy controls execute once.
+
+The scripted baseline demonstration passes all 16 checks using actual loopback sender/receiver witnesses. Actual Claude Code is unavailable in the container, so that host check is **skipped**. This is source preparation evidence, not full SOU-15 acceptance or arbitrary-server sandboxing. Use the current discovered counts from `scripts/verify-sou17.py` rather than the earlier 91-case candidate total.
+
 ## Local demonstration
 
 The demonstration runs on Linux, macOS and Windows without a model, provider or
