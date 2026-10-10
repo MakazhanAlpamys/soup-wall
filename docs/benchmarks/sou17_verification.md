@@ -13,7 +13,18 @@ but that production path does not yet call the shared adapter runner. Passing th
 two surfaces separately does not establish the integrated milestone. No test-local
 classifier or policy pipeline is substituted for the missing integration.
 
-## Candidate verification — 2026-10-10
+## Current candidate recheck — 2026-10-10
+
+The [b76910a recheck](evidence/sou17_candidate_b76910a_2026-10-10.md) confirms that
+SOU-15's new authoritative Ask gate prevents the previously observed execution:
+zero effects and original result bytes. Existing 91 regressions and 17 additional
+tests pass. New production classifier probes retain technical Unknown/mixed refusals
+as a separate outcome. A repeated-refusal regression fails: after 64 Ask calls,
+a fresh benign Allow does not execute. New standalone probes and strict witness
+graders make both observations reproducible. **Acceptance remains blocked** by
+this regression and the outstanding SOU-15 boundary/review requirements.
+
+## Historical candidate verification — 2026-10-10
 
 The [dated candidate report](evidence/sou17_candidate_a8b237d_2026-10-10.md)
 records an independent clean-source run of SOU-15 PR #62 at

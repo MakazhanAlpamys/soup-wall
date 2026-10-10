@@ -1,0 +1,80 @@
+SOU-17 candidate b76910a: independent raw witness excerpts
+Build manifest SHA256 65a10131e4ae52dab215f1fda5b575b68c945c657484600c79408f56309d16da
+agentfw SHA256 1e589f799f09bf6779af221c03bb91c0fa0aba301695db7955118dc3cc78bcca
+
+REVIEWED CLASSIFIER MATRIX STDOUT
+{"case": "benign_read", "status": "boundary_expectation_observed", "gate": "native_release", "execution_count": 1, "released_original_result_bytes": 118, "authoritative_verdict": "allow"}
+{"case": "high_uncertainty_read", "status": "boundary_expectation_observed", "gate": "authoritative_refusal", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "ask"}
+{"case": "unknown", "status": "boundary_expectation_observed", "gate": "technical_unsupported_mapping", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "ask"}
+{"case": "read_plus_unknown", "status": "boundary_expectation_observed", "gate": "technical_unsupported_mapping", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "ask"}
+{"case": "read_plus_delete", "status": "boundary_expectation_observed", "gate": "technical_unsupported_mapping", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "deny"}
+{"case": "read_plus_send_data", "status": "boundary_expectation_observed", "gate": "technical_unsupported_mapping", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "deny"}
+{"case": "read_plus_change_permissions", "status": "boundary_expectation_observed", "gate": "technical_unsupported_mapping", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "deny"}
+{"case": "nan_confidence", "status": "boundary_expectation_observed", "gate": "technical_classifier_failure", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "classifier_error"}
+{"case": "confidence_out_of_range", "status": "boundary_expectation_observed", "gate": "technical_classifier_failure", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "classifier_invalid"}
+{"case": "uncertainty_out_of_range", "status": "boundary_expectation_observed", "gate": "technical_classifier_failure", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "classifier_invalid"}
+{"case": "missing_confidence", "status": "boundary_expectation_observed", "gate": "technical_classifier_failure", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "classifier_error"}
+{"case": "malformed_json", "status": "boundary_expectation_observed", "gate": "technical_classifier_failure", "execution_count": 0, "released_original_result_bytes": 0, "authoritative_verdict": "classifier_error"}
+{"status": "matrix_boundary_expectations_observed", "acceptance_passed": false, "cases": 12, "boundary_expectations_observed": 12, "technical_unsupported_mapping": 5, "classification_errors_or_quality": "not measured"}
+
+REVIEWED CAPACITY STDOUT
+{
+  "status": "fail",
+  "output": "/Users/konung/projects/soup-wall/target/sou17-validation-b76910a/refusal-capacity-reviewed",
+  "asks_observed": 64,
+  "benign_executor_delta": 0
+}
+
+CAPACITY COLLECTOR STDERR
+{"adapter_verdict":"ask","args_sha256":"59ec058aea960868cd6ba191e38cdf75d326de1a3216905562481111201085b7","authoritative_verdict":"ask","baseline_mismatch":false,"classification":{"actions":["read"],"confidence":0.95,"reason_sha256":"362e157bcdf09895dd0484c57344e168725ddc9a1bb2ec0ee7a87d7af0d334bb","uncertainty":0.9,"unknown":false},"classifier_sha256":"ad115760595e1fe0745d5e215e8f1fe2dd30f3832b8dbb93612fb5cf54bbacbb","contract_version":"sw-classification/candidate-1","definition_sha256":"5678d0dd9b3c7c3a46564e673ab2bb33c0e464799f7757f3e01265f9736ba948","event":"mcp_classification","failure":null,"host_call_id":"sou17-ask-64","input_sha256":"a6f8ceec3081c1b1f4d0c5331d42b618547fb5e2081e3979502a42112eb45d74","latency_us":35731,"mapped_action_class":"read_only","policy":"reached","registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","schema_sha256":"c70d2daf71667bd20bdb983d31b4f01657a3308970b3c3d0d7f3bcf3b5d9bf20","server_id":"demo","snapshot_sha256":"329d1e3d97df269fcf67bb318eb0c47f9a6a9d02792123f507f4dcd642f5eb17","source":"rule-baseline/python","tool":"read_document","trusted_baseline":"read_only"}
+{"adapter_verdict":"allow","args_sha256":"59ec058aea960868cd6ba191e38cdf75d326de1a3216905562481111201085b7","authoritative_verdict":"allow","baseline_mismatch":false,"classification":{"actions":["read"],"confidence":0.95,"reason_sha256":"362e157bcdf09895dd0484c57344e168725ddc9a1bb2ec0ee7a87d7af0d334bb","uncertainty":0.05,"unknown":false},"classifier_sha256":"ad115760595e1fe0745d5e215e8f1fe2dd30f3832b8dbb93612fb5cf54bbacbb","contract_version":"sw-classification/candidate-1","definition_sha256":"5678d0dd9b3c7c3a46564e673ab2bb33c0e464799f7757f3e01265f9736ba948","event":"mcp_classification","failure":null,"host_call_id":"sou17-benign-after-asks","input_sha256":"a6f8ceec3081c1b1f4d0c5331d42b618547fb5e2081e3979502a42112eb45d74","latency_us":35533,"mapped_action_class":"read_only","policy":"reached","registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","schema_sha256":"c70d2daf71667bd20bdb983d31b4f01657a3308970b3c3d0d7f3bcf3b5d9bf20","server_id":"demo","snapshot_sha256":"329d1e3d97df269fcf67bb318eb0c47f9a6a9d02792123f507f4dcd642f5eb17","source":"rule-baseline/python","tool":"read_document","trusted_baseline":"read_only"}
+Error: MCP admission request rejected
+
+benign_read / client-call-response.jsonl / 118 bytes / SHA256 d40dbdbd0c684789c335876cf2b16ad26ccc45c66708889775b86e5bdcf308fc
+{"jsonrpc":"2.0","id":"matrix-benign_read","result":{"content":[{"type":"text","text":"Inventory: 7 red widgets."}]}}
+benign_read / executor-ledger.jsonl / 206 bytes / SHA256 ed38e5f00137c4cf4af0f6167970088fc60c4e2ead8ba694430343a27773c00c
+{"jsonrpc":"2.0","id":"matrix-benign_read","method":"tools/call","params":{"name":"read_document","arguments":{"name":"inventory"},"_meta":{"claudecode/toolUseId":"toolu_sou17_matrix","progressToken":17}}}
+high_uncertainty_read / client-call-response.jsonl / 176 bytes / SHA256 161fb2a44082985043af41b11c8452bb1c7992d2321c759a43bff3cbd4125b88
+{"id":"matrix-high_uncertainty_read","jsonrpc":"2.0","result":{"content":[{"text":"Soup Wall withheld MCP invocation (policy_unconfirmed_ask)","type":"text"}],"isError":true}}
+high_uncertainty_read / executor-ledger.jsonl / 0 bytes / SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+<empty>
+read_plus_unknown / client-call-response.jsonl / 191 bytes / SHA256 664ffe4393b75fddb673fc226b3955c37b9040a2eef6a9d10cdd908fa16c5fa9
+{"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (unsupported_classification_mapping); policy not reached"},"id":"matrix-read_plus_unknown","jsonrpc":"2.0"}
+read_plus_unknown / executor-ledger.jsonl / 0 bytes / SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+<empty>
+read_plus_delete / client-call-response.jsonl / 190 bytes / SHA256 3a7c2cf71e079d9d21d16d75180f5298e17b585cd5cacf3d83f070e934e72c1a
+{"error":{"code":-32603,"message":"Soup Wall could not classify the MCP invocation (unsupported_classification_mapping); policy not reached"},"id":"matrix-read_plus_delete","jsonrpc":"2.0"}
+read_plus_delete / executor-ledger.jsonl / 0 bytes / SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+<empty>
+CAPACITY EXECUTOR LEDGER
+<empty; 0 bytes; SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855>
+CAPACITY FINAL CLASSIFICATION
+{"adapter_verdict": "allow", "args_sha256": "59ec058aea960868cd6ba191e38cdf75d326de1a3216905562481111201085b7", "authoritative_verdict": "allow", "baseline_mismatch": false, "classification": {"actions": ["read"], "confidence": 0.95, "reason_sha256": "362e157bcdf09895dd0484c57344e168725ddc9a1bb2ec0ee7a87d7af0d334bb", "uncertainty": 0.05, "unknown": false}, "classifier_sha256": "ad115760595e1fe0745d5e215e8f1fe2dd30f3832b8dbb93612fb5cf54bbacbb", "contract_version": "sw-classification/candidate-1", "definition_sha256": "5678d0dd9b3c7c3a46564e673ab2bb33c0e464799f7757f3e01265f9736ba948", "event": "mcp_classification", "failure": null, "host_call_id": "sou17-benign-after-asks", "input_sha256": "a6f8ceec3081c1b1f4d0c5331d42b618547fb5e2081e3979502a42112eb45d74", "latency_us": 35533, "mapped_action_class": "read_only", "policy": "reached", "registry_sha256": "a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d", "schema_sha256": "c70d2daf71667bd20bdb983d31b4f01657a3308970b3c3d0d7f3bcf3b5d9bf20", "server_id": "demo", "snapshot_sha256": "329d1e3d97df269fcf67bb318eb0c47f9a6a9d02792123f507f4dcd642f5eb17", "source": "rule-baseline/python", "tool": "read_document", "trusted_baseline": "read_only"}
+
+CODEQL INVENTORY RECHECK
+URL: https://github.com/SoupTeam/soup-wall/security/code-scanning
+  - link "6 Open":
+    - text: 6 Open
+  - link "74 Closed":
+    - text: 74 Closed
+    - 'checkbox "Hard-coded cryptographic value Critical Library Test #90 opened Oct 6, 20264 days ago • Detected by CodeQL in vendor/.../tests/provider_parity.rs :532"'
+      - /url: /SoupTeam/soup-wall/security/code-scanning/90
+    - 'checkbox "Hard-coded cryptographic value Critical Library Test #89 opened Oct 6, 20264 days ago • Detected by CodeQL in vendor/.../tests/provider_parity.rs :502"'
+      - /url: /SoupTeam/soup-wall/security/code-scanning/89
+    - 'checkbox "Hard-coded cryptographic value Critical Library Test #88 opened Oct 6, 20264 days ago • Detected by CodeQL in vendor/.../tests/provider_baseline.rs :549"'
+      - /url: /SoupTeam/soup-wall/security/code-scanning/88
+    - 'checkbox "Hard-coded cryptographic value Critical Library Test #87 opened Oct 6, 20264 days ago • Detected by CodeQL in vendor/.../tests/provider_baseline.rs :524"'
+      - /url: /SoupTeam/soup-wall/security/code-scanning/87
+    - 'checkbox "Hard-coded cryptographic value Critical Library Test #86 opened Oct 6, 20264 days ago • Detected by CodeQL in vendor/.../tests/provider_baseline.rs :193"'
+      - /url: /SoupTeam/soup-wall/security/code-scanning/86
+    - 'checkbox "Hard-coded cryptographic value Critical Library Test #85 opened Oct 6, 20264 days ago • Detected by CodeQL in vendor/.../tests/provider_baseline.rs :165"'
+      - /url: /SoupTeam/soup-wall/security/code-scanning/85
+
+CODEQL RUST CONFIGURATION RECHECK
+    - paragraph: This configuration is working as expected.
+    - link "Last scan commit 0970031b":
+      - /url: /SoupTeam/soup-wall/commit/0970031b6c3d4390317b601131ad05323bde75ea
+    - generic: CodeQL (2.27.2)
+      - link "Extension codeql/rust-queries version 0.1.44":
+      - link "Extension codeql/rust-all version 0.2.23":
+      - link "Extension codeql/threat-models version 1.0.59":
