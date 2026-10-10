@@ -1,0 +1,1096 @@
+===== CASE 001: resilience_tests::allowed_call_preserves_arguments_and_identifiers_and_creates_witness =====
+Original log: resilience_tests-000.log; SHA-256: 7995d22ff77142a82c40f45ebedd0450e0f7b84a4c9eb29adcde6c0dfc869c08
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test allowed_call_preserves_arguments_and_identifiers_and_creates_witness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 002: resilience_tests::deny_survives_a_mixed_read_and_dangerous_classification =====
+Original log: resilience_tests-001.log; SHA-256: 40f06053f4ca0aca638fab43e2589ad364848e785c3eaa25ea723a761d901834
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test deny_survives_a_mixed_read_and_dangerous_classification ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 003: resilience_tests::duplicate_top_level_fields_are_denied_without_executor_entry =====
+Original log: resilience_tests-002.log; SHA-256: b706dce6b87d7fa4c7416de0cb0ac7620b169b2ac5645611961151f8b976e8b7
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test duplicate_top_level_fields_are_denied_without_executor_entry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 004: resilience_tests::hard_deny_survives_overlapping_allow_and_confirmation_signals =====
+Original log: resilience_tests-003.log; SHA-256: f42c1a6ad4283b42f30f7c9a4e1be01b43a857e22650fd71975f52ba3179797d
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test hard_deny_survives_overlapping_allow_and_confirmation_signals ... SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-Delete-0-false","classification":{"categories":["read","write","unknown","delete"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00075,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-Delete-0-true","classification":{"categories":["delete","unknown","write","read"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000375,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-Delete-1-false","classification":{"categories":["write","unknown","delete","read"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00033299999999999996,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-Delete-1-true","classification":{"categories":["read","delete","unknown","write"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000292,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-Delete-2-false","classification":{"categories":["unknown","delete","read","write"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000292,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-Delete-2-true","classification":{"categories":["write","read","delete","unknown"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000375,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-Delete-3-false","classification":{"categories":["delete","read","write","unknown"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000334,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-Delete-3-true","classification":{"categories":["unknown","write","read","delete"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00033299999999999996,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-SendData-0-false","classification":{"categories":["read","write","unknown","send_data"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000334,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-SendData-0-true","classification":{"categories":["send_data","unknown","write","read"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00025,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-SendData-1-false","classification":{"categories":["write","unknown","send_data","read"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000375,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-SendData-1-true","classification":{"categories":["read","send_data","unknown","write"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00033299999999999996,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-SendData-2-false","classification":{"categories":["unknown","send_data","read","write"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000209,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-SendData-2-true","classification":{"categories":["write","read","send_data","unknown"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000292,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-SendData-3-false","classification":{"categories":["send_data","read","write","unknown"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00033299999999999996,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-SendData-3-true","classification":{"categories":["unknown","write","read","send_data"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00033299999999999996,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-ChangePermissions-0-false","classification":{"categories":["read","write","unknown","change_permissions"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000375,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-ChangePermissions-0-true","classification":{"categories":["change_permissions","unknown","write","read"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000334,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-ChangePermissions-1-false","classification":{"categories":["write","unknown","change_permissions","read"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00029099999999999997,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-ChangePermissions-1-true","classification":{"categories":["read","change_permissions","unknown","write"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00029099999999999997,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-ChangePermissions-2-false","classification":{"categories":["unknown","change_permissions","read","write"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000292,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-ChangePermissions-2-true","classification":{"categories":["write","read","change_permissions","unknown"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000292,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-ChangePermissions-3-false","classification":{"categories":["change_permissions","read","write","unknown"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.000334,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+SOU17_EVIDENCE {"boundary":"shared_adapter_runner_only","call_id":"overlap-ChangePermissions-3-true","classification":{"categories":["unknown","write","read","change_permissions"],"confidence":0.949999988079071,"reason":"deterministic local classifier fixture","uncertainty":1.0},"executor_entries":0,"latency_ms":0.00033299999999999996,"receipt_executed":false,"side_effect_exists":false,"verdict":"deny"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.01s
+
+
+
+===== CASE 005: resilience_tests::incorrect_required_field_types_are_denied_without_executor_entry =====
+Original log: resilience_tests-004.log; SHA-256: d90367a960621571c22317a6d5f8ef4123316c50a763f15a0473a3836f0f3715
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test incorrect_required_field_types_are_denied_without_executor_entry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 006: resilience_tests::invalid_classifier_json_is_denied_without_executor_entry =====
+Original log: resilience_tests-005.log; SHA-256: 85e68c89cf6b02d81eec4a5fd2c26da18f0f4298bc4cb39375eaca1322b353b5
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test invalid_classifier_json_is_denied_without_executor_entry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 007: resilience_tests::invalid_event_identifiers_and_version_are_denied_without_panic =====
+Original log: resilience_tests-006.log; SHA-256: 77b2c3d79845e20483fd28e3b01f29f82b23f7783fecffbe1205a4f8adc7a902
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test invalid_event_identifiers_and_version_are_denied_without_panic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 008: resilience_tests::malformed_json_is_denied_without_executor_entry =====
+Original log: resilience_tests-007.log; SHA-256: 25ab27db4f34131ab7796d130971f5235de7f3a4349507b9a9635c90a93bb048
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test malformed_json_is_denied_without_executor_entry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 009: resilience_tests::misleading_description_cannot_release_a_delete =====
+Original log: resilience_tests-008.log; SHA-256: 310484c3db5bb7ba5f54a1826b3724d4ca91324a2605e316c31e8374efbd9627
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test misleading_description_cannot_release_a_delete ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 010: resilience_tests::missing_required_fields_are_denied_without_executor_entry =====
+Original log: resilience_tests-009.log; SHA-256: 9c40a5be702a7c0a1967e343ec484fda517fd7eaf44c5a7780b5ad090bae276c
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test missing_required_fields_are_denied_without_executor_entry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 011: resilience_tests::regression_executor_error_does_not_erase_a_witnessed_effect =====
+Original log: resilience_tests-010.log; SHA-256: 273566e55c6a4d0f986c37cee6f90c4ff74a13de201232ed64d167ed0be8c65c
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test regression_executor_error_does_not_erase_a_witnessed_effect ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 012: resilience_tests::regression_invalid_classifier_scores_fail_closed =====
+Original log: resilience_tests-011.log; SHA-256: 3f5a97192980c2be1f015d28cb524edc650dbe4412dc91555a2535f120c68afc
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test regression_invalid_classifier_scores_fail_closed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 013: resilience_tests::regression_permission_change_cannot_be_weakened_by_read =====
+Original log: resilience_tests-012.log; SHA-256: 0fd5067e25608b64cf37ba2a4bf05811c48047e129acab26347e881884de4dac
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test regression_permission_change_cannot_be_weakened_by_read ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 014: resilience_tests::regression_schema_invalid_arguments_are_denied_before_executor_entry =====
+Original log: resilience_tests-013.log; SHA-256: eb81571991d258f7b35a230f125001dd0957806236490584f21263bd5d939588
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test regression_schema_invalid_arguments_are_denied_before_executor_entry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 015: resilience_tests::regression_unknown_component_cannot_be_weakened_by_read =====
+Original log: resilience_tests-014.log; SHA-256: 3b909a267eb1cde81a7fab9ca9863fd5e146b259db0bbceb162fa11d73c55cf3
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test regression_unknown_component_cannot_be_weakened_by_read ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 016: resilience_tests::regression_unknown_name_with_read_substring_stays_blocked =====
+Original log: resilience_tests-015.log; SHA-256: 90b6dbbbc9de42a07426798042c667fc6af01ef5afdb1c7c69aba4436b2f73ae
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test regression_unknown_name_with_read_substring_stays_blocked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 017: resilience_tests::uncertain_read_stays_blocked_at_and_above_policy_boundary =====
+Original log: resilience_tests-016.log; SHA-256: 5aabae3124cb95ef66d1442d36c567c177ee9b3f585170a9f3b90e2e1a2ceb0e
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test uncertain_read_stays_blocked_at_and_above_policy_boundary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 018: resilience_tests::unknown_classifier_result_stays_blocked_in_headless_execution =====
+Original log: resilience_tests-017.log; SHA-256: 46c8996bb22cfc16b2db6c6e1926ea4a9e8c9f222c959ab59ceb07e711feece3
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test unknown_classifier_result_stays_blocked_in_headless_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 019: resilience_tests::unknown_tool_requires_confirmation_and_never_executes =====
+Original log: resilience_tests-018.log; SHA-256: 4054b5db4815822d3bc946be79a70e97211725dc9909e0b37f57cd3a17bcaf51
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test unknown_tool_requires_confirmation_and_never_executes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+
+
+===== CASE 020: mcp_admission::classified_read_keeps_original_call_and_result_bytes =====
+Original log: mcp_admission-000.log; SHA-256: d4f58dad983ce84cdd6d1ae7a9d1c88d18e1766166833d09b7465a82f4594782
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test classified_read_keeps_original_call_and_result_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.81s
+
+
+
+===== CASE 021: mcp_admission::classifier_failures_never_reach_policy_or_the_server =====
+Original log: mcp_admission-001.log; SHA-256: b0cdb638a41bf2e761622276f2f7314901f002edeb31eca77de353a772c93dc7
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test classifier_failures_never_reach_policy_or_the_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 2.11s
+
+
+
+===== CASE 022: mcp_admission::native_mcp_accepts_codex_discovery_and_calls_without_granting_authority =====
+Original log: mcp_admission-002.log; SHA-256: 121f140990c2659c356119d8925d85b6c239c8b59561ac2a68b6112c330de3d8
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_accepts_codex_discovery_and_calls_without_granting_authority ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.10s
+
+
+
+===== CASE 023: mcp_admission::native_mcp_accepts_observed_claude_correlation_metadata_without_changing_call_bytes =====
+Original log: mcp_admission-003.log; SHA-256: 0860c2a25484c5127978bd75bf01c417d9d3da41412b67e769ad0166a8b2d0ce
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_accepts_observed_claude_correlation_metadata_without_changing_call_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.09s
+
+
+
+===== CASE 024: mcp_admission::native_mcp_allows_real_read_but_denies_secret_send_before_server_execution =====
+Original log: mcp_admission-004.log; SHA-256: 7c55318392b56e98831c858f7fd65b2b1908dd81cf9c6c001e6c40357fd05041
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_allows_real_read_but_denies_secret_send_before_server_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.10s
+
+
+
+===== CASE 025: mcp_admission::native_mcp_cancellation_after_effect_withholds_result_without_undoing_execution =====
+Original log: mcp_admission-005.log; SHA-256: 8a5692ba2d10dae38c8821bf621f7f9e2a67b215c678a0a0aecf4146081d1564
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_cancellation_after_effect_withholds_result_without_undoing_execution ... SOU17_EVIDENCE {"call_id":3,"client_result_bytes":0,"effect_observed":true,"execution_count":1,"gated_result_marker_released":false,"outcome":"transport_refused_after_effect","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"unsupported_cancellation_after_effect"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+
+
+
+===== CASE 026: mcp_admission::native_mcp_checks_codex_results_before_releasing_original_content =====
+Original log: mcp_admission-006.log; SHA-256: 1bebd77bf8271c02b46eb52c426b2007a861ec6e27dc059cf56d0c4d3e6438a7
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_checks_codex_results_before_releasing_original_content ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.10s
+
+
+
+===== CASE 027: mcp_admission::native_mcp_concurrent_call_after_effect_never_reaches_second_executor =====
+Original log: mcp_admission-007.log; SHA-256: 0eeb44b8935af3cfdf6c01ae5357ab20df8362468ffcb23decea3a608c0fa146
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_concurrent_call_after_effect_never_reaches_second_executor ... SOU17_EVIDENCE {"call_id":[3,4],"client_result_bytes":0,"effect_observed":true,"execution_count":1,"gated_result_marker_released":false,"outcome":"transport_refused_after_first_effect","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"unsupported_concurrent_call"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.09s
+
+
+
+===== CASE 028: mcp_admission::native_mcp_daemon_call_timeout_never_executes_call =====
+Original log: mcp_admission-008.log; SHA-256: 64a502fbf9b9a2107b7459bcb9c868a64806d9fef7e1439c267bf7ae8fa602e8
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_daemon_call_timeout_never_executes_call ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 5.07s
+
+
+
+===== CASE 029: mcp_admission::native_mcp_daemon_outage_after_execution_withholds_result =====
+Original log: mcp_admission-009.log; SHA-256: 08f919d823cab541a35e1bb92ff0a61e3746de493e053a07ce15455f55c459b4
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_daemon_outage_after_execution_withholds_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.22s
+
+
+
+===== CASE 030: mcp_admission::native_mcp_daemon_outage_after_manifest_never_executes_call =====
+Original log: mcp_admission-010.log; SHA-256: cdce043db42dc3e2be5b55c58311b69df851dec6990d84d6378a5334abbb7e59
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_daemon_outage_after_manifest_never_executes_call ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+
+
+
+===== CASE 031: mcp_admission::native_mcp_daemon_shadow_and_outage_never_spawn_server =====
+Original log: mcp_admission-011.log; SHA-256: 5260cead4569db181869b12ec1d2a28cdf6a7babda80ae67b4f4b1b523716e33
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_daemon_shadow_and_outage_never_spawn_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.03s
+
+
+
+===== CASE 032: mcp_admission::native_mcp_denied_session_does_not_block_a_benign_peer_on_the_same_daemon =====
+Original log: mcp_admission-012.log; SHA-256: bb4e2b257b1596d59ed5db10ed0b49fbbdc2e3ebfc30b28476ebc83aedb20ca5
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_denied_session_does_not_block_a_benign_peer_on_the_same_daemon ... SOU17_EVIDENCE {"call_id":3,"client_result_bytes":145,"effect_observed":false,"execution_count":0,"gated_result_marker_released":false,"outcome":"policy_refused","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"same_daemon_denied_call"}
+SOU17_EVIDENCE {"call_id":3,"client_result_bytes":105,"effect_observed":true,"execution_count":1,"gated_result_marker_released":false,"outcome":"allow","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"same_daemon_benign_peer"}
+SOU17_EVIDENCE {"call_id":4,"client_result_bytes":105,"effect_observed":true,"execution_count":1,"gated_result_marker_released":false,"outcome":"allow","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"same_daemon_benign_followup"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.13s
+
+
+
+===== CASE 033: mcp_admission::native_mcp_does_not_give_server_daemon_token_environment =====
+Original log: mcp_admission-013.log; SHA-256: d6581f76c5f4834e305e688d699036540710ed2a9231a49a82102c48ae2cc779
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_does_not_give_server_daemon_token_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+
+
+
+===== CASE 034: mcp_admission::native_mcp_keeps_ask_calls_blocked_before_server_execution =====
+Original log: mcp_admission-014.log; SHA-256: b6da89f49e66ac2ebb7ddd1678d91df8dc5f78db97ed3ada7bcdf2321afe1423
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_keeps_ask_calls_blocked_before_server_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.10s
+
+
+
+===== CASE 035: mcp_admission::native_mcp_never_releases_unbound_or_nontext_server_results =====
+Original log: mcp_admission-015.log; SHA-256: 8dc641e32c38ca9ea7eb3dbc37add8687c2870cbfc3ca4512a0c51d67ca776d5
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_never_releases_unbound_or_nontext_server_results ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.34s
+
+
+
+===== CASE 036: mcp_admission::native_mcp_preserves_the_original_correlated_jsonrpc_error =====
+Original log: mcp_admission-016.log; SHA-256: 1ad2a3be00c853f5a9cf89e23cec7470cf1ed9ba9d0bbd11de5ea120aea1e24d
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_preserves_the_original_correlated_jsonrpc_error ... SOU17_EVIDENCE {"call_id":3,"client_result_bytes":83,"effect_observed":true,"execution_count":1,"gated_result_marker_released":false,"outcome":"runtime_error_after_effect","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"correlated_runtime_error_after_effect"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.09s
+
+
+
+===== CASE 037: mcp_admission::native_mcp_refuses_codex_resource_probes_without_forwarding_or_closing =====
+Original log: mcp_admission-017.log; SHA-256: e791a9c5f7d646a9d8e9c8a4971c3f3792f876dc4c98a60eeacfbc92c0321bf0
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_refuses_codex_resource_probes_without_forwarding_or_closing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+
+
+
+===== CASE 038: mcp_admission::native_mcp_rejects_ambiguous_and_unsupported_client_messages_before_execution =====
+Original log: mcp_admission-018.log; SHA-256: 9eae641ad638b3ad21e884d1279152273bf6112dc4352d732d7c9cc483d58402
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_rejects_ambiguous_and_unsupported_client_messages_before_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.37s
+
+
+
+===== CASE 039: mcp_admission::native_mcp_rejects_control_characters_in_ids_before_execution =====
+Original log: mcp_admission-019.log; SHA-256: c6fc8705c1228d73abf5b8a74af740b5b790918dc229dbf4a06f260f792d588f
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_rejects_control_characters_in_ids_before_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.06s
+
+
+
+===== CASE 040: mcp_admission::native_mcp_rejects_prompt_instructions_and_extra_capabilities_in_initialization =====
+Original log: mcp_admission-020.log; SHA-256: 8d896fcdbec80bcec25d96ac175621dcec857cde86a507b792e24b9c48ef9030
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_rejects_prompt_instructions_and_extra_capabilities_in_initialization ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.29s
+
+
+
+===== CASE 041: mcp_admission::native_mcp_rejects_replayed_client_id_and_concurrent_calls =====
+Original log: mcp_admission-021.log; SHA-256: 467449fd55cbd195585942f125b6a53735d1c4a49f052e7005c6562c0cd39ce4
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_rejects_replayed_client_id_and_concurrent_calls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.11s
+
+
+
+===== CASE 042: mcp_admission::native_mcp_rejects_uninspected_manifest_metadata_and_poisoned_descriptions =====
+Original log: mcp_admission-022.log; SHA-256: c87c86d5856e240ccd23fa8c3b49f6c75b4d181f06048e0d49332196ab50c3cf
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_rejects_uninspected_manifest_metadata_and_poisoned_descriptions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.34s
+
+
+
+===== CASE 043: mcp_admission::native_mcp_rejects_unknown_partial_and_unbounded_correlation_metadata =====
+Original log: mcp_admission-023.log; SHA-256: 199f9918873588ee566a6418eca5c0665329b4d959d6f5124caf54d1043864af
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_rejects_unknown_partial_and_unbounded_correlation_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 1.11s
+
+
+
+===== CASE 044: mcp_admission::native_mcp_rejects_unsupported_discovery_metadata_before_forwarding =====
+Original log: mcp_admission-024.log; SHA-256: 7674cce057a88bba32d1f99cb147fdf42261283be74ecd0d8e3029db9e4861ea
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_rejects_unsupported_discovery_metadata_before_forwarding ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.50s
+
+
+
+===== CASE 045: mcp_admission::native_mcp_rejects_unvalidated_arguments_before_server_defaults_can_apply =====
+Original log: mcp_admission-025.log; SHA-256: 8f9c7ac010493e237f98a9163d95dfc4c48e1894967602c7ec5d5e4e059188e3
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_rejects_unvalidated_arguments_before_server_defaults_can_apply ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.15s
+
+
+
+===== CASE 046: mcp_admission::native_mcp_replayed_id_with_changed_tool_and_arguments_adds_no_effect =====
+Original log: mcp_admission-026.log; SHA-256: 100b1b5d95b4454b46ba0a733e6b9d824f0c969ad2c21bdcdae8a3d574b2563d
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_replayed_id_with_changed_tool_and_arguments_adds_no_effect ... SOU17_EVIDENCE {"call_id":3,"client_result_bytes":0,"effect_observed":true,"execution_count":1,"gated_result_marker_released":false,"outcome":"transport_refused_after_original_effect","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"replayed_id_changed_payload"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.09s
+
+
+
+===== CASE 047: mcp_admission::native_mcp_restarted_daemon_rejects_old_completion_but_new_session_remains_useful =====
+Original log: mcp_admission-027.log; SHA-256: b1500f60ecc4338a4c1379ef1ed0ea3d823d112e23466f9d04e69b6bab64e378
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_restarted_daemon_rejects_old_completion_but_new_session_remains_useful ... SOU17_EVIDENCE {"call_id":3,"client_result_bytes":0,"effect_observed":true,"execution_count":1,"gated_result_marker_released":false,"outcome":"transport_refused_after_effect","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":true,"schema_version":"sou17-native-evidence/0.1","test":"daemon_restart_old_completion"}
+SOU17_EVIDENCE {"call_id":3,"client_result_bytes":105,"effect_observed":true,"execution_count":1,"gated_result_marker_released":false,"outcome":"allow","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"daemon_restart_fresh_session"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.24s
+
+
+
+===== CASE 048: mcp_admission::native_mcp_schema_drift_does_not_release_tools_or_execute =====
+Original log: mcp_admission-028.log; SHA-256: d77c5d445322e8268c6181e806e78e45e93a5792e9b2deb444af2ac4072c13f6
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_schema_drift_does_not_release_tools_or_execute ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.15s
+
+
+
+===== CASE 049: mcp_admission::native_mcp_two_call_batch_never_executes_either_tool =====
+Original log: mcp_admission-029.log; SHA-256: 1a7396d5ec859597ae299461959302c86290ae2e0869012216da1daccaedd69c
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_two_call_batch_never_executes_either_tool ... SOU17_EVIDENCE {"call_id":[3,4],"client_result_bytes":0,"effect_observed":false,"execution_count":0,"gated_result_marker_released":false,"outcome":"transport_refused","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"unsupported_two_call_batch"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+
+
+
+===== CASE 050: mcp_admission::native_mcp_unsupported_cancellation_before_call_never_executes =====
+Original log: mcp_admission-030.log; SHA-256: 100e3137c99f02ccb6829c619fcd46a1d03a0cd3154de67437205477fc308043
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_unsupported_cancellation_before_call_never_executes ... SOU17_EVIDENCE {"call_id":3,"client_result_bytes":0,"effect_observed":false,"execution_count":0,"gated_result_marker_released":false,"outcome":"transport_refused","policy_sha256":"5016bcd9f01c27c9fc4e7129919d984236d4079df5c02afea853407feb2295dc","registry_sha256":"c778b2a394add8e7cf40f0455d1492af8e53d67da36ec5b5eb1ae9a7f6e278b8","result_prepared":false,"schema_version":"sou17-native-evidence/0.1","test":"unsupported_cancellation_before_call"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.06s
+
+
+
+===== CASE 051: mcp_admission::native_mcp_withholds_actual_result_then_allows_benign_followup =====
+Original log: mcp_admission-031.log; SHA-256: c701b9dbd1a3b343e9439d05d96c9df0fce34e7ce9af4c140d3336439e40dcfe
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_mcp_withholds_actual_result_then_allows_benign_followup ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+
+
+
+===== CASE 052: mcp_admission::python_classifier_failures_block_before_execution =====
+Original log: mcp_admission-032.log; SHA-256: ec293829fdf8f0a5e0dc779516e4fc9e52c13d188911cc16dab749c8b22355e8
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test python_classifier_failures_block_before_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 3.47s
+
+
+
+===== CASE 053: mcp_admission::real_baseline_preserves_frames_and_policy_enforcement =====
+Original log: mcp_admission-033.log; SHA-256: a3b8d8aebd9681323bc1d8a8bdd9bdb551c13e3a51a4b89cef0209f149f29264
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test real_baseline_preserves_frames_and_policy_enforcement ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.36s
+
+
+
+===== CASE 054: mcp_admission::sou11_annotation_text_is_untrusted_and_inspected =====
+Original log: mcp_admission-034.log; SHA-256: c9d7080cbd4e19fbddd17a1c3cd2ae4aeac5d26b0ff60c23350153c596d2bb97
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou11_annotation_text_is_untrusted_and_inspected ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.18s
+
+
+
+===== CASE 055: mcp_admission::sou11_invalid_nested_input_never_reaches_server =====
+Original log: mcp_admission-035.log; SHA-256: 8a41796cd19566f60b5192d7e9a051b4c57750fe9fe8bab0ce7966a3b3c4ea3f
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou11_invalid_nested_input_never_reaches_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.18s
+
+
+
+===== CASE 056: mcp_admission::sou11_list_change_invalidates_until_a_new_admitted_manifest =====
+Original log: mcp_admission-036.log; SHA-256: 2f8929f8bd67aff0ee5df58774d2ebed92c7bf7ed508c95d675260337cae5291
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou11_list_change_invalidates_until_a_new_admitted_manifest ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+
+
+
+===== CASE 057: mcp_admission::sou11_metadata_refresh_changes_prediction_identity =====
+Original log: mcp_admission-037.log; SHA-256: bd6e1bbb17494524eda7e71d843df72b7aa19d6d361c7e47a58537621c31ea8c
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou11_metadata_refresh_changes_prediction_identity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+
+
+
+===== CASE 058: mcp_admission::sou11_read_only_hint_cannot_grant_destructive_execution =====
+Original log: mcp_admission-038.log; SHA-256: e1afce55671287b9a4b39e88da2a517065d76d6ed9552a45b58f79a2c2ce345d
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou11_read_only_hint_cannot_grant_destructive_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.09s
+
+
+
+===== CASE 059: mcp_admission::sou11_stale_manifest_and_changed_schema_cannot_forward_calls =====
+Original log: mcp_admission-039.log; SHA-256: c62aa051147268ac2c0a78510e17dd131fd866947d02c846240cba4241f89570
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou11_stale_manifest_and_changed_schema_cannot_forward_calls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.20s
+
+
+
+===== CASE 060: mcp_admission::sou11_unfamiliar_nested_input_preserves_bytes_and_annotations =====
+Original log: mcp_admission-040.log; SHA-256: 47c3ab5579f9130240c4e75108a3df3625ca4ee4bee416e8e18c9b824772a9be
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou11_unfamiliar_nested_input_preserves_bytes_and_annotations ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.11s
+
+
+
+===== CASE 061: mcp_admission::sou15_resource_profiles_and_adapter_policy_binding =====
+Original log: mcp_admission-041.log; SHA-256: d11d62ffaf28d936f00a654c86552612be8e8d8bdd99947262efe07dd881a7d8
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou15_resource_profiles_and_adapter_policy_binding ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.18s
+
+
+
+===== CASE 062: mcp_admission::understated_classification_keeps_trusted_network_restrictions =====
+Original log: mcp_admission-042.log; SHA-256: d6d600faac53686e31b93e3386cf1e7aec3ca8b5b67a5ec0453eab6c3176eae9
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test understated_classification_keeps_trusted_network_restrictions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.10s
+
+
+
+===== CASE 063: native_endpoint::a_value_cannot_be_relabelled_as_an_error_in_the_final_context =====
+Original log: native_endpoint-000.log; SHA-256: 3896b009828812ef878ae20629672626cac86ca0b1db73139c20559eef9b9efa
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test a_value_cannot_be_relabelled_as_an_error_in_the_final_context ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.07s
+
+
+
+===== CASE 064: native_endpoint::completions_bind_arguments_and_session_and_fail_closed_after_mismatch =====
+Original log: native_endpoint-001.log; SHA-256: ac55fa320ab459e1ead6e09c893b90e95317223a4aea1acdc4903aa5cdcb99dc
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test completions_bind_arguments_and_session_and_fail_closed_after_mismatch ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 065: native_endpoint::concurrent_context_completions_release_exactly_once =====
+Original log: native_endpoint-002.log; SHA-256: 7d00cfb5cbb179d8a08807a521a8cd8f858fcd52bbea929a9d07b082c4736162
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test concurrent_context_completions_release_exactly_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+
+
+===== CASE 066: native_endpoint::content_caps_cover_full_utf8_bytes_without_truncated_admission =====
+Original log: native_endpoint-003.log; SHA-256: 113142c681932bbd9cc291b0dc4a598625b79db2d773c6978f896b59abf44dbb
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test content_caps_cover_full_utf8_bytes_without_truncated_admission ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.11s
+
+
+
+===== CASE 067: native_endpoint::context_audit_retains_detections_from_later_independent_blocks_without_raw_content =====
+Original log: native_endpoint-004.log; SHA-256: df8e67a2142cfe6b08eddf1de0822107101495faa3871149e5d8e60bdf88216c
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test context_audit_retains_detections_from_later_independent_blocks_without_raw_content ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+
+
+===== CASE 068: native_endpoint::context_requires_bound_request_args_and_an_original_tool_envelope =====
+Original log: native_endpoint-005.log; SHA-256: a271e20d8d1a1fd27999640c31a698642279d98e0171ba671ecb1e285ec7ac6d
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test context_requires_bound_request_args_and_an_original_tool_envelope ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 069: native_endpoint::contract_registry_and_per_call_privilege_claims_are_rejected =====
+Original log: native_endpoint-006.log; SHA-256: c3a7b3fb0328fc65c93eff3ac0a262cc6ee6752cc081e147288fad388213107c
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test contract_registry_and_per_call_privilege_claims_are_rejected ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 070: native_endpoint::declared_read_only_tools_keep_dangerous_argument_upgrades =====
+Original log: native_endpoint-007.log; SHA-256: 1dee67d68bb3917b22faf03109e4fa8c0608db52de3b9528232a42d77bc0829d
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test declared_read_only_tools_keep_dangerous_argument_upgrades ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 071: native_endpoint::explicit_result_deny_withholds_content_and_spends_the_completion =====
+Original log: native_endpoint-008.log; SHA-256: 0cbc6733387aeec4bfa2e73d2725fb77bb85147689e1c5f43a77a6639ee1e0fd
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test explicit_result_deny_withholds_content_and_spends_the_completion ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+
+
+===== CASE 072: native_endpoint::final_context_and_original_error_text_are_independently_inspected =====
+Original log: native_endpoint-009.log; SHA-256: caef2f88a29500b1dbb1b49d4aa4397407a438bca385ebcff2e219d1ee57ead0
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test final_context_and_original_error_text_are_independently_inspected ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+
+
+===== CASE 073: native_endpoint::held_model_result_does_not_taint_a_preplanned_batch_call_until_context_admission =====
+Original log: native_endpoint-010.log; SHA-256: decb4a78b9bf78d19ec096a80fe66b9575d550dd71f3f15dfa779b728cb7025e
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test held_model_result_does_not_taint_a_preplanned_batch_call_until_context_admission ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 074: native_endpoint::hook_post_tool_use_still_returns_the_original_empty_contract =====
+Original log: native_endpoint-011.log; SHA-256: 57df9c1ccbcdbbb401d44546dfe4e3e29c33583a2278e6482cf6f8d2cb3bc4be
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test hook_post_tool_use_still_returns_the_original_empty_contract ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.03s
+
+
+
+===== CASE 075: native_endpoint::injection_result_is_withheld_without_redeeming_an_action_grant_or_recording_taint =====
+Original log: native_endpoint-012.log; SHA-256: a5c81e3496d00d17f6350ef6ae8dd50a9b1b1634d6977eaf91183ed756190211
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test injection_result_is_withheld_without_redeeming_an_action_grant_or_recording_taint ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 076: native_endpoint::native_and_hook_tokens_are_not_interchangeable =====
+Original log: native_endpoint-013.log; SHA-256: 2faba330f65476e28e95fe5bf9ef24c5370c31fa2417239c32b2612f3d382c1b
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_and_hook_tokens_are_not_interchangeable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+
+
+===== CASE 077: native_endpoint::native_escalation_uses_the_declared_fallback_without_a_model =====
+Original log: native_endpoint-014.log; SHA-256: 2f1e1e2d675a3c1cdbe8d78c82cfc4843949e9630982d382f90f3299c6718290
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test native_escalation_uses_the_declared_fallback_without_a_model ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+
+
+===== CASE 078: native_endpoint::original_placeholder_arguments_are_preserved_with_their_pinned_shape =====
+Original log: native_endpoint-015.log; SHA-256: 247679d3b5e5f2c5c8800a3e10cbc6d5d600b8c054fe761cebea403c249ff59d
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test original_placeholder_arguments_are_preserved_with_their_pinned_shape ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 079: native_endpoint::outstanding_calls_are_bounded_and_session_end_frees_capacity =====
+Original log: native_endpoint-016.log; SHA-256: 35c359f9871cad5c40ac87fe20040029cdbb9558e6199dc281e9dc98123a2f67
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test outstanding_calls_are_bounded_and_session_end_frees_capacity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.03s
+
+
+
+===== CASE 080: native_endpoint::parent_completion_cannot_be_replayed_or_promoted_to_model_context =====
+Original log: native_endpoint-017.log; SHA-256: 434da0564f85f3a71eb9e7998fa2298032dbacb29cf5a88facf7162d67505458
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test parent_completion_cannot_be_replayed_or_promoted_to_model_context ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+
+
+===== CASE 081: native_endpoint::parent_result_commits_taint_and_spans_before_parent_action_without_context =====
+Original log: native_endpoint-018.log; SHA-256: 41c03806e34e796c75e293adadd3805d1eb82c52c854a91cbf5131f3265c0a40
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test parent_result_commits_taint_and_spans_before_parent_action_without_context ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 082: native_endpoint::result_and_original_context_preserve_one_opaque_binding =====
+Original log: native_endpoint-019.log; SHA-256: 4ce48c259f0c035476b3801c5d7107595749a7a59159c18bfe6ef6eaadbfe3e2
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test result_and_original_context_preserve_one_opaque_binding ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 083: native_endpoint::result_delivery_is_required_and_cannot_be_claimed_on_a_context_request =====
+Original log: native_endpoint-020.log; SHA-256: 59daf4000961c12cca6c9bf99d73dc62468be75590a83ade22b126010e486136
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test result_delivery_is_required_and_cannot_be_claimed_on_a_context_request ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+
+
+===== CASE 084: native_endpoint::session_end_invalidates_calls_and_restart_changes_binding_epoch =====
+Original log: native_endpoint-021.log; SHA-256: d6e946c7042e2f816846825de88bbdb0e2aee6a7efbd5d12849a867d49106abf
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test session_end_invalidates_calls_and_restart_changes_binding_epoch ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.02s
+
+
+
+===== CASE 085: native_endpoint::shadow_or_enabled_judge_cannot_claim_native_enforcement =====
+Original log: native_endpoint-022.log; SHA-256: ee27b6d391eee827288b3371a90bc7c241baa5257a64f558efb538ebff837e49
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test shadow_or_enabled_judge_cannot_claim_native_enforcement ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+
+
+===== CASE 086: native_endpoint::sou12_empty_or_ambiguous_egress_never_receives_an_execution_grant =====
+Original log: native_endpoint-023.log; SHA-256: e2f290d52ba8cc47e77d08d5a24a0ce22fd6c777ca09e258ef290455af3fd53c
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test sou12_empty_or_ambiguous_egress_never_receives_an_execution_grant ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 087: native_endpoint::stages_cannot_be_replayed_or_completed_out_of_order =====
+Original log: native_endpoint-024.log; SHA-256: 0fd66c464f68dfe74fbc4edac856577db7f052bdbbfcef9271b7a83d2b7d79b3
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test stages_cannot_be_replayed_or_completed_out_of_order ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+
+
+===== CASE 088: native_endpoint::successive_parent_results_free_capacity_without_fabricating_model_context =====
+Original log: native_endpoint-025.log; SHA-256: 68f317d31184e7b0685584f3d7e7e73c1ee6c39981852ba60a6eda64fc8144cf
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test successive_parent_results_free_capacity_without_fabricating_model_context ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.07s
+
+
+
+===== CASE 089: native_endpoint::typed_egress_checks_every_to_cc_and_bcc_recipient =====
+Original log: native_endpoint-026.log; SHA-256: e88d0bdf7d56787412d3462a67586724434ebdf32d73a3a67e138512b9738872
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test typed_egress_checks_every_to_cc_and_bcc_recipient ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 090: native_endpoint::typed_url_egress_does_not_accept_credentials_or_non_http_schemes =====
+Original log: native_endpoint-027.log; SHA-256: d876dc403012efab70d979beae6cb059ffe113f2b73efaf411d68cb573476fe3
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test typed_url_egress_does_not_accept_credentials_or_non_http_schemes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.06s
+
+
+
+===== CASE 091: native_endpoint::unknown_tools_and_changed_schema_are_not_admitted =====
+Original log: native_endpoint-028.log; SHA-256: e0866d6092c09f505bee56f0b607e10f2dadb12a5c96d6929545145d65dd0cfe
+Status: pass; exit_code: 0; timed_out: false
+
+running 1 test
+test unknown_tools_and_changed_schema_are_not_admitted ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.02s
+
+
+
+=== Supplemental input/resource Cargo output ===
+   Compiling agentfw v0.3.0 (<CANDIDATE_ROOT>/crates/agentfw)
+    Finished `test` profile [unoptimized] target(s) in 1.84s
+     Running tests/mcp_inputs.rs (<WORKSPACE_ROOT>/target/debug/deps/mcp_inputs-9af41bb30c8a075d)
+
+running 7 tests
+test config_cli_does_not_start_a_discovered_command_or_connect_to_remote ... ok
+test config_inspection_only_reports_redacted_inventory ... ok
+test invalid_config_has_no_payload_in_errors ... ok
+test missing_wrong_type_and_unknown_nested_fields_are_refused ... ok
+test nested_values_and_optional_fields_preserve_original_arguments ... ok
+test oversized_nested_inputs_and_deep_schemas_are_refused ... ok
+test unsupported_schema_features_are_not_silently_ignored ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+     Running tests/mcp_resources.rs (<WORKSPACE_ROOT>/target/debug/deps/mcp_resources-3445a9ce7ddf5d23)
+
+running 11 tests
+test ambiguous_url_and_mailbox_forms_are_refused_without_network_io ... ok
+test defaults_require_review_and_do_not_replace_invalid_values ... ok
+test local_paths_use_executor_cwd_and_existing_parent_without_creating_files ... ok
+test malformed_selectors_and_oversized_values_cannot_produce_hosts ... ok
+test mixed_path_and_network_evidence_cannot_be_reduced_to_host_only_permission ... ok
+test resources_are_bound_to_original_server_schema_arguments_and_reviewed_profile ... ok
+test reusable_destination_cases_preserve_input_and_ambiguity ... ok
+test server_selected_destinations_and_redirects_are_explicitly_unsupported ... ok
+test symlink_leaf_parent_and_dangling_link_are_refused ... ok
+test traversal_outside_paths_missing_parents_and_foreign_os_are_refused ... ok
+test typed_hosts_feed_existing_policy_and_all_recipients_remain_restricted ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+=== Policy diagnostic: client-input.jsonl | original_sha256=ba713438e209945400f60042929cc8d79e2c82f6cc8e3e1587fdb639495e5d5d ===
+{"jsonrpc":"2.0","id":"probe-init","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"sou17-diagnostic","version":"1"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":"probe-list","method":"tools/list"}
+{"jsonrpc":"2.0","id":"sou17-high-uncertainty","method":"tools/call","params":{"name":"read_document","arguments":{"name":"inventory"},"_meta":{"claudecode/toolUseId":"toolu_sou17_probe","progressToken":17}}}
+
+=== Policy diagnostic: client-call-response.jsonl | original_sha256=3a43ce653677fdf1f8c2622cf4e6c6c8a214945fffe1db7321482059d9459c41 ===
+{"jsonrpc":"2.0","id":"sou17-high-uncertainty","result":{"content":[{"type":"text","text":"Inventory: 7 red widgets."}]}}
+
+=== Policy diagnostic: executor-ledger.jsonl | original_sha256=6a86111082673fb84f1c41c72e66f57de8e53e78561cd265f9f7a44b21378dd6 ===
+{"jsonrpc":"2.0","id":"sou17-high-uncertainty","method":"tools/call","params":{"name":"read_document","arguments":{"name":"inventory"},"_meta":{"claudecode/toolUseId":"toolu_sou17_probe","progressToken":17}}}
+
+=== Policy diagnostic: server-responses.jsonl | original_sha256=7275b8e9b47c44fc1a52ba81542496ed62ada46583b9a3c7495ce29cce2a4342 ===
+{"jsonrpc":"2.0","id":"probe-init","result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"soup-wall-demo","version":"1"}}}
+{"jsonrpc":"2.0","id":"probe-list","result":{"tools":[{"name":"read_document","description":"Read a project note.","inputSchema":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}},{"name":"send_http","description":"Send a text body to the configured local recipient.","inputSchema":{"type":"object","properties":{"url":{"type":"string"},"body":{"type":"string"}},"required":["url","body"],"additionalProperties":false}},{"name":"publish_report","description":"Publish the project report.","inputSchema":{"type":"object","properties":{"url":{"type":"string"},"content":{"type":"string"}},"required":["url","content"],"additionalProperties":false}},{"name":"delete_note","description":"Delete a project note.","inputSchema":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}}]}}
+{"jsonrpc":"2.0","id":"sou17-high-uncertainty","result":{"content":[{"type":"text","text":"Inventory: 7 red widgets."}]}}
+
+=== Policy diagnostic: collector.log | original_sha256=c4520660860a03d69d51a8048507726d6c1a9a80e69acc158e8694fc1d493a0a ===
+{"adapter_verdict":"ask","args_sha256":"59ec058aea960868cd6ba191e38cdf75d326de1a3216905562481111201085b7","baseline_mismatch":false,"classification":{"actions":["read"],"confidence":0.95,"reason_sha256":"a226bc59cd403868757de284687bef291b191f831cc437ce9066ee2314995aec","uncertainty":0.9,"unknown":false},"classifier_sha256":"f803a6e3c4bbd33e5a51020653d95f0800fb714fb3eb5a7ac9a74ad38c8416fc","contract_version":"sw-classification/candidate-1","definition_sha256":"5678d0dd9b3c7c3a46564e673ab2bb33c0e464799f7757f3e01265f9736ba948","event":"mcp_classification","failure":null,"host_call_id":"sou17-high-uncertainty","input_sha256":"5191bb10084d013d61c5f938d99666c5db9a82eb460531579a9dd6b667aebfc7","latency_us":28505,"mapped_action_class":"read_only","policy":"reached","registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","schema_sha256":"c70d2daf71667bd20bdb983d31b4f01657a3308970b3c3d0d7f3bcf3b5d9bf20","server_id":"demo","snapshot_sha256":"329d1e3d97df269fcf67bb318eb0c47f9a6a9d02792123f507f4dcd642f5eb17","source":"rule-baseline/python","tool":"read_document","trusted_baseline":"read_only"}
+
+=== Policy diagnostic: native-audit.jsonl | original_sha256=ae180cf2295d21fcf90715a8abdacc8a07ad235f4c2be586dcf399a5ae99f90a ===
+{"at_ms":1791642129873,"binding_sha256":null,"call_id":null,"content_sha256":null,"delivery":null,"egress_hosts":[],"event":"native_session_start","findings":[],"latency_us":21,"reason_codes":[],"registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","released":true,"risk_score":0,"rule":null,"seq":1,"session":"native:yY5nUsdcpRbNE2usnTryGD-hAHKNVZuOpRqQC1Eq2ds","shadow":false,"taint":null,"tool":null,"truncated":false,"verdict":"allow"}
+{"at_ms":1791642129960,"session":"demo","seq":0,"event":"mcp_handshake","verdict":"allow","shadow":false,"risk_score":0,"findings":[],"egress_hosts":[],"latency_us":0,"truncated":false}
+{"at_ms":1791642130021,"binding_sha256":"4be5daade03914f3dd33f3fbde1a46ea60c412af4f7d76766dd0761255e5db0d","call_id":"y6Oi-od8gt0JQECyXau185MOSIlglJTpubtscY9xuGY","content_sha256":null,"delivery":null,"egress_hosts":[],"event":"native_call","findings":[],"latency_us":31526,"reason_codes":[],"registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","released":true,"risk_score":0,"rule":null,"seq":2,"session":"native:yY5nUsdcpRbNE2usnTryGD-hAHKNVZuOpRqQC1Eq2ds","shadow":false,"taint":null,"tool":"read_document","truncated":false,"verdict":"allow"}
+{"at_ms":1791642130023,"binding_sha256":"4be5daade03914f3dd33f3fbde1a46ea60c412af4f7d76766dd0761255e5db0d","call_id":"y6Oi-od8gt0JQECyXau185MOSIlglJTpubtscY9xuGY","content_sha256":"3a43ce653677fdf1f8c2622cf4e6c6c8a214945fffe1db7321482059d9459c41","delivery":"mcp_host","egress_hosts":[],"event":"native_result","findings":[],"latency_us":139,"reason_codes":[],"registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","released":true,"risk_score":0,"rule":null,"seq":4,"session":"native:yY5nUsdcpRbNE2usnTryGD-hAHKNVZuOpRqQC1Eq2ds","shadow":false,"taint":null,"tool":"read_document","truncated":false,"verdict":"allow"}
+{"at_ms":1791642130025,"binding_sha256":null,"call_id":null,"content_sha256":null,"delivery":null,"egress_hosts":[],"event":"native_session_end","findings":[],"latency_us":21,"reason_codes":[],"registry_sha256":"a8cf35f613afa82bb4c10664ab04bc0fff110396369c801cbb6f1bf3c1e8980d","released":true,"risk_score":0,"rule":null,"seq":5,"session":"native:yY5nUsdcpRbNE2usnTryGD-hAHKNVZuOpRqQC1Eq2ds","shadow":false,"taint":null,"tool":null,"truncated":false,"verdict":"allow"}
