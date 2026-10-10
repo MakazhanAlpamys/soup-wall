@@ -399,12 +399,61 @@ async fn typed_url_egress_does_not_accept_credentials_or_non_http_schemes() {
         "file:///fixture",
         "https:///",
         "not-a-url",
+        "https:approved.example",
+        "https:///approved.example",
+        "https://approved.example\\@outside.example",
     ] {
         let (status, reply) = fixture
             .post(&fixture.call("url", "retrieve_page", &json!({"url": url})))
             .await;
         assert_failure(status, &reply, StatusCode::CONFLICT);
     }
+}
+
+#[tokio::test]
+async fn sou12_empty_or_ambiguous_egress_never_receives_an_execution_grant() {
+    let mut declarations = registry();
+    declarations["tools"][2]["egress"] =
+        json!([{"pointer":"/mail/to","kind":"email_domain","optional":true}]);
+    let dir = tempfile::tempdir().unwrap();
+    let bytes = declarations.to_string().into_bytes();
+    let digest = sha(&bytes);
+    let state = make_state(
+        dir.path(),
+        Config {
+            enforce: true,
+            ..Config::default()
+        },
+        ALLOW,
+        &bytes,
+        &digest,
+    );
+    let fixture = Fixture {
+        dir,
+        state,
+        registry_sha256: digest,
+    };
+    fixture.start("sou12").await;
+    for args in [
+        json!({}),
+        json!({"mail":null}),
+        json!({"mail":{"to":[]}}),
+        json!({"mail":{"to":["ok@approved.example",false]}}),
+    ] {
+        let (status, reply) = fixture
+            .post(&fixture.call("sou12", "send_email", &args))
+            .await;
+        assert_failure(status, &reply, StatusCode::CONFLICT);
+        assert!(reply["call_id"].is_null());
+        assert!(reply["binding_sha256"].is_null());
+    }
+    fixture
+        .allowed_call(
+            "sou12",
+            "send_email",
+            &json!({"mail":{"to":["ok@approved.example"]}}),
+        )
+        .await;
 }
 
 #[tokio::test]

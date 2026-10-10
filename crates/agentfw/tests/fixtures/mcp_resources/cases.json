@@ -1,0 +1,14 @@
+[
+  {"id":"nested-url","selectors":[{"pointer":"/delivery/url","kind":"url"}],"args":{"delivery":{"url":"https://approved.example/report"}},"hosts":["approved.example"]},
+  {"id":"multiple-recipients","selectors":[{"pointer":"/mail/to","kind":"recipient"},{"pointer":"/mail/cc","kind":"recipient","optional":true}],"args":{"mail":{"to":["one@approved.example","two@outside.example"],"cc":"copy@approved.example"}},"hosts":["approved.example","outside.example"]},
+  {"id":"missing","selectors":[{"pointer":"/url","kind":"url"}],"args":{},"error":"resource_missing"},
+  {"id":"null-is-not-default","selectors":[{"pointer":"/url","kind":"url","default":"https://approved.example/"}],"args":{"url":null},"error":"resource_value_missing_or_unsupported"},
+  {"id":"reviewed-default","selectors":[{"pointer":"/url","kind":"url","default":"https://approved.example/"}],"args":{},"hosts":["approved.example"]},
+  {"id":"conflicting-alias","selectors":[{"pointer":"/url","kind":"url","aliases":["/destination"]}],"args":{"url":"https://approved.example/","destination":"https://outside.example/"},"error":"resource_conflicting_fields"},
+  {"id":"matching-alias","selectors":[{"pointer":"/url","kind":"url","aliases":["/destination"]}],"args":{"url":"https://APPROVED.example:443/","destination":"https://approved.example/"},"hosts":["approved.example"]},
+  {"id":"domain","selectors":[{"pointer":"/host","kind":"domain"}],"args":{"host":"APPROVED.example."},"hosts":["approved.example"]},
+  {"id":"optional-empty-is-not-a-grant","selectors":[{"pointer":"/url","kind":"url","optional":true}],"args":{},"error":"resource_no_destinations"},
+  {"id":"malformed-container","selectors":[{"pointer":"/delivery/url","kind":"url","optional":true,"default":"https://approved.example/"}],"args":{"delivery":false},"error":"resource_container_type"},
+  {"id":"escaped-pointer","selectors":[{"pointer":"/delivery~1target/~0url","kind":"url"}],"args":{"delivery/target":{"~url":"https://approved.example/"}},"hosts":["approved.example"]},
+  {"id":"reference-is-not-followed","selectors":[{"pointer":"/url","kind":"url"}],"args":{"url":{"$ref":"/other"},"other":"https://approved.example/"},"error":"resource_value_missing_or_unsupported"}
+]

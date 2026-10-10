@@ -83,16 +83,7 @@ fn identifier(value: &str) -> bool {
 }
 
 fn json_pointer(value: &str) -> bool {
-    if !value.starts_with('/') || value.len() > 256 || value.chars().any(char::is_control) {
-        return false;
-    }
-    let mut bytes = value.bytes();
-    while let Some(byte) = bytes.next() {
-        if byte == b'~' && !matches!(bytes.next(), Some(b'0' | b'1')) {
-            return false;
-        }
-    }
-    true
+    crate::mcp::resources::valid_pointer(value)
 }
 
 fn hash(bytes: &[u8]) -> String {
@@ -140,7 +131,9 @@ fn source(registry: &Registry, tool: &Tool) -> Provenance {
 fn declared_hosts(tool: &Tool, args: &Value) -> Result<Vec<String>, &'static str> {
     let mut hosts = BTreeSet::new();
     for selector in &tool.egress {
-        let selected = match args.pointer(&selector.pointer) {
+        let selected = match crate::mcp::resources::selected(args, &selector.pointer)
+            .map_err(|_| "native_egress_type")?
+        {
             None | Some(Value::Null) if selector.optional => continue,
             Some(value) => value,
             None => return Err("native_egress_missing"),
@@ -160,42 +153,21 @@ fn declared_hosts(tool: &Tool, args: &Value) -> Result<Vec<String>, &'static str
                 .ok_or("native_egress_type")?;
             let host = match selector.kind {
                 EgressKind::UrlHost => {
-                    let url = reqwest::Url::parse(text).map_err(|_| "native_egress_url")?;
-                    if !matches!(url.scheme(), "http" | "https")
-                        || !url.username().is_empty()
-                        || url.password().is_some()
-                    {
-                        return Err("native_egress_url");
-                    }
-                    url.host_str()
-                        .ok_or("native_egress_url")?
-                        .trim_matches(['[', ']'])
-                        .to_ascii_lowercase()
+                    crate::mcp::resources::canonical_url(text)
+                        .map_err(|_| "native_egress_url")?
+                        .1
                 }
                 EgressKind::EmailDomain => {
-                    let (local, domain) = text.rsplit_once('@').ok_or("native_egress_email")?;
-                    if local.is_empty()
-                        || local.contains('@')
-                        || text.chars().any(char::is_whitespace)
-                        || domain.is_empty()
-                        || domain.len() > 253
-                        || !domain.split('.').all(|label| {
-                            !label.is_empty()
-                                && label.len() <= 63
-                                && !label.starts_with('-')
-                                && !label.ends_with('-')
-                                && label
-                                    .bytes()
-                                    .all(|c| c.is_ascii_alphanumeric() || c == b'-')
-                        })
-                    {
-                        return Err("native_egress_email");
-                    }
-                    domain.to_ascii_lowercase()
+                    crate::mcp::resources::canonical_recipient(text)
+                        .map_err(|_| "native_egress_email")?
+                        .1
                 }
             };
             hosts.insert(host);
         }
+    }
+    if hosts.is_empty() && (tool.action_class == ActionClass::Network || !tool.egress.is_empty()) {
+        return Err("native_egress_missing");
     }
     Ok(hosts.into_iter().collect())
 }

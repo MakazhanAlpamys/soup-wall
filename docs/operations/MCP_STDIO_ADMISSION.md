@@ -329,6 +329,159 @@ symlink privileges, Unix/Linux-only behavior and explicitly selected AgentDojo/
 native-daemon environments. No external provider, live Claude/Codex host,
 Linux/macOS run or GitHub CI outcome is claimed by this Windows evidence.
 
+## SOU-12: conservative resource and destination extraction
+
+The library entry point is
+[`mcp::resources::extract`](../../crates/agentfw/src/mcp/resources.rs).
+It consumes the same validated `Invocation` produced by the SOU-11 collector,
+an operator-reviewed `ResourceProfile`, and the selected local executor's
+`ExecutorContext`. It does not create a new collector, classifier, admission
+endpoint or policy pipeline. This increment depends on the SOU-11 input work
+at `de241f7b81408897168b3c7b6eec15c3c96a8d3c`, accepted into `main` through
+PR #60. The SOU-12 branch incorporates that accepted prerequisite from `main`.
+
+### Reviewed selectors and defaults
+
+Profiles bind `server_id`, `tool_name` and `schema_sha256` to explicit JSON
+pointers. Only the named fields are read; nested strings are not searched for
+possible paths or destinations. Each selector has a `kind`: `path`, `url`,
+`domain` or `recipient`. String values and bounded arrays of strings are supported.
+For example, the selector portion of a reviewed mail profile can be:
+
+```json
+[
+  {"pointer":"/mail/to", "kind":"recipient"},
+  {"pointer":"/mail/cc", "kind":"recipient", "optional":true},
+  {"pointer":"/mail/bcc", "kind":"recipient", "optional":true}
+]
+```
+
+`aliases` are optional reviewed alternatives for the **same** resource. If
+multiple alternatives are present, their normalized resource lists must match;
+otherwise extraction records `resource_conflicting_fields`. Independent
+destinations require separate selectors or an array and are all retained.
+
+An optional reviewed `default` applies only when the selected argument is absent.
+An explicit null, malformed intermediate object, empty array or invalid value
+cannot be replaced by a default. Defaults in untrusted schemas and descriptions
+are never used. Optional absent selectors are listed in `omitted_optional`;
+when no concrete resources remain, the result is incomplete. These optional
+profile fields are not mandatory per-tool contract entries. Reference objects,
+wildcards, templates and unreviewed override/reference semantics are unsupported;
+the extractor never follows a `$ref` found in arguments.
+
+Limits: at most 32 selectors, eight pointers per selector including aliases,
+256 values per array, 4,096 bytes per string, 64 KiB per serialized profile,
+and the existing 256 KiB argument limit. Invalid pointers, duplicate selectors,
+unknown profile fields and non-string resources are refused explicitly.
+
+### Selected executor and supported canonicalization
+
+| Resource | Bounded behavior |
+| --- | --- |
+| Path | Uses the explicitly selected local OS, workspace and process working directory. Relative paths resolve against that working directory. Existing objects must remain in the workspace; a new final component requires `allow_missing_leaf: true` and an existing parent. No file is created during extraction. |
+| Path ambiguity | Rejects traversal, foreign path syntax, missing parents, special files, symlink components and Windows reparse points/junctions. Windows device names (including console aliases and superscript COM/LPT digits), alternate data streams, drive-relative/root-relative names, UNC/device paths and trailing dots/spaces are refused. |
+| URL | Explicit HTTP(S) syntax, parsed using the same `reqwest::Url` type as native admission. Preserves canonical URL and port, normalizes the host, and rejects credentials, whitespace, backslashes and ambiguous missing authorities. IPv6 hosts are supported. |
+| Domain | Lowercases a bounded ASCII DNS name and removes a final root dot. Numeric-only forms, Unicode domain strings and URL/port syntax are unsupported for this selector; URL selectors use the URL parser's host semantics. |
+| Recipient | Retains each simple mailbox and normalized ASCII domain. Display names, groups, quoted local parts and comma-separated strings are unsupported; use an explicit array for multiple recipients. |
+
+`ExecutorContext.fixed_destinations` is a trusted assertion about the reviewed
+executor, not a switch that enforces its behavior. Set it only when redirects
+and server-chosen secondary destinations are constrained by that executor.
+Otherwise URL/domain/recipient capabilities return
+`resource_destination_control_unsupported`. No DNS lookup, URL fetch or message
+send is performed by extraction. Do not derive executor context from tool metadata
+or arguments, and do not label an arbitrary external MCP server as constrained.
+
+Path checks are a snapshot, not protection against replacement between inspection
+and execution. The executor must enforce filesystem confinement and recheck/bind
+the actual opened object. This API does not authorize a general child process to
+access the filesystem and does not claim race-safe OS confinement.
+
+### Typed output and policy handoff
+
+`Extraction` contains original server/tool/schema and snapshot identity, argument,
+profile and executor-context hashes, `ResourceEvidence` entries, explicit issues,
+and optional omissions. Evidence records the reviewed pointer and whether the
+value came from an argument or reviewed default. Conflicting fields retain their
+evidence along with an issue. An invalid array is refused as a whole; other
+selectors' known evidence is retained. Original arguments and native call IDs
+are never rewritten. Resource values may be sensitive and must not be copied
+into public audit output.
+
+`complete()` requires concrete resources and no issues. It is not an Allow
+decision. `hosts_for_policy()` exposes hosts only for the existing host allowlist
+check and refuses incomplete results or any path resource. Consumers must still
+evaluate applicable full URL/port, mailbox and filesystem restrictions using
+the typed resources. Predictions and descriptions grant no permissions, and
+absence/ambiguity cannot become an empty unrestricted host grant.
+
+The existing native `egress` selectors reuse this module's URL/mailbox parsers
+and strict pointer traversal. A network declaration, or a declaration with
+egress selectors, must resolve at least one destination before policy can issue
+an execution receipt. Optional fields cannot silently erase every destination.
+This tightens ambiguous URL/mailbox forms and empty egress; native wire fields,
+correlation and original arguments are preserved. Tools declaring no egress
+and a non-network action keep their existing behavior.
+
+The generic profile/default/path API is a runnable library handoff for SOU-15.
+Loading these profiles into a full resource-aware runtime policy and enforcing
+them at the actual file/network operation remain integration work; the current
+native host-only bridge is not that enforcement. `ResourceProfile` is not a new
+field accepted from an MCP client or server in `sw-native/1`.
+
+### Reproduction
+
+The shared [synthetic cases](../../crates/agentfw/tests/fixtures/mcp_resources/cases.json)
+cover nested destinations, multiple recipients, defaults, alias conflicts,
+missing/ambiguous fields and unsupported references. The resource suite consumes
+typed output in the existing policy engine; native endpoint checks verify that
+unresolved destinations receive neither `call_id` nor `binding_sha256`, followed
+by a successful valid call. Platform checks use disposable filesystem objects,
+including a real Windows junction; Unix symlink checks run on Unix.
+
+```sh
+cargo test --locked -p agentfw -j 1 --test mcp_resources --test native_endpoint --test mcp_admission -- --test-threads=2
+cargo clippy --workspace --all-targets --locked -j 1 -- -D warnings
+cargo test --workspace --locked -j 1 -- --test-threads=2
+```
+
+### Local SOU-12 evidence (2026-10-10)
+
+Source: the accompanying SOU-12 changes on prerequisite SOU-11 commit
+`de241f7b81408897168b3c7b6eec15c3c96a8d3c`. Environment: native Windows,
+Rust/Cargo 1.99.0, VS 2022 Build Tools and Python 3.13.12. All commands ran
+from the repository root with the synthetic fixtures documented above.
+
+| Command | Actual outcome |
+| --- | --- |
+| `cargo fmt --all -- --check` | Passed |
+| `cargo clippy --workspace --all-targets --locked -j 1 -- -D warnings` | Passed, no warnings |
+| `cargo test --workspace --locked -j 1 -- --test-threads=2` | 903 passed, 0 failed, 5 ignored |
+| `python -B -m unittest discover -s scripts/tests -p 'test_*.py' -v` | 174 passed, 9 skipped |
+| `python -B -m unittest discover -s scripts/benchmarks -p 'test_*.py' -v` | 26 passed, 18 skipped |
+| `python -B scripts/check_docs.py` | 63 Markdown files, 284 local links, 0 errors |
+
+The Rust total includes 12 resource tests, 29 native endpoint tests and 43 MCP
+admission tests. This increment adds 12 resource tests and one native endpoint
+test on Windows; existing tests retain their authorship. The Windows junction
+case created a real temporary junction and verified its refusal. The Unix-only
+symlink case was not compiled/run on this Windows host and needs Unix CI.
+
+The five ignored Rust checks require a live judge, disposable Redis/PostgreSQL
+or selected real OIDC/SAML endpoints. Python skips require Unix/Linux behavior,
+symlink privileges or explicitly selected AgentDojo/native-daemon environments.
+No GitHub CI, Linux/macOS, live model/provider or deployment acceptance outcome
+is claimed. Review and the SOU-15 resource-aware runtime integration remain
+outstanding; successful extraction is not execution authorization.
+
+After incorporating `main` at `ca55eda16c2826b770f169dee152950a0aa17575`,
+the same Rust workspace command passed 907 tests with zero failures and five
+ignored checks. The four additional passing tests came from main's adapter
+attack scenarios, not this SOU-12 increment. Formatting, Clippy and the
+documentation check also passed again; Python results above are from the
+pre-merge run. This recheck does not claim a GitHub CI outcome.
+
 ## Local demonstration
 
 The demonstration runs on Linux, macOS and Windows without a model, provider or
