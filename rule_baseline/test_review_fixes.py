@@ -101,5 +101,46 @@ class ProvenNoopD07(unittest.TestCase):
         self.assertTrue(r["unknown"])
 
 
+class ProvenNoopBoundaries(unittest.TestCase):
+    """Review fixes for D07: a recognised command name is not proof of no effect."""
+
+    def run_cmd(self, cmd):
+        return classify({"tool_name": "bash", "raw_arguments": {"command": cmd}})
+
+    def test_redirect_with_file_target_is_a_write(self):
+        for cmd in ("echo hi >& out.txt", "echo hi &> out.txt", "echo hi >out.txt"):
+            r = self.run_cmd(cmd)
+            self.assertIn("write", r["actions"], cmd)
+
+    def test_unsupported_syntax_is_not_proven_noop(self):
+        for cmd in ("echo <(cat private.txt)", "echo hi 2>err.txt", "cat <<EOF\nhi\nEOF"):
+            r = self.run_cmd(cmd)
+            self.assertTrue(r["unknown"] or r["actions"], cmd)
+            self.assertNotIn("proven_noop", r["reason_codes"], cmd)
+
+    def test_harmless_noise_redirects_stay_noop(self):
+        for cmd in ("echo hi 2>&1", "echo hi > /dev/null", "true 2>/dev/null"):
+            r = self.run_cmd(cmd)
+            self.assertEqual((r["actions"], r["unknown"]), ([], False), cmd)
+
+    def test_deep_substitution_is_unknown(self):
+        r = self.run_cmd("true $(echo $(echo $(echo $(frobnicate))))")
+        self.assertTrue(r["unknown"])
+        self.assertEqual(r["actions"], [])
+
+    def test_deep_substitution_keeps_recognised_actions(self):
+        r = self.run_cmd("rm x $(echo $(echo $(echo $(frobnicate))))")
+        self.assertIn("delete", r["actions"])
+        self.assertTrue(r["unknown"])
+
+    def test_colon_is_a_complete_token(self):
+        r = self.run_cmd(":")
+        self.assertEqual((r["actions"], r["unknown"]), ([], False))
+        for cmd in (":frobnicate", "echo-x", "true-x"):
+            r = self.run_cmd(cmd)
+            self.assertTrue(r["unknown"], cmd)
+            self.assertNotIn("proven_noop", r["reason_codes"], cmd)
+
+
 if __name__ == "__main__":
     unittest.main()

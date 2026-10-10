@@ -65,8 +65,10 @@ I = re.I
 PIPE_TO_SHELL = re.compile(r"\|\s*(?:sudo\s+)?(?:ba|z)?sh\b", I)
 NESTED = re.compile(r"""^(?:bash|sh|zsh)\s+-\w*c\s+(["'])(.*)\1\s*$""", I | re.S)
 ENV_PREFIX = re.compile(r"^(?:\w+=\S*\s+)+")
-NOISE_REDIRECT = re.compile(r"\d?>\s*&\d|\d?>>?\s*/dev/null|>&\s*\S+")
-REDIRECT = re.compile(r"(?<![<>\d&-])>{1,2}\s*[^\s&|>]")
+NOISE_REDIRECT = re.compile(r"\d?>\s*&(?:\d|-)|\d?>>?\s*/dev/null|&>>?\s*/dev/null|>&\s*/dev/null")
+# Redirections, heredocs and process substitution are not analysed for no-op proofs.
+UNSUPPORTED_SYNTAX = re.compile(r"[<>]")
+REDIRECT = re.compile(r"(?<![<>\d&-])(?:&>>?|>>?&?)\s*[^\s&|>]")
 
 DELETE_CMD = re.compile(
     r"^(?:rm|rmdir|unlink|shred|del|erase|rd|mkfs\S*|shutdown|reboot|remove-item)\b"
@@ -93,7 +95,7 @@ WRITE_CMD = re.compile(
     r"|rename-item)\b|^sed\s+-i\b|^git\s+(?:commit|add|checkout|merge|rebase|stash|tag|init|restore"
     r"|switch|mv|pull)\b|^curl\b.*(?:\s-o\s|\s-O\b|--output\b)", I)
 TEXT_CMDS = {"echo", "printf", "grep", "egrep", "fgrep", "rg", "ag", "select-string"}  # quoted words are data
-NOOP_CMD = re.compile(r"^(?:echo|printf|true|false|:|sleep)\b", I)  # produce output only
+NOOP_CMD = re.compile(r"^(?:echo|printf|true|false|:|sleep)(?:\s|$)", I)  # produce output only
 INSTALL_CMD = re.compile(r"^(?:npm|pip3?|cargo|yarn|pnpm)\s+(?:install|add|i|update|ci)\b", I)
 READ_CMD = re.compile(
     r"^(?:ls|dir|cat|head|tail|less|more|grep|egrep|rg|ag|find|pwd|wc|stat|tree|which"
@@ -200,6 +202,8 @@ def _shell(text: str, ev, depth: int = 0) -> int:
     if depth < 3:
         for sub in subs:
             unmatched += _shell(sub, ev, depth + 1)
+    else:
+        unmatched += len(subs)  # substitutions beyond the depth limit were not examined
     for seg in segs:
         seg = ENV_PREFIX.sub("", seg.strip())
         if not seg:
@@ -232,7 +236,7 @@ def _shell(text: str, ev, depth: int = 0) -> int:
         if reads:
             ev("read", 0.8, "shell", "read-only command")
         if not (strong or redirect or reads):
-            if NOOP_CMD.search(rest):
+            if NOOP_CMD.search(rest) and not UNSUPPORTED_SYNTAX.search(NOISE_REDIRECT.sub(" ", masked)):
                 ev.noop.append(seg)  # recognised, proven to have no effect
             else:
                 unmatched += 1
