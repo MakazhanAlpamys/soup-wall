@@ -58,10 +58,11 @@ tool's result cannot undo its effects; preventing a send requires call admission
 ## Supported initial contract
 
 The initial contract is synchronous stdio with one outstanding request and
-text-only tool results. Input schemas are closed top-level objects with required
-string fields; the collector checks the actual arguments against that supported
-schema before admission. Complex schemas, defaults and implicit destinations
-are outside this contract. Results contain only original text blocks and an
+text-only tool results. The SOU-11 input profile accepts closed top-level objects,
+bounded nested objects/arrays and explicitly typed scalar fields. The collector
+checks actual arguments before admission; the supported keywords and limits are
+listed below. Defaults are inert metadata, never inserted into arguments;
+implicit destinations remain outside this contract. Results contain only original text blocks and an
 optional Boolean `isError`; JSON-RPC errors contain an integer code and message.
 
 `tools/list` accepts empty parameters or the observed Codex discovery metadata
@@ -118,8 +119,9 @@ The collector accepts one replaceable `InvocationClassifier` between argument
 validation and the daemon `call` event. Its candidate output
 (`sw-classification/candidate-1`) is `actions[]` from `read`, `write`,
 `delete`, `send_data` and `change_permissions`, a separate `unknown` Boolean,
-and confidence, uncertainty and a reason. Teams 1, 2 and 3 have not frozen this
-contract; it changes neither the MCP frames nor `sw-native/1`.
+and confidence, uncertainty and a reason. This remains the bounded compatibility
+profile; the reviewed SOU-10 contract defines the generic target. It changes
+neither the MCP frames nor `sw-native/1`.
 
 - A single action maps to `ReadOnly`, `SideEffecting`, `Destructive`, `Network`
   or `PrivilegeChanging`. The result is evidence only: the daemon still
@@ -141,7 +143,7 @@ latency. Debug builds provide two identified test doubles:
 `AGENTFW_TEST_CLASSIFIER_READ=1` ([classified read](CLASSIFIED_READ_EVIDENCE.md))
 and `AGENTFW_TEST_CLASSIFIER=fixture-v1`, which infers `send_data` from
 URL-valued arguments rather than tool names and injects faults named in argument
-values. Release builds refuse both. Team 1's classifier is not integrated yet.
+values. Release builds refuse both. The real Team 1 adapter is described below.
 
 ### Real Task 1 rule baseline (SOU-22)
 
@@ -196,6 +198,136 @@ baseline test separately proves Allow execution, Deny/Ask non-execution and
 original request-byte preservation. The actual Claude host check is reported as
 skipped when its executable is unavailable; scripted frames do not establish
 live-model security effectiveness.
+
+## SOU-11: collection, input validation and definition identity
+
+This increment extends the existing guarded collector in `crates/agentfw/src/mcp/`.
+It uses the [reviewed SOU-10 semantic contract](../../contract/updated_contract2.md)
+and the same selected stdio server and daemon. Resource extraction (SOU-12),
+generic classification (SOU-14) and policy/result integration (SOU-15) consume
+these inputs; this increment does not complete those tasks.
+
+### Passive host configuration inspection
+
+```sh
+agentfw mcp-inspect-config --path /absolute/path/to/selected-host-config.json
+```
+
+The selected JSON file must contain a Claude-style `mcpServers` object. Inspection
+only returns server names, transport support and `requires_explicit_selection`.
+Command strings, arguments, environment values, URLs and headers are not printed.
+It neither launches discovered commands nor contacts discovered URLs. The
+supported configuration transport is explicit/default `stdio` with a nonempty
+command and optional string arguments. Remote transports are reported unsupported.
+The file limit is 1 MiB and 256 server entries; malformed or duplicate-key JSON
+is refused without echoing its contents. Other host formats are unsupported.
+
+Inventory support does not authorize execution or certify a server. Active
+collection still requires the operator to explicitly select the local server
+with `mcp --native-admission --id ... -- ...` and install its reviewed registry.
+The command does not import a host file into an executable launch configuration.
+
+### Supported validation profile
+
+Original `tools/list` definitions, descriptions, schemas and supported annotations
+remain in the admitted snapshot and `Invocation.definition`. `Invocation.args`
+holds the parsed original arguments; accepted JSON-RPC bytes, including native
+IDs, are forwarded unchanged. `Invocation.semantic_input()` excludes host call
+IDs and trusted registry classes. Schema defaults never add an absent field.
+No schema is promoted to `pinned_schema` by its own metadata.
+
+| Shape | Supported constraints |
+| --- | --- |
+| Object | Explicit `type: object`, `properties`, `additionalProperties: false`; optional `required` contains unique declared keys |
+| Array | Explicit `type: array` and one supported `items` schema |
+| Scalars | `string`, `integer` (JSON integer representation), finite `number`, `boolean`, `null`; no coercion |
+| Schema annotations | String `title`/`description` and inert `default`; original JSON retained |
+| Tool annotations | String `title`; Boolean `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint` |
+| Limits | Depth 8 from root, 256 object properties/array elements, 1,024 schema nodes, 4,096 argument nodes, 16 KiB per argument string; existing 256 KiB frame limit |
+
+References, unions/combinators, open objects, pagination, unknown keywords and
+unlisted constraints are refused explicitly. Both schemas and actual arguments
+must fit the profile. Annotation text is inspected at the existing manifest
+boundary; hints cannot change registry permissions. Missing required fields,
+wrong types and oversized inputs stop the collector before forwarding the call.
+For a reusable synthetic schema see
+[`nested_schema.json`](../../crates/agentfw/tests/fixtures/mcp_inputs/nested_schema.json).
+
+### Definition refresh and prediction reuse identity
+
+`Invocation` includes the operator-selected server ID, untrusted advertised
+`server_info`, discovery snapshot/schema/definition SHA-256 values, original
+arguments, classifier revision and `input_sha256`. The last digest binds the
+`sou11-input-v1` profile, server identity, entire discovery snapshot, selected
+definition/schema, arguments and classifier source/revision. Metadata, tool-list,
+schema, server or classifier revision changes cannot retain the same key.
+The hashes use the existing canonical JSON encoding; original objects stay intact.
+Registry/policy identity remains separate in correlation context. Neither a
+prediction key nor an optional trusted profile is an execution grant.
+
+There is no cross-call prediction cache: every call is classified afresh. The
+per-session definition cache is discarded before every discovery refresh and
+on an advertised `notifications/tools/list_changed`. After that notification,
+calls require a newly validated and admitted `tools/list`; stale definitions are
+never a fallback. A schema or tool-set change outside the installed registry
+is refused and requires operator review and a new session/configuration. The
+collector never silently updates trusted pins. Notifications during an outstanding
+request, unadvertised changes and malformed notifications end the collector;
+withholding a result cannot undo an already executed call.
+
+`input_sha256` and `definition_sha256` are included in the existing classification
+audit line without logging original arguments or metadata. Classifiers without
+a fixed revision have no reusable prediction-cache identity guarantee; debug
+test doubles exercise transport, not classification quality. A downstream cache
+must require a pinned revision and still run policy admission for every call.
+
+### Reproduce the bounded checks
+
+Requirements: Rust stable, platform C/C++ build tools and Python 3 on `PATH`.
+Run from the repository root:
+
+```sh
+cargo test --locked -p agentfw --test mcp_inputs
+cargo test --locked -p agentfw --lib input_identity_tests
+cargo test --locked -p agentfw --test mcp_admission
+```
+
+The added `sou11_` integration cases use the existing disposable daemon/local
+MCP fixture and execution ledger. They cover an unfamiliar tool with nested
+arguments, missing/wrong/oversized inputs, original bytes and IDs, metadata refresh,
+stale definition refusal, schema-pin changes and injection in annotation text.
+The input tests also verify that inspecting a synthetic host configuration creates
+no command marker and opens no loopback connection. Identity unit checks cover
+server and classifier revision changes and preservation of original definitions.
+These are synthetic local checks, not live-provider or arbitrary-server acceptance.
+
+### Local SOU-11 evidence (2026-10-10)
+
+Source: the accompanying SOU-11 changes based on main
+`5ab2fb55b7c68ac95c06162e6edb656c26982f81`, using the contract and synthetic
+registry/server configuration linked above. Environment: Windows, Rust/Cargo
+1.99.0, Visual Studio 2022 C++ Build Tools, Python 3.13.12.
+
+| Command | Actual result |
+| --- | --- |
+| `cargo fmt --all -- --check` | Passed |
+| `cargo clippy --workspace --all-targets --locked -j 1 -- -D warnings` | Passed, no warnings |
+| `cargo test --workspace --locked -j 1 -- --test-threads=2` | 890 passed, 0 failed, 5 ignored |
+| `python -B -m unittest discover -s scripts/tests -p 'test_*.py' -v` | 174 passed, 9 skipped |
+| `python -B -m unittest discover -s scripts/benchmarks -p 'test_*.py' -v` | 26 passed, 18 skipped |
+| `python -B scripts/check_docs.py` | 63 Markdown files, 282 local links, 0 errors |
+
+The Rust run includes 194 `agentfw` library tests, 43 MCP admission tests and
+7 input-profile tests. Of those, 17 tests are added by SOU-11; existing tests
+and their authorship are retained. The unrestricted parallel workspace build
+initially exceeded available Windows commit memory; the recorded successful
+run limits compilation to one job and test execution to two threads.
+
+The five ignored Rust checks require a live local judge, disposable Redis and
+PostgreSQL, or selected real OIDC/SAML endpoints. Python skips cover unavailable
+symlink privileges, Unix/Linux-only behavior and explicitly selected AgentDojo/
+native-daemon environments. No external provider, live Claude/Codex host,
+Linux/macOS run or GitHub CI outcome is claimed by this Windows evidence.
 
 ## Local demonstration
 
