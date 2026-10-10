@@ -482,69 +482,25 @@ attack scenarios, not this SOU-12 increment. Formatting, Clippy and the
 documentation check also passed again; Python results above are from the
 pre-merge run. This recheck does not claim a GitHub CI outcome.
 
-## SOU-15: runtime admission binding and resource enforcement
+## SOU-15: production gate and resource boundary
 
-This increment unifies the semantic contract (SOU-10 / PR #57), the baseline classifier
-bridge (SOU-22 / PR #58), input schema validation (SOU-11 / PR #60), and typed resource
-extraction (SOU-12 / PR #61) into runtime stdio MCP admission in `crates/agentfw/src/mcp/admission.rs`.
+The collector composes baseline predictions with operator-installed semantics. Delete and permission changes are denied; high uncertainty requires confirmation. Composed Deny and unconfirmed Ask return correlated refusals **before** native call admission, so repeated refusals cannot reserve the session's 64 live slots. A composed Allow still requires native policy admission. Legacy permitted reads and sends preserve original call/result bytes.
 
-### Capabilities and policy binding
+Current mapping accepts supported singleton classifications. Unknown and mixed outputs fail closed as `unsupported_classification_mapping` before production policy. They are not successful classification or ordinary policy decisions. Generic classification (SOU-14) and full integration acceptance remain outstanding.
 
-1. **Authoritative production policy composition & telemetry:** Integrates
-   `compose_production_policy` alongside `soup_wall_adapter::runner::evaluate_baseline_policy`.
-   Predictions from the classifier are composed with the trusted operator registry and
-   declared egress permissions: `delete` maps strictly to `Deny`, `change_permissions`
-   maps to `Deny`, high uncertainty (`>= 0.8`) and `unknown` map to unconfirmed `Ask`,
-   unauthorized `send_data` without declared egress maps to `Deny`, and unauthorized `write`
-   on a `ReadOnly` baseline maps to `Deny`. The composed authoritative verdict
-   (`authoritative_verdict`) is enforced by `Collector::classify` as an execution barrier
-   (`withheld` with non-execution witness for `Deny` and unconfirmed `Ask`), while preserving
-   operator-permitted `send_data` and read execution. Telemetry in `mcp_classification`
-   records both `adapter_verdict` and `authoritative_verdict`. When native policy admits a call
-   (`release == true`) but composed policy subsequently returns `Ask` or `Deny`, admission
-   immediately revokes/consumes the reserved `call_id` via a synthetic error result event to `/native/v1`.
-   This prevents exhausting the 64 native session call slots (`MAX_SESSION_CALLS`), ensuring
-   benign follow-up calls succeed without capacity failure.
-2. **Versioned native admission call receipt resource binding & authoritative policy:** Configured
-   operator-reviewed `ResourceProfile`s (provided via `AGENTFW_RESOURCE_PROFILES`) extract typed resources using
-   `mcp::resources::extract`. Invocations failing extraction completeness or carrying ambiguous
-   credentials are withheld fail-closed (`execution = 0`) before frames reach the server.
-   On `call` events, typed extracted `resources`, `profile_sha256`, `executor_sha256`, and
-   `classifier_sha256` are submitted to `/native/v1`. The native daemon validates digest formats
-   and deserializes typed resources (`Url`, `Path`, `Domain`, `Recipient`). During `inspect()`,
-   typed resources are authoritatively verified against declared tool egress and sensitive path
-   restrictions (`native_resource_unauthorized_egress`, `native_resource_unauthorized_recipient`,
-   `native_resource_sensitive_path`), feeding into the native decision. Released calls bind them into
-   `binding_sha256` under the `sw-native/call-ext/1\0` domain separator, returning `resources_sha256`
-   in the admission receipt. Receipts compute `sha(canonical(res).to_string().as_bytes())` and enforce
-   exact canonical digest equality, rejecting tampered digests before server execution.
-   Resource telemetry contains only digests and counts; raw URL queries, paths and mailbox addresses are not logged.
-3. **Verified runtime executor confinement:** Executor destination control capability requires both
-   the `AGENTFW_EXECUTOR_FIXED_DESTINATIONS` capability assertion and verification by
-   `verify_executor_confinement(&command, &args, &workspace)`. Confinement enforces that runtime
-   commands do not use unconfined shells (`sh`, `bash`, `cmd`, `powershell`), disallows arbitrary inline
-   eval flags (`-c`, `-e`, `-E`, etc.), rejects shell redirection operators (`>`, `<`, `|`), enforces that
-   scripts and direct executables reside strictly within the reviewed workspace, and sets the child process
-   working directory to `workspace`. When unconfined (default), network extraction fail-closes
-   with `resource_destination_control_unsupported` per SOU-12 fallback.
-4. **Execution barrier enforcement:** Denied calls and unconfirmed `Ask` verdicts strictly
-   prevent forwarding and server execution. Original JSON-RPC identifiers and correlation
-   metadata are preserved.
+### Resources and execution
 
-### Local SOU-15 evidence (2026-10-10)
+The [versioned native resource contract](NATIVE_RESOURCE_ADMISSION.md) adds operator-installed resource permissions, repeats extraction from actual arguments and binds complete typed evidence/revisions to a one-shot receipt. A matching digest alone does not authorize a destination. Legacy `sw-native/1` calls retain their strict shape; resource extensions cannot be accepted silently and resource policies cannot be downgraded.
 
-Environment: macOS arm64, Rust 1.99.0, Python 3.14.3.
+The generic stdio relay launches a trusted process with the configured working directory. This is **not an execution sandbox**: a script inside a workspace can still access other files or open sockets. The relay therefore refuses a call with `resource_executor_unsupported` when its tool has a configured resource profile or native resource policy. Neither `AGENTFW_EXECUTOR_FIXED_DESTINATIONS` nor script location enables this mode. Unsupported calls reserve no grant and reach no tool executor. Unprofiled tools keep the existing trusted-server admission flow.
 
-| Command | Actual outcome |
-| --- | --- |
-| `cargo fmt --all -- --check` | Passed |
-| `cargo clippy --workspace --all-targets -- -D warnings` | Passed, no warnings |
-| `cargo test --workspace` | 913 passed, 0 failed, 5 ignored |
-| `cargo test -p agentfw --test mcp_admission` | 47 passed, 0 failed |
-| `python3 scripts/verify-sou17.py --allow-dirty` | 91 passed, 0 failed (resilience: 19, mcp: 43, native: 29) |
-| `python3 scripts/mcp-admission-demo.py --classifier rule-baseline` | Passed (16/16 checks, 0 errors) |
-| `python3 -B -m unittest discover -s scripts/tests -p 'test_*.py' -v` | 177 passed, 6 skipped |
-| `python3 scripts/check_docs.py` | 64 Markdown files, 289 local links, 0 errors |
+Resource-aware stdio execution requires a reviewed executor that enforces grants at actual file/network operations. Native resource authorization checks permissions and correlation for an authenticated trusted collector; it does not prove containment of arbitrary server code. Earlier candidate confinement claims based on command flags, script location and working directory are superseded by this explicit unsupported boundary.
+
+### Maintainer repair preparation (2026-10-10)
+
+Environment: Linux in an isolated Docker container, Rust 1.98.0, Python 3.11. Regressions cover repeated Ask/Deny followed by useful execution, missing/tampered/unexpected receipt hashes, URL port/path and mailbox permissions, canonical paths, forged evidence, contract downgrade, original host ID and metadata limits. Independent server ledgers verify zero tool effects on refusals; useful legacy controls execute once.
+
+The scripted baseline demonstration passes all 16 checks using actual loopback sender/receiver witnesses. Actual Claude Code is unavailable in the container, so that host check is **skipped**. This is source preparation evidence, not full SOU-15 acceptance or arbitrary-server sandboxing. Use the current discovered counts from `scripts/verify-sou17.py` rather than the earlier 91-case candidate total.
 
 ## Local demonstration
 

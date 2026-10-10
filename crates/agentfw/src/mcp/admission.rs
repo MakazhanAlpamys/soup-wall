@@ -412,6 +412,24 @@ pub fn compose_production_policy(
     Ok(ProductionVerdict::Ask)
 }
 
+fn validate_resource_receipt(admission: Option<&Value>, reply: &Value) -> anyhow::Result<()> {
+    if let Some(admission) = admission {
+        let admission: crate::native::resource::Admission =
+            serde_json::from_value(admission.clone())?;
+        admission.validate_shape().map_err(anyhow::Error::msg)?;
+        ensure!(
+            reply["resources_sha256"] == admission.resources_sha256(),
+            "MCP admission resource receipt mismatch"
+        );
+    } else {
+        ensure!(
+            reply.get("resources_sha256").is_none(),
+            "unexpected legacy resources receipt"
+        );
+    }
+    Ok(())
+}
+
 struct AdmittedTool {
     description: String,
     schema: Value,
@@ -496,133 +514,10 @@ pub struct AdmissionCfg {
     pub args: Vec<String>,
     pub classifier: Option<Arc<dyn InvocationClassifier>>,
     pub resource_profiles: BTreeMap<String, super::resources::ResourceProfile>,
-    pub executor_fixed_destinations: bool,
 }
 
-pub fn executor_fixed_destinations_from_env() -> bool {
-    std::env::var("AGENTFW_EXECUTOR_FIXED_DESTINATIONS")
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
-}
-
-pub fn verify_executor_confinement(
-    command: &str,
-    args: &[String],
-    workspace: &std::path::Path,
-) -> bool {
-    if !workspace.is_dir() {
-        return false;
-    }
-    let canonical_workspace = match workspace.canonicalize() {
-        Ok(path) => path,
-        Err(_) => return false,
-    };
-    if command.is_empty() || command.contains("..") {
-        return false;
-    }
-    // Disallow shell redirection and pipes in arguments
-    for arg in args {
-        if arg.contains('>') || arg.contains('<') || arg.contains('|') {
-            return false;
-        }
-    }
-    let cmd_path = std::path::Path::new(command);
-    let file_name = cmd_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or(command);
-
-    // Shells are inherently unconfined environments
-    let shells = [
-        "sh",
-        "bash",
-        "zsh",
-        "dash",
-        "ksh",
-        "cmd.exe",
-        "cmd",
-        "powershell.exe",
-        "powershell",
-        "pwsh",
-        "pwsh.exe",
-    ];
-    if shells.contains(&file_name) {
-        return false;
-    }
-
-    // Language runtimes and evaluators
-    let interpreters = [
-        "python",
-        "python3",
-        "python.exe",
-        "python3.exe",
-        "node",
-        "node.exe",
-        "nodejs",
-        "deno",
-        "deno.exe",
-        "bun",
-        "bun.exe",
-        "ruby",
-        "ruby.exe",
-        "perl",
-        "perl.exe",
-        "php",
-        "php.exe",
-    ];
-    if interpreters.contains(&file_name) {
-        // Disallow arbitrary inline evaluation flags
-        for arg in args {
-            if arg == "-c"
-                || arg == "-e"
-                || arg == "-E"
-                || arg == "-r"
-                || arg == "/c"
-                || arg == "--eval"
-                || arg == "-p"
-                || arg == "--print"
-                || arg == "eval"
-            {
-                return false;
-            }
-        }
-        // First non-flag argument must be a script file strictly within the workspace
-        let script_arg = args.iter().find(|a| !a.starts_with('-'));
-        let Some(script) = script_arg else {
-            return false;
-        };
-        if script.contains("..") {
-            return false;
-        }
-        let script_path = if std::path::Path::new(script).is_absolute() {
-            std::path::PathBuf::from(script)
-        } else {
-            canonical_workspace.join(script)
-        };
-        let Ok(canonical_script) = script_path.canonicalize() else {
-            return false;
-        };
-        if !canonical_script.is_file() || !canonical_script.starts_with(&canonical_workspace) {
-            return false;
-        }
-        return true;
-    }
-
-    // Direct executables must be located inside the reviewed workspace
-    let exec_path = if cmd_path.is_absolute() {
-        cmd_path.to_path_buf()
-    } else {
-        canonical_workspace.join(cmd_path)
-    };
-    let Ok(canonical_exec) = exec_path.canonicalize() else {
-        return false;
-    };
-    if !canonical_exec.is_file() || !canonical_exec.starts_with(&canonical_workspace) {
-        return false;
-    }
-    true
-}
-
+// A generic spawned program has no enforced filesystem/destination capability.
+// An environment Boolean or a lexical command check cannot establish one.
 pub fn resource_profiles_from_env(
 ) -> anyhow::Result<BTreeMap<String, super::resources::ResourceProfile>> {
     match std::env::var_os("AGENTFW_RESOURCE_PROFILES") {
@@ -1001,16 +896,33 @@ impl<'a> Collector<'a> {
     }
 
     async fn event(&self, event: &str, fields: Value) -> anyhow::Result<Value> {
-        let expected_resources_sha256 = fields
-            .get("resources")
-            .map(|res| sha(canonical(res).to_string().as_bytes()));
-        let mut body = json!({"contract_version":CONTRACT,"registry_sha256":self.config.native.registry_sha256,"session_id":self.session,"event":event});
+        let expected_contract = if fields.get("resource_admission").is_some() {
+            crate::native::resource::CONTRACT
+        } else {
+            fields
+                .get("expected_contract_version")
+                .and_then(Value::as_str)
+                .unwrap_or(CONTRACT)
+        };
+        ensure!(
+            matches!(
+                expected_contract,
+                CONTRACT | crate::native::resource::CONTRACT
+            ),
+            "unsupported native receipt contract"
+        );
+        let mut body = json!({"contract_version":expected_contract,"registry_sha256":self.config.native.registry_sha256,"session_id":self.session,"event":event});
         body.as_object_mut().expect("object").extend(
             fields
                 .as_object()
                 .context("invalid admission event")?
                 .iter()
-                .filter(|(key, _)| key.as_str() != "expected_binding_sha256")
+                .filter(|(key, _)| {
+                    !matches!(
+                        key.as_str(),
+                        "expected_binding_sha256" | "expected_contract_version"
+                    )
+                })
                 .map(|(key, value)| (key.clone(), value.clone())),
         );
         let reply = self
@@ -1050,7 +962,7 @@ impl<'a> Collector<'a> {
                     && (map.len() == required.len()
                         || (map.len() == required.len() + 1
                             && map.contains_key("resources_sha256")))
-            }) && reply["contract_version"] == CONTRACT
+            }) && reply["contract_version"] == expected_contract
                 && reply["registry_sha256"] == self.config.native.registry_sha256
                 && reply["session_id"] == self.session
                 && reply["event"] == event
@@ -1085,17 +997,7 @@ impl<'a> Collector<'a> {
                             .is_some_and(crate::native::is_digest),
                     "MCP admission invocation binding absent"
                 );
-                if let Some(ref expected_sha) = expected_resources_sha256 {
-                    ensure!(
-                        reply["resources_sha256"].as_str() == Some(expected_sha.as_str()),
-                        "MCP admission receipt resources digest mismatch or missing"
-                    );
-                } else {
-                    ensure!(
-                        reply.get("resources_sha256").is_none(),
-                        "unexpected resources digest in unextended receipt"
-                    );
-                }
+                validate_resource_receipt(fields.get("resource_admission"), &reply)?;
             } else {
                 ensure!(
                     reply["call_id"].is_null()
@@ -1468,61 +1370,15 @@ where
                         let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
                         ensure!(args.is_object(), "MCP call arguments must be an object");
                         schemas.get(name).context("MCP tool schema not installed")?.validate(&args)?;
-                        let mut extraction_opt: Option<super::resources::Extraction> = None;
-                        if let Some(profile) = collector.config.resource_profiles.get(name) {
-                            let snapshot = admitted_snapshot.as_ref().context("classifier discovery state missing")?;
-                            let tool = snapshot.tools.get(name).context("classifier discovery state missing")?;
-                            let input = Invocation {
-                                server_id: collector.config.server_id.clone(),
-                                host_call_id: request_id.clone(),
-                                registry_sha256: collector.config.native.registry_sha256.clone(),
-                                snapshot_sha256: snapshot.sha256.clone(),
-                                schema_sha256: tool.schema_sha256.clone(),
-                                tool: name.into(),
-                                description: tool.description.clone(),
-                                schema: tool.schema.clone(),
-                                definition: tool.definition.clone(),
-                                server_info: snapshot.server_info.clone(),
-                                definition_sha256: tool.definition_sha256.clone(),
-                                input_sha256: String::new(),
-                                classifier_revision: None,
-                                args: args.clone(),
-                                baseline: installed.action_class,
-                            };
-                            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-                            let workspace = std::env::var_os("AGENTFW_WORKSPACE")
-                                .map(std::path::PathBuf::from)
-                                .unwrap_or_else(|| cwd.clone());
-                            let fixed_destinations = collector.config.executor_fixed_destinations
-                                && verify_executor_confinement(&collector.config.command, &collector.config.args, &workspace);
-                            let executor_ctx = super::resources::ExecutorContext {
-                                os: std::env::consts::OS,
-                                workspace: &workspace,
-                                cwd: &cwd,
-                                fixed_destinations,
-                            };
-                            let extraction = super::resources::extract(&input, profile, &executor_ctx);
-                            if !extraction.complete() {
-                                let issue_codes: Vec<Value> = extraction.issues.iter().map(|i| json!(i.reason)).collect();
-                                write(host, &withheld(request_id, "invocation", &Value::Array(issue_codes))).await?;
-                                continue;
-                            }
-                            eprintln!(
-                                "{}",
-                                json!({
-                                    "event": "mcp_resource_binding",
-                                    "contract_version": CLASSIFICATION_CONTRACT,
-                                    "host_call_id": request_id,
-                                    "server_id": collector.config.server_id,
-                                    "tool": name,
-                                    "profile_sha256": extraction.profile_sha256,
-                                    "executor_sha256": extraction.executor_sha256,
-                                    "args_sha256": extraction.args_sha256,
-                                    "resource_count": extraction.resources.len(),
-                                    "resources_sha256": sha(canonical(&serde_json::to_value(&extraction.resources)?).to_string().as_bytes()),
-                                })
-                            );
-                            extraction_opt = Some(extraction);
+                        if collector.config.resource_profiles.contains_key(name)
+                            || installed.resource_policy.is_some()
+                        {
+                            // No resource-aware constrained executor is shipped here.
+                            // Keep both URL and path guarantees unsupported, including
+                            // when an old fixed-destination environment flag is asserted.
+                            let reasons = json!(["resource_executor_unsupported"]);
+                            write(host, &withheld(request_id, "invocation", &reasons)).await?;
+                            continue;
                         }
                         let mut prod_verdict = None;
                         if collector.config.classifier.is_some() {
@@ -1538,68 +1394,30 @@ where
                                 }
                             }
                         }
-                        let mut call_body = json!({
-                            "tool": name,
-                            "args": args,
-                            "schema_sha256": installed.schema_sha256,
-                        });
-                        if let Some(ref ext) = extraction_opt {
-                            call_body["resources"] = serde_json::to_value(&ext.resources)?;
-                            call_body["profile_sha256"] = json!(ext.profile_sha256);
-                            call_body["executor_sha256"] = json!(ext.executor_sha256);
-                        }
-                        if let Some(ref classifier) = collector.config.classifier {
-                            if let Some(rev) = classifier.revision() {
-                                call_body["classifier_sha256"] = json!(rev);
-                            }
-                        }
-                        let receipt = collector.event("call", call_body).await?;
-                        if receipt["release"] != true {
-                            write(host, &withheld(request_id, "invocation", &receipt["reason_codes"])).await?;
-                            continue;
-                        }
                         if let Some(verdict) = prod_verdict {
                             match verdict {
                                 ProductionVerdict::Allow => {}
                                 ProductionVerdict::Ask => {
-                                    let revoke_content = json!({
-                                        "jsonrpc": "2.0",
-                                        "id": request_id,
-                                        "error": { "code": -32000, "message": "policy_unconfirmed_ask" }
-                                    }).to_string();
-                                    let _ = collector.event("result", json!({
-                                        "call_id": receipt["call_id"],
-                                        "expected_binding_sha256": receipt["binding_sha256"],
-                                        "tool": name,
-                                        "args": args,
-                                        "content": revoke_content,
-                                        "result_kind": "error",
-                                        "delivery": "mcp_host",
-                                    })).await;
                                     let reasons = json!(["policy_unconfirmed_ask"]);
                                     write(host, &withheld(request_id, "invocation", &reasons)).await?;
                                     continue;
                                 }
                                 ProductionVerdict::Deny => {
-                                    let revoke_content = json!({
-                                        "jsonrpc": "2.0",
-                                        "id": request_id,
-                                        "error": { "code": -32000, "message": "policy_denied" }
-                                    }).to_string();
-                                    let _ = collector.event("result", json!({
-                                        "call_id": receipt["call_id"],
-                                        "expected_binding_sha256": receipt["binding_sha256"],
-                                        "tool": name,
-                                        "args": args,
-                                        "content": revoke_content,
-                                        "result_kind": "error",
-                                        "delivery": "mcp_host",
-                                    })).await;
                                     let reasons = json!(["policy_denied"]);
                                     write(host, &withheld(request_id, "invocation", &reasons)).await?;
                                     continue;
                                 }
                             }
+                        }
+                        // A composed refusal must not reserve native capacity.
+                        // Native trusted restrictions still gate every permitted call.
+                        let receipt = collector.event("call", json!({
+                            "tool": name, "args": args,
+                            "schema_sha256": installed.schema_sha256,
+                        })).await?;
+                        if receipt["release"] != true {
+                            write(host, &withheld(request_id, "invocation", &receipt["reason_codes"])).await?;
+                            continue;
                         }
                         Pending::Call { id: request_id.clone(), tool:name.into(), args, call_id:receipt["call_id"].clone(), binding:receipt["binding_sha256"].clone() }
                     }
@@ -1664,16 +1482,11 @@ pub async fn run(config: AdmissionCfg) -> anyhow::Result<()> {
     collector.event("session_start", json!({})).await?;
     // Fail closed before spawning the server if the native daemon cannot admit a session.
     let operation = async {
-        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let cwd = std::env::current_dir()?;
         let workspace = std::env::var_os("AGENTFW_WORKSPACE")
             .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| cwd.clone());
-        if config.executor_fixed_destinations {
-            ensure!(
-                verify_executor_confinement(&config.command, &config.args, &workspace),
-                "executor confinement verification failed"
-            );
-        }
+            .unwrap_or(cwd);
+        // A working directory is operational context, never a sandbox assertion.
         let mut process = Command::new(&config.command)
             .args(&config.args)
             .current_dir(&workspace)
@@ -1886,83 +1699,6 @@ mod input_identity_tests {
     }
 
     #[test]
-    fn verify_executor_confinement_enforces_bounds_and_shells() {
-        let temp = tempfile::tempdir().unwrap();
-        let ws = temp.path();
-        let server_script = ws.join("server.py");
-        std::fs::write(&server_script, b"print('ok')").unwrap();
-
-        // Valid python command with reviewed workspace script
-        assert!(verify_executor_confinement(
-            "python3",
-            &["-u".into(), "server.py".into()],
-            ws
-        ));
-
-        // Inline python -c eval is strictly unconfined
-        assert!(!verify_executor_confinement(
-            "python3",
-            &["-c".into(), "import os; os.system('ls')".into()],
-            ws
-        ));
-
-        // Node -e eval is strictly unconfined
-        assert!(!verify_executor_confinement(
-            "node",
-            &["-e".into(), "process.exit()".into()],
-            ws
-        ));
-
-        // Shell -c invocation is unconfined
-        assert!(!verify_executor_confinement(
-            "sh",
-            &["-c".into(), "ls".into()],
-            ws
-        ));
-        assert!(!verify_executor_confinement(
-            "bash",
-            &["-c".into(), "curl 127.0.0.1".into()],
-            ws
-        ));
-
-        // Redirection, pipe, or command chaining in arguments is rejected
-        assert!(!verify_executor_confinement(
-            "python3",
-            &["server.py".into(), ">".into(), "out.txt".into()],
-            ws
-        ));
-        assert!(!verify_executor_confinement(
-            "python3",
-            &["server.py".into(), "|".into(), "cat".into()],
-            ws
-        ));
-
-        // Script outside the workspace is rejected
-        let outside_temp = tempfile::tempdir().unwrap();
-        let outside_script = outside_temp.path().join("outside.py");
-        std::fs::write(&outside_script, b"print('outside')").unwrap();
-        assert!(!verify_executor_confinement(
-            "python3",
-            &[outside_script.to_string_lossy().to_string()],
-            ws
-        ));
-
-        // Direct executable outside the workspace is rejected
-        assert!(!verify_executor_confinement("/bin/ls", &[], ws));
-
-        // Path traversal in command is rejected
-        assert!(!verify_executor_confinement("../../../bin/evil", &[], ws));
-
-        // Non-existent workspace is rejected
-        let non_existent = ws.join("does_not_exist");
-        assert!(!verify_executor_confinement(
-            "python3",
-            &["server.py".into()],
-            &non_existent
-        ));
-    }
-
-    #[test]
     fn compose_production_policy_rules() {
         let make_cl = |actions: Vec<&str>, unknown: bool, uncertainty: f64| Classification {
             actions: actions.into_iter().map(String::from).collect(),
@@ -1979,13 +1715,6 @@ mod input_identity_tests {
             ProductionVerdict::Deny
         );
 
-        // mixed with delete -> Deny
-        let cl = make_cl(vec!["read", "delete"], false, 0.05);
-        assert_eq!(
-            compose_production_policy(&cl, ActionClass::ReadOnly, false).unwrap(),
-            ProductionVerdict::Deny
-        );
-
         // write on read_only baseline -> Deny
         let cl = make_cl(vec!["write"], false, 0.05);
         assert_eq!(
@@ -1995,13 +1724,6 @@ mod input_identity_tests {
 
         // write on other baseline -> Ask
         let cl = make_cl(vec!["write"], false, 0.05);
-        assert_eq!(
-            compose_production_policy(&cl, ActionClass::SideEffecting, false).unwrap(),
-            ProductionVerdict::Ask
-        );
-
-        // mixed read and write on SideEffecting baseline -> Ask
-        let cl = make_cl(vec!["read", "write"], false, 0.05);
         assert_eq!(
             compose_production_policy(&cl, ActionClass::SideEffecting, false).unwrap(),
             ProductionVerdict::Ask
@@ -2111,5 +1833,102 @@ mod classifier_revision_tests {
         };
         assert!(classifier.classify(&invocation).is_err());
         assert!(!marker.exists(), "changed classifier source executed");
+    }
+}
+
+#[cfg(test)]
+mod resource_receipt_tests {
+    use super::*;
+    use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
+
+    fn admission() -> Value {
+        json!({"server_id":"resource-fixture","host_call_id":"original-host-id",
+            "profile_sha256":"a".repeat(64),"executor_sha256":"e".repeat(64),
+            "classifier_sha256":"c".repeat(64),"snapshot_sha256":"d".repeat(64),
+            "definition_sha256":"f".repeat(64),"input_sha256":"a".repeat(64),
+            "resources":[{"pointer":"/url","source":"argument","resource":{
+                "kind":"url","canonical":"http://127.0.0.1:8000/allowed",
+                "host":"127.0.0.1","port":8000}}]})
+    }
+
+    #[tokio::test]
+    async fn missing_or_changed_resource_hash_and_old_contract_are_refused_over_http() {
+        let context = admission();
+        let expected = crate::native::canonical_digest(&context["resources"]);
+        for (contract, hash, accepted) in [
+            (crate::native::resource::CONTRACT, None, false),
+            (
+                crate::native::resource::CONTRACT,
+                Some("0".repeat(64)),
+                false,
+            ),
+            (CONTRACT, Some(expected.clone()), false),
+            (
+                crate::native::resource::CONTRACT,
+                Some(expected.clone()),
+                true,
+            ),
+        ] {
+            let server = MockServer::start().await;
+            let registry=json!({"contract_version":CONTRACT,"registry_id":"receipt-tests","tools":[{
+                "name":"retrieve_page","schema_sha256":"1".repeat(64),"action_class":"read_only",
+                "result_provenance":"untrusted","egress":[]
+            }]}).to_string();
+            let native = NativeState::from_bytes(
+                registry.as_bytes(),
+                &sha(registry.as_bytes()),
+                "synthetic-native-key".into(),
+            )
+            .unwrap();
+            let config = AdmissionCfg {
+                server_id: "resource-fixture".into(),
+                daemon_url: format!("{}/native/v1", server.uri()),
+                manifest_url: format!("{}/mcp/manifest", server.uri()),
+                manifest_token: "synthetic-manifest-key".into(),
+                native,
+                command: "not-started".into(),
+                args: vec![],
+                classifier: None,
+                resource_profiles: BTreeMap::new(),
+            };
+            let collector = Collector::new(&config).unwrap();
+            let mut response = json!({"contract_version":contract,"registry_sha256":config.native.registry_sha256,
+                "session_id":collector.session,"event":"call","verdict":"allow","enforced":true,"release":true,
+                "call_id":"synthetic-call","binding_sha256":"b".repeat(64),"content_sha256":null,"reason_codes":[]});
+            if let Some(hash) = hash {
+                response["resources_sha256"] = json!(hash);
+            }
+            Mock::given(method("POST"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(response))
+                .expect(1)
+                .mount(&server)
+                .await;
+            let result = collector
+                .event(
+                    "call",
+                    json!({"tool":"retrieve_page","args":{"url":"http://127.0.0.1:8000/allowed"},
+                "schema_sha256":"1".repeat(64),"resource_admission":context}),
+                )
+                .await;
+            assert_eq!(
+                result.is_ok(),
+                accepted,
+                "contract={contract}, accepted={accepted}"
+            );
+        }
+    }
+
+    #[test]
+    fn canonical_resource_digest_is_independent_of_property_order_and_legacy_stays_closed() {
+        let context = admission();
+        let reordered:Value=serde_json::from_str(r#"[{"source":"argument","resource":{"port":8000,"kind":"url","host":"127.0.0.1","canonical":"http://127.0.0.1:8000/allowed"},"pointer":"/url"}]"#).unwrap();
+        assert_eq!(
+            crate::native::canonical_digest(&context["resources"]),
+            crate::native::canonical_digest(&reordered)
+        );
+        let reply = json!({"resources_sha256":crate::native::canonical_digest(&reordered)});
+        assert!(validate_resource_receipt(Some(&context), &reply).is_ok());
+        assert!(validate_resource_receipt(None, &reply).is_err());
+        assert!(validate_resource_receipt(None, &json!({})).is_ok());
     }
 }

@@ -267,10 +267,8 @@ async fn delay_call_admission(
             .await
             .expect("fixture daemon response bounded");
         let mut resp_json: Value = serde_json::from_slice(&bytes).expect("JSON response");
-        if resp_json.get("resources_sha256").is_some() {
-            resp_json["resources_sha256"] =
-                json!("0000000000000000000000000000000000000000000000000000000000000000");
-        }
+        // An unsolicited resource extension on a legacy grant is also invalid.
+        resp_json["resources_sha256"] = json!("0".repeat(64));
         Response::from_parts(parts, Body::from(serde_json::to_vec(&resp_json).unwrap()))
     } else {
         res
@@ -1136,10 +1134,13 @@ async fn native_mcp_accepts_codex_discovery_and_calls_without_granting_authority
         let refusal: Value = serde_json::from_str(&refusal).unwrap();
         assert_eq!(refusal["id"], id);
         assert_eq!(refusal["result"]["isError"], true);
-        assert!(refusal["result"]["content"][0]["text"]
-            .as_str()
-            .unwrap()
-            .contains(rule));
+        assert!(
+            refusal["result"]["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains(rule),
+            "expected {rule}, got {refusal}"
+        );
         assert_eq!(
             executed(&fixture.ledger).len(),
             1,
@@ -1858,7 +1859,7 @@ async fn real_baseline_preserves_frames_and_policy_enforcement() {
             "ask-original",
             "delete_note",
             json!({"name":"inventory"}),
-            "fixture-destructive-confirmation",
+            "policy_denied",
         ),
     ] {
         let request = json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":tool,"arguments":args}});
@@ -1906,180 +1907,136 @@ async fn python_classifier_failures_block_before_execution() {
 }
 
 #[tokio::test]
-async fn sou15_resource_profiles_and_adapter_policy_binding() {
-    let root = std::env::temp_dir();
-    #[cfg(unix)]
-    let root = root.canonicalize().unwrap();
+async fn resource_profiles_cannot_promote_a_generic_executor_to_confined() {
+    let root = std::env::temp_dir().canonicalize().unwrap();
     let temp = tempfile::tempdir_in(root).unwrap();
-
-    let send_schema = json!({"type":"object","properties":{"url":{"type":"string"},"body":{"type":"string"}},"required":["url","body"],"additionalProperties":false});
-    let send_schema_digest = sha(send_schema.to_string().as_bytes());
-
-    let profile = json!([{
-        "server_id": "fixture",
-        "tool_name": "send_http",
-        "schema_sha256": send_schema_digest,
-        "selectors": [
-            {
-                "pointer": "/url",
-                "kind": "url",
-                "optional": false
-            }
-        ]
-    }]);
-    let profiles_file = temp.path().join("profiles.json");
-    std::fs::write(&profiles_file, profile.to_string()).unwrap();
-
-    // 1. Without fixed_destinations capability, destination control fails-closed per SOU-12
-    let mut fixture_unconfined = Fixture::with_profiles(
-        "normal",
-        true,
-        Some("rule-baseline"),
-        Some(profiles_file.to_str().unwrap()),
-        false,
-    )
-    .await;
-    fixture_unconfined.ready().await;
-
-    let unconfined_req = json!({
-        "jsonrpc": "2.0",
-        "id": "sou15-unconfined",
-        "method": "tools/call",
-        "params": {
-            "name": "send_http",
-            "arguments": {
-                "url": "http://127.0.0.1:9/collect",
-                "body": "benign report"
-            }
-        }
-    });
-    let unconfined_reply: Value = serde_json::from_str(
-        &fixture_unconfined
-            .exchange(&unconfined_req.to_string())
-            .await
-            .unwrap(),
+    let schema = json!({"type":"object","properties":{"url":{"type":"string"},"body":{"type":"string"}},"required":["url","body"],"additionalProperties":false});
+    let profiles = temp.path().join("profiles.json");
+    std::fs::write(
+        &profiles,
+        json!([{
+            "server_id":"fixture", "tool_name":"send_http",
+            "schema_sha256":sha(schema.to_string().as_bytes()),
+            "selectors":[{"pointer":"/url","kind":"url"}]
+        }])
+        .to_string(),
     )
     .unwrap();
-    assert_eq!(unconfined_reply["id"], "sou15-unconfined");
-    assert_eq!(unconfined_reply["result"]["isError"], true);
-    assert!(unconfined_reply
-        .to_string()
-        .contains("resource_destination_control_unsupported"));
-    assert_eq!(executed(&fixture_unconfined.ledger).len(), 0);
+    for asserted_flag in [false, true] {
+        let mut fixture = Fixture::with_profiles(
+            "normal",
+            true,
+            Some("rule-baseline"),
+            Some(profiles.to_str().unwrap()),
+            asserted_flag,
+        )
+        .await;
+        fixture.ready().await;
+        let call = json!({"jsonrpc":"2.0","id":"unsupported-resource","method":"tools/call",
+            "params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/collect","body":"benign"}}});
+        let reply: Value =
+            serde_json::from_str(&fixture.exchange(&call.to_string()).await.unwrap()).unwrap();
+        assert_eq!(reply["id"], "unsupported-resource");
+        assert_eq!(reply["result"]["isError"], true);
+        assert!(reply.to_string().contains("resource_executor_unsupported"));
+        assert!(executed(&fixture.ledger).is_empty());
+        let read = r#"{"jsonrpc":"2.0","id":"useful-read","method":"tools/call","params":{"name":"read_document","arguments":{}}}"#;
+        let reply: Value = serde_json::from_str(&fixture.exchange(read).await.unwrap()).unwrap();
+        assert!(reply["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("7 red widgets"));
+        assert_eq!(
+            std::fs::read_to_string(&fixture.ledger).unwrap(),
+            format!("{read}\n")
+        );
+    }
+}
 
-    // 2. With fixed_destinations capability: valid execution, ambiguous refusal, and policy composition
+#[tokio::test]
+async fn path_profiles_also_refuse_missing_execution_time_confinement() {
+    let root = std::env::temp_dir().canonicalize().unwrap();
+    let temp = tempfile::tempdir_in(root).unwrap();
+    let schema = json!({"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false});
+    let profiles = temp.path().join("profiles.json");
+    std::fs::write(
+        &profiles,
+        json!([{
+            "server_id":"fixture","tool_name":"read_document",
+            "schema_sha256":sha(schema.to_string().as_bytes()),
+            "selectors":[{"pointer":"/path","kind":"path"}]
+        }])
+        .to_string(),
+    )
+    .unwrap();
     let mut fixture = Fixture::with_profiles(
-        "normal",
+        "classified-read",
         true,
-        Some("rule-baseline"),
-        Some(profiles_file.to_str().unwrap()),
+        Some("read"),
+        Some(profiles.to_str().unwrap()),
         true,
     )
     .await;
     fixture.ready().await;
-
-    // 2a. Allowed read executes and records adapter_verdict=allow
-    let read_req = json!({
-        "jsonrpc": "2.0",
-        "id": "sou15-read",
-        "method": "tools/call",
-        "params": {
-            "name": "read_document",
-            "arguments": {}
-        }
-    });
-    let read_reply: Value =
-        serde_json::from_str(&fixture.exchange(&read_req.to_string()).await.unwrap()).unwrap();
-    assert_eq!(read_reply["id"], "sou15-read");
-    assert!(!read_reply.to_string().contains("isError"));
-    assert_eq!(executed(&fixture.ledger).len(), 1);
-
-    // 2b. Valid extraction still executes under native policy without logging raw destinations.
-    let allowed_req = json!({
-        "jsonrpc": "2.0",
-        "id": "sou15-valid",
-        "method": "tools/call",
-        "params": {
-            "name": "send_http",
-            "arguments": {
-                "url": "http://127.0.0.1:9/collect",
-                "body": "benign report"
-            }
-        }
-    });
+    let file = fixture._dir.path().join("reviewed-input.txt");
+    std::fs::write(&file, "synthetic").unwrap();
+    let call = json!({"jsonrpc":"2.0","id":"path-refused","method":"tools/call",
+        "params":{"name":"read_document","arguments":{"path":file}}});
     let reply: Value =
-        serde_json::from_str(&fixture.exchange(&allowed_req.to_string()).await.unwrap()).unwrap();
-    assert_eq!(reply["id"], "sou15-valid");
-    assert!(!reply.to_string().contains("isError"));
-    assert_eq!(executed(&fixture.ledger).len(), 2);
+        serde_json::from_str(&fixture.exchange(&call.to_string()).await.unwrap()).unwrap();
+    assert_eq!(reply["result"]["isError"], true);
+    assert!(reply.to_string().contains("resource_executor_unsupported"));
+    assert!(executed(&fixture.ledger).is_empty());
+    assert_eq!(std::fs::read_to_string(file).unwrap(), "synthetic");
+}
 
-    // 2c. Ambiguous destination (unsupported credentials in URL) withholds call before server execution
-    let bad_req = json!({
-        "jsonrpc": "2.0",
-        "id": "sou15-bad",
-        "method": "tools/call",
-        "params": {
-            "name": "send_http",
-            "arguments": {
-                "url": "http://user:pass@127.0.0.1:9/collect",
-                "body": "credentials in url"
-            }
+#[tokio::test]
+async fn composed_refusals_do_not_reserve_native_capacity_or_block_useful_followup() {
+    let root = std::env::temp_dir().canonicalize().unwrap();
+    let temp = tempfile::tempdir_in(root).unwrap();
+    for refusal in ["ask", "deny"] {
+        let script = temp.path().join(format!("{refusal}.py"));
+        std::fs::write(
+        &script,
+        format!(r#"import json,sys
+request=json.loads(sys.stdin.readline())
+read=request['tool_name']=='read_document'
+print(json.dumps({{'status':'ok','actions':[('read' if '{refusal}' == 'ask' else 'delete') if read else 'send_data'],
+ 'unknown':False,'confidence':0.95,'uncertainty':0.9 if read and '{refusal}' == 'ask' else 0.05,'reason':'synthetic'}}))
+"#),
+    )
+    .unwrap();
+        let selection = format!("script:{}", script.display());
+        let mut fixture = Fixture::with_classifier("normal", true, Some(&selection)).await;
+        fixture.ready().await;
+        for index in 0..70 {
+            let call = json!({"jsonrpc":"2.0","id":format!("uncertain-{index}"),"method":"tools/call",
+            "params":{"name":"read_document","arguments":{}}});
+            let reply: Value =
+                serde_json::from_str(&fixture.exchange(&call.to_string()).await.unwrap()).unwrap();
+            assert_eq!(reply["result"]["isError"], true);
+            assert!(reply.to_string().contains(if refusal == "ask" {
+                "policy_unconfirmed_ask"
+            } else {
+                "policy_denied"
+            }));
+            assert!(executed(&fixture.ledger).is_empty());
         }
-    });
-    let bad_reply: Value =
-        serde_json::from_str(&fixture.exchange(&bad_req.to_string()).await.unwrap()).unwrap();
-    assert_eq!(bad_reply["id"], "sou15-bad");
-    assert_eq!(bad_reply["result"]["isError"], true);
-    assert_eq!(
-        executed(&fixture.ledger).len(),
-        2,
-        "ambiguous destination must not execute"
-    );
-
-    // 2d. Denied call (delete_note) is withheld fail-closed with zero server execution
-    let delete_req = json!({
-        "jsonrpc": "2.0",
-        "id": "sou15-delete",
-        "method": "tools/call",
-        "params": {
-            "name": "delete_note",
-            "arguments": {
-                "name": "inventory"
-            }
-        }
-    });
-    let delete_reply: Value =
-        serde_json::from_str(&fixture.exchange(&delete_req.to_string()).await.unwrap()).unwrap();
-    assert_eq!(delete_reply["id"], "sou15-delete");
-    assert_eq!(delete_reply["result"]["isError"], true);
-    assert_eq!(
-        executed(&fixture.ledger).len(),
-        2,
-        "denied call must not execute"
-    );
-
-    // 3. Telemetry records adapter_verdict for calls
-    let evidence = classifications(&fixture);
-    assert!(evidence.len() >= 3);
-    assert_eq!(evidence[0]["tool"], "read_document");
-    assert_eq!(evidence[0]["adapter_verdict"], "allow");
-    assert_eq!(evidence[2]["tool"], "delete_note");
-    assert_eq!(evidence[2]["adapter_verdict"], "deny");
-
-    // Resource evidence can contain private URL queries, paths and mailbox addresses.
-    let log = std::fs::read_to_string(&fixture.stderr).unwrap();
-    assert!(!log.contains("http://127.0.0.1:9/collect"));
-    let binding: Value = log
-        .lines()
-        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
-        .find(|record| record["event"] == "mcp_resource_binding")
-        .unwrap();
-    assert_eq!(binding["host_call_id"], "sou15-valid");
-    assert_eq!(binding["resource_count"], 1);
-    assert!(binding.get("resources").is_none());
-    let resource_hash = binding["resources_sha256"].as_str().unwrap();
-    assert_eq!(resource_hash.len(), 64);
-    assert!(resource_hash.chars().all(|ch| ch.is_ascii_hexdigit()));
+        let audit =
+            std::fs::read_to_string(fixture._dir.path().join(".agentfw/audit.jsonl")).unwrap();
+        assert!(
+            !audit.lines().any(|line| serde_json::from_str::<Value>(line)
+                .ok()
+                .is_some_and(|record| record["event"] == "native_call"))
+        );
+        let useful = r#"{"jsonrpc":"2.0","id":"useful-send","method":"tools/call","params":{"name":"send_http","arguments":{"url":"http://127.0.0.1:9/collect","body":"benign report"}}}"#;
+        let reply: Value = serde_json::from_str(&fixture.exchange(useful).await.unwrap()).unwrap();
+        assert!(!reply.to_string().contains("isError"));
+        assert_eq!(
+            std::fs::read_to_string(&fixture.ledger).unwrap(),
+            format!("{useful}\n")
+        );
+    }
 }
 
 #[tokio::test]
@@ -2132,7 +2089,7 @@ async fn sou15_refusal_capacity_leak_prevented_and_continuation_succeeds() {
 }
 
 #[tokio::test]
-async fn sou15_native_resource_authoritative_policy_refuses_unauthorized_egress() {
+async fn sou15_generic_resource_executor_refuses_both_destinations() {
     let send_schema = json!({"type":"object","properties":{"url":{"type":"string"},"body":{"type":"string"}},"required":["url","body"],"additionalProperties":false});
     let send_schema_digest = sha(send_schema.to_string().as_bytes());
     let profiles_file =
@@ -2162,7 +2119,7 @@ async fn sou15_native_resource_authoritative_policy_refuses_unauthorized_egress(
     .await;
     fixture.ready().await;
 
-    // Refused network egress: fixture-secret-egress denies exfiltration under typed URL resource
+    // A generic process cannot enforce either destination, regardless of data content.
     let unauthorized_call = json!({
         "jsonrpc": "2.0",
         "id": "res-unauth-egress",
@@ -2187,14 +2144,14 @@ async fn sou15_native_resource_authoritative_policy_refuses_unauthorized_egress(
     assert!(reply["result"]["content"][0]["text"]
         .as_str()
         .unwrap()
-        .contains("fixture-secret-egress"));
+        .contains("resource_executor_unsupported"));
     assert_eq!(
         executed(&fixture.ledger).len(),
         0,
-        "unauthorized egress must not execute"
+        "unsupported resource calls must not execute"
     );
 
-    // Useful allowed destination: 127.0.0.1:9 executes normally
+    // Even an otherwise allowed URL remains unsupported without a constrained executor.
     let authorized_call = json!({
         "jsonrpc": "2.0",
         "id": "res-auth-egress",
@@ -2215,39 +2172,16 @@ async fn sou15_native_resource_authoritative_policy_refuses_unauthorized_egress(
     )
     .unwrap();
     assert_eq!(ok_reply["id"], "res-auth-egress");
-    assert!(!ok_reply.to_string().contains("isError"));
-    assert_eq!(executed(&fixture.ledger).len(), 1);
+    assert_eq!(ok_reply["result"]["isError"], true);
+    assert!(ok_reply
+        .to_string()
+        .contains("resource_executor_unsupported"));
+    assert_eq!(executed(&fixture.ledger).len(), 0);
 }
 
 #[tokio::test]
-async fn sou15_receipt_digest_mismatch_refused_before_server_effect() {
-    let send_schema = json!({"type":"object","properties":{"url":{"type":"string"},"body":{"type":"string"}},"required":["url","body"],"additionalProperties":false});
-    let send_schema_digest = sha(send_schema.to_string().as_bytes());
-    let profiles_file =
-        std::env::temp_dir().join(format!("res_profiles_digest_{}.json", std::process::id()));
-    let profiles_data = json!([
-        {
-            "server_id": "fixture",
-            "tool_name": "send_http",
-            "schema_sha256": send_schema_digest,
-            "selectors": [
-                {
-                    "pointer": "/url",
-                    "kind": "url"
-                }
-            ]
-        }
-    ]);
-    std::fs::write(&profiles_file, profiles_data.to_string()).unwrap();
-
-    let mut fixture = Fixture::with_profiles(
-        "normal",
-        true,
-        None,
-        Some(profiles_file.to_str().unwrap()),
-        true,
-    )
-    .await;
+async fn sou15_unexpected_resource_receipt_refused_before_server_effect() {
+    let mut fixture = Fixture::with_classifier("normal", true, None).await;
     fixture.ready().await;
 
     // Enable daemon tampering with receipt resources_sha256

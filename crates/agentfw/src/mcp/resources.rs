@@ -59,6 +59,7 @@ pub struct ExecutorContext<'a> {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
 pub enum Resource {
     Path {
         canonical: String,
