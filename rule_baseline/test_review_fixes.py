@@ -112,6 +112,16 @@ class ProvenNoopBoundaries(unittest.TestCase):
             r = self.run_cmd(cmd)
             self.assertIn("write", r["actions"], cmd)
 
+    def test_noise_redirect_targets_are_complete_tokens(self):
+        for cmd in ("echo hi >&1file", "echo hi >&12file", "echo hi >/dev/null-report"):
+            with self.subTest(command=cmd):
+                r = self.run_cmd(cmd)
+                self.assertIn("write", r["actions"])
+                self.assertNotIn("proven_noop", r["reason_codes"])
+        r = self.run_cmd("echo hi 2>/dev/null-report")
+        self.assertTrue(r["unknown"])
+        self.assertNotIn("proven_noop", r["reason_codes"])
+
     def test_unsupported_syntax_is_not_proven_noop(self):
         for cmd in ("echo <(cat private.txt)", "echo hi 2>err.txt", "cat <<EOF\nhi\nEOF"):
             r = self.run_cmd(cmd)
@@ -119,7 +129,7 @@ class ProvenNoopBoundaries(unittest.TestCase):
             self.assertNotIn("proven_noop", r["reason_codes"], cmd)
 
     def test_harmless_noise_redirects_stay_noop(self):
-        for cmd in ("echo hi 2>&1", "echo hi > /dev/null", "true 2>/dev/null"):
+        for cmd in ("echo hi 2>&1", "echo hi 2>&10", "echo hi > /dev/null", "true 2>/dev/null"):
             r = self.run_cmd(cmd)
             self.assertEqual((r["actions"], r["unknown"]), ([], False), cmd)
 

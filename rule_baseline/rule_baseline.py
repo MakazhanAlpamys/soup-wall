@@ -65,7 +65,8 @@ I = re.I
 PIPE_TO_SHELL = re.compile(r"\|\s*(?:sudo\s+)?(?:ba|z)?sh\b", I)
 NESTED = re.compile(r"""^(?:bash|sh|zsh)\s+-\w*c\s+(["'])(.*)\1\s*$""", I | re.S)
 ENV_PREFIX = re.compile(r"^(?:\w+=\S*\s+)+")
-NOISE_REDIRECT = re.compile(r"\d?>\s*&(?:\d|-)|\d?>>?\s*/dev/null|&>>?\s*/dev/null|>&\s*/dev/null")
+# Ignore only complete descriptor/device targets, never filename prefixes.
+NOISE_REDIRECT = re.compile(r"\d?>\s*&(?:\d+|-)(?=\s|$)|(?:\d?>>?|&>>?|>&)\s*/dev/null(?=\s|$)")
 # Redirections, heredocs and process substitution are not analysed for no-op proofs.
 UNSUPPORTED_SYNTAX = re.compile(r"[<>]")
 REDIRECT = re.compile(r"(?<![<>\d&-])(?:&>>?|>>?&?)\s*[^\s&|>]")
