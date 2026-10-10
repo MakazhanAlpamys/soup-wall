@@ -6,6 +6,7 @@
 //! and text results; see `docs/operations/MCP_STDIO_ADMISSION.md`.
 
 pub mod admission;
+pub mod input;
 pub mod jsonrpc;
 pub mod manifest;
 pub mod proxy;

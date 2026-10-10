@@ -83,6 +83,12 @@ enum Cmd {
         #[arg(last = true, required = true)]
         command: Vec<String>,
     },
+    /// Inspect a selected Claude-style MCP JSON config without starting servers.
+    /// Only server names and supported transport flags are printed.
+    McpInspectConfig {
+        #[arg(long)]
+        path: PathBuf,
+    },
     /// Run one high-risk command inside the Linux bubblewrap sandbox.
     Sandbox {
         /// Writable directory exposed as `/workspace`.
@@ -274,6 +280,16 @@ fn main() -> anyhow::Result<()> {
                 ttl_minutes,
                 path.display()
             );
+            Ok(())
+        }
+        Cmd::McpInspectConfig { path } => {
+            use std::io::Read;
+            let mut bytes = Vec::new();
+            std::fs::File::open(path)?
+                .take(1024 * 1024 + 1)
+                .read_to_end(&mut bytes)?;
+            let inventory = agentfw::mcp::input::inspect_host_config(&bytes)?;
+            println!("{}", serde_json::to_string_pretty(&inventory)?);
             Ok(())
         }
         Cmd::Mcp {
