@@ -517,35 +517,107 @@ pub fn verify_executor_confinement(
         Ok(path) => path,
         Err(_) => return false,
     };
-    if command.is_empty() {
+    if command.is_empty() || command.contains("..") {
         return false;
     }
-    if command.contains("..") {
-        return false;
+    // Disallow shell redirection and pipes in arguments
+    for arg in args {
+        if arg.contains('>') || arg.contains('<') || arg.contains('|') {
+            return false;
+        }
     }
     let cmd_path = std::path::Path::new(command);
     let file_name = cmd_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or(command);
-    let unconfined_shells = [
+
+    // Shells are inherently unconfined environments
+    let shells = [
         "sh",
         "bash",
         "zsh",
+        "dash",
+        "ksh",
         "cmd.exe",
         "cmd",
         "powershell.exe",
         "powershell",
+        "pwsh",
+        "pwsh.exe",
     ];
-    if unconfined_shells.contains(&file_name)
-        && args
-            .iter()
-            .any(|arg| arg == "-c" || arg == "/c" || arg.contains('>') || arg.contains('|'))
-    {
+    if shells.contains(&file_name) {
         return false;
     }
-    if cmd_path.is_absolute() && !cmd_path.starts_with(&canonical_workspace) && !cmd_path.is_file()
-    {
+
+    // Language runtimes and evaluators
+    let interpreters = [
+        "python",
+        "python3",
+        "python.exe",
+        "python3.exe",
+        "node",
+        "node.exe",
+        "nodejs",
+        "deno",
+        "deno.exe",
+        "bun",
+        "bun.exe",
+        "ruby",
+        "ruby.exe",
+        "perl",
+        "perl.exe",
+        "php",
+        "php.exe",
+    ];
+    if interpreters.contains(&file_name) {
+        // Disallow arbitrary inline evaluation flags
+        for arg in args {
+            if arg == "-c"
+                || arg == "-e"
+                || arg == "-E"
+                || arg == "-r"
+                || arg == "/c"
+                || arg == "--eval"
+                || arg == "-p"
+                || arg == "--print"
+                || arg == "eval"
+            {
+                return false;
+            }
+        }
+        // First non-flag argument must be a script file strictly within the workspace
+        let script_arg = args.iter().find(|a| !a.starts_with('-'));
+        let Some(script) = script_arg else {
+            return false;
+        };
+        if script.contains("..") {
+            return false;
+        }
+        let script_path = if std::path::Path::new(script).is_absolute() {
+            std::path::PathBuf::from(script)
+        } else {
+            canonical_workspace.join(script)
+        };
+        let Ok(canonical_script) = script_path.canonicalize() else {
+            return false;
+        };
+        if !canonical_script.is_file() || !canonical_script.starts_with(&canonical_workspace) {
+            return false;
+        }
+        return true;
+    }
+
+    // Direct executables must be located inside the reviewed workspace
+    let exec_path = if cmd_path.is_absolute() {
+        cmd_path.to_path_buf()
+    } else {
+        canonical_workspace.join(cmd_path)
+    };
+    let Ok(canonical_exec) = exec_path.canonicalize() else {
+        return false;
+    };
+    if !canonical_exec.is_file() || !canonical_exec.starts_with(&canonical_workspace) {
         return false;
     }
     true
@@ -929,6 +1001,9 @@ impl<'a> Collector<'a> {
     }
 
     async fn event(&self, event: &str, fields: Value) -> anyhow::Result<Value> {
+        let expected_resources_sha256 = fields
+            .get("resources")
+            .map(|res| sha(canonical(res).to_string().as_bytes()));
         let mut body = json!({"contract_version":CONTRACT,"registry_sha256":self.config.native.registry_sha256,"session_id":self.session,"event":event});
         body.as_object_mut().expect("object").extend(
             fields
@@ -1010,10 +1085,15 @@ impl<'a> Collector<'a> {
                             .is_some_and(crate::native::is_digest),
                     "MCP admission invocation binding absent"
                 );
-                if let Some(r_sha) = reply.get("resources_sha256") {
+                if let Some(ref expected_sha) = expected_resources_sha256 {
                     ensure!(
-                        r_sha.as_str().is_some_and(crate::native::is_digest),
-                        "invalid resources digest in receipt"
+                        reply["resources_sha256"].as_str() == Some(expected_sha.as_str()),
+                        "MCP admission receipt resources digest mismatch or missing"
+                    );
+                } else {
+                    ensure!(
+                        reply.get("resources_sha256").is_none(),
+                        "unexpected resources digest in unextended receipt"
                     );
                 }
             } else {
@@ -1439,7 +1519,7 @@ where
                                     "executor_sha256": extraction.executor_sha256,
                                     "args_sha256": extraction.args_sha256,
                                     "resource_count": extraction.resources.len(),
-                                    "resources_sha256": sha(serde_json::to_string(&extraction.resources)?.as_bytes()),
+                                    "resources_sha256": sha(canonical(&serde_json::to_value(&extraction.resources)?).to_string().as_bytes()),
                                 })
                             );
                             extraction_opt = Some(extraction);
@@ -1482,11 +1562,39 @@ where
                             match verdict {
                                 ProductionVerdict::Allow => {}
                                 ProductionVerdict::Ask => {
+                                    let revoke_content = json!({
+                                        "jsonrpc": "2.0",
+                                        "id": request_id,
+                                        "error": { "code": -32000, "message": "policy_unconfirmed_ask" }
+                                    }).to_string();
+                                    let _ = collector.event("result", json!({
+                                        "call_id": receipt["call_id"],
+                                        "expected_binding_sha256": receipt["binding_sha256"],
+                                        "tool": name,
+                                        "args": args,
+                                        "content": revoke_content,
+                                        "result_kind": "error",
+                                        "delivery": "mcp_host",
+                                    })).await;
                                     let reasons = json!(["policy_unconfirmed_ask"]);
                                     write(host, &withheld(request_id, "invocation", &reasons)).await?;
                                     continue;
                                 }
                                 ProductionVerdict::Deny => {
+                                    let revoke_content = json!({
+                                        "jsonrpc": "2.0",
+                                        "id": request_id,
+                                        "error": { "code": -32000, "message": "policy_denied" }
+                                    }).to_string();
+                                    let _ = collector.event("result", json!({
+                                        "call_id": receipt["call_id"],
+                                        "expected_binding_sha256": receipt["binding_sha256"],
+                                        "tool": name,
+                                        "args": args,
+                                        "content": revoke_content,
+                                        "result_kind": "error",
+                                        "delivery": "mcp_host",
+                                    })).await;
                                     let reasons = json!(["policy_denied"]);
                                     write(host, &withheld(request_id, "invocation", &reasons)).await?;
                                     continue;
@@ -1556,8 +1664,19 @@ pub async fn run(config: AdmissionCfg) -> anyhow::Result<()> {
     collector.event("session_start", json!({})).await?;
     // Fail closed before spawning the server if the native daemon cannot admit a session.
     let operation = async {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let workspace = std::env::var_os("AGENTFW_WORKSPACE")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| cwd.clone());
+        if config.executor_fixed_destinations {
+            ensure!(
+                verify_executor_confinement(&config.command, &config.args, &workspace),
+                "executor confinement verification failed"
+            );
+        }
         let mut process = Command::new(&config.command)
             .args(&config.args)
+            .current_dir(&workspace)
             .env_remove("AGENTFW_TOKEN")
             .env_remove("AGENTFW_NATIVE_TOKEN")
             .env_remove("AGENTFW_TEST_CLASSIFIER_READ")
@@ -1770,9 +1889,29 @@ mod input_identity_tests {
     fn verify_executor_confinement_enforces_bounds_and_shells() {
         let temp = tempfile::tempdir().unwrap();
         let ws = temp.path();
+        let server_script = ws.join("server.py");
+        std::fs::write(&server_script, b"print('ok')").unwrap();
 
-        // Valid python command
-        assert!(verify_executor_confinement("python3", &["-u".into()], ws));
+        // Valid python command with reviewed workspace script
+        assert!(verify_executor_confinement(
+            "python3",
+            &["-u".into(), "server.py".into()],
+            ws
+        ));
+
+        // Inline python -c eval is strictly unconfined
+        assert!(!verify_executor_confinement(
+            "python3",
+            &["-c".into(), "import os; os.system('ls')".into()],
+            ws
+        ));
+
+        // Node -e eval is strictly unconfined
+        assert!(!verify_executor_confinement(
+            "node",
+            &["-e".into(), "process.exit()".into()],
+            ws
+        ));
 
         // Shell -c invocation is unconfined
         assert!(!verify_executor_confinement(
@@ -1786,12 +1925,41 @@ mod input_identity_tests {
             ws
         ));
 
+        // Redirection, pipe, or command chaining in arguments is rejected
+        assert!(!verify_executor_confinement(
+            "python3",
+            &["server.py".into(), ">".into(), "out.txt".into()],
+            ws
+        ));
+        assert!(!verify_executor_confinement(
+            "python3",
+            &["server.py".into(), "|".into(), "cat".into()],
+            ws
+        ));
+
+        // Script outside the workspace is rejected
+        let outside_temp = tempfile::tempdir().unwrap();
+        let outside_script = outside_temp.path().join("outside.py");
+        std::fs::write(&outside_script, b"print('outside')").unwrap();
+        assert!(!verify_executor_confinement(
+            "python3",
+            &[outside_script.to_string_lossy().to_string()],
+            ws
+        ));
+
+        // Direct executable outside the workspace is rejected
+        assert!(!verify_executor_confinement("/bin/ls", &[], ws));
+
         // Path traversal in command is rejected
         assert!(!verify_executor_confinement("../../../bin/evil", &[], ws));
 
         // Non-existent workspace is rejected
         let non_existent = ws.join("does_not_exist");
-        assert!(!verify_executor_confinement("python3", &[], &non_existent));
+        assert!(!verify_executor_confinement(
+            "python3",
+            &["server.py".into()],
+            &non_existent
+        ));
     }
 
     #[test]
@@ -1811,6 +1979,13 @@ mod input_identity_tests {
             ProductionVerdict::Deny
         );
 
+        // mixed with delete -> Deny
+        let cl = make_cl(vec!["read", "delete"], false, 0.05);
+        assert_eq!(
+            compose_production_policy(&cl, ActionClass::ReadOnly, false).unwrap(),
+            ProductionVerdict::Deny
+        );
+
         // write on read_only baseline -> Deny
         let cl = make_cl(vec!["write"], false, 0.05);
         assert_eq!(
@@ -1820,6 +1995,13 @@ mod input_identity_tests {
 
         // write on other baseline -> Ask
         let cl = make_cl(vec!["write"], false, 0.05);
+        assert_eq!(
+            compose_production_policy(&cl, ActionClass::SideEffecting, false).unwrap(),
+            ProductionVerdict::Ask
+        );
+
+        // mixed read and write on SideEffecting baseline -> Ask
+        let cl = make_cl(vec!["read", "write"], false, 0.05);
         assert_eq!(
             compose_production_policy(&cl, ActionClass::SideEffecting, false).unwrap(),
             ProductionVerdict::Ask

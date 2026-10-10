@@ -13,7 +13,9 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use soup_wall_agent::{ActionClass, AgentEvent, EventKind, Outcome, Provenance, Trust, Verdict};
+use soup_wall_agent::{
+    touches_sensitive_path, ActionClass, AgentEvent, EventKind, Outcome, Provenance, Trust, Verdict,
+};
 
 use crate::config::NativeCfg;
 use crate::handlers::Shared;
@@ -390,6 +392,16 @@ fn parse(body: &str) -> Result<Request, &'static str> {
         if !resources.is_array() || resources.to_string().len() > MAX_CONTENT {
             return Err("native_args_over_cap");
         }
+        let parsed: Vec<crate::mcp::resources::ResourceEvidence> =
+            serde_json::from_value(resources.clone()).map_err(|_| "native_resources_shape")?;
+        for ev in &parsed {
+            if !json_pointer(&ev.pointer) {
+                return Err("native_resources_shape");
+            }
+        }
+        if request.profile_sha256.is_none() || request.executor_sha256.is_none() {
+            return Err("native_resources_shape");
+        }
     }
     if let Some(args) = &request.args {
         if !args.is_object() || args.to_string().len() > MAX_CONTENT {
@@ -756,10 +768,65 @@ fn inspect(st: &Shared, native: &NativeState, request: Request) -> Result<Respon
             },
         );
         let outcome = firewall.inspect_native_call(&ev, tool.action_class, &hosts);
-        let verdict = resolved(&outcome);
+        let mut resource_denied = false;
+        let mut resource_reason_codes = Vec::new();
+        if let Some(res_val) = &request.resources {
+            let parsed: Vec<crate::mcp::resources::ResourceEvidence> =
+                serde_json::from_value(res_val.clone()).map_err(|_| "native_resources_shape")?;
+            for ev in &parsed {
+                match &ev.resource {
+                    crate::mcp::resources::Resource::Url { host, .. } => {
+                        if (tool.action_class != ActionClass::Network && tool.egress.is_empty())
+                            || !hosts.contains(host)
+                        {
+                            resource_denied = true;
+                            resource_reason_codes
+                                .push("native_resource_unauthorized_egress".to_string());
+                        }
+                    }
+                    crate::mcp::resources::Resource::Domain { host } => {
+                        if (tool.action_class != ActionClass::Network && tool.egress.is_empty())
+                            || !hosts.contains(host)
+                        {
+                            resource_denied = true;
+                            resource_reason_codes
+                                .push("native_resource_unauthorized_egress".to_string());
+                        }
+                    }
+                    crate::mcp::resources::Resource::Recipient { domain, .. } => {
+                        if tool.egress.is_empty() || !hosts.contains(domain) {
+                            resource_denied = true;
+                            resource_reason_codes
+                                .push("native_resource_unauthorized_recipient".to_string());
+                        }
+                    }
+                    crate::mcp::resources::Resource::Path { canonical } => {
+                        let p = std::path::Path::new(canonical);
+                        if !p.is_absolute()
+                            || canonical.contains("..")
+                            || touches_sensitive_path(&json!({ "path": canonical }))
+                        {
+                            resource_denied = true;
+                            resource_reason_codes
+                                .push("native_resource_sensitive_path".to_string());
+                        }
+                    }
+                }
+            }
+        }
+        let outcome_verdict = resolved(&outcome);
+        let (verdict, release) = if resource_denied {
+            (Verdict::Deny, false)
+        } else {
+            (outcome_verdict, outcome_verdict == Verdict::Allow)
+        };
         response.verdict = verdict_label(verdict);
-        response.release = verdict == Verdict::Allow;
-        response.reason_codes = outcome.rule.iter().cloned().collect();
+        response.release = release;
+        if resource_denied {
+            response.reason_codes = resource_reason_codes;
+        } else {
+            response.reason_codes = outcome.rule.iter().cloned().collect();
+        }
         let bound = binding(
             &native.registry_sha256,
             &session.epoch,
