@@ -16,6 +16,7 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 
+use super::input::InputSchema;
 use crate::native::{NativeState, CONTRACT, MAX_CONTENT};
 use soup_wall_agent::ActionClass;
 
@@ -47,8 +48,26 @@ pub struct Invocation {
     pub tool: String,
     pub description: String,
     pub schema: Value,
+    /// Original untrusted discovery definition, including supported annotations.
+    pub definition: Value,
+    /// Server-advertised identity; the operator-selected server_id is authoritative.
+    pub server_info: Value,
+    pub definition_sha256: String,
+    /// Identity for semantic prediction reuse, never an execution grant.
+    pub input_sha256: String,
+    pub classifier_revision: Option<String>,
     pub args: Value,
     pub baseline: ActionClass,
+}
+
+impl Invocation {
+    /// Semantic input for classifiers. Correlation and operator permissions
+    /// stay on the orchestration side; server metadata is untrusted evidence.
+    pub fn semantic_input(&self) -> Value {
+        json!({"tool_name":self.tool,"raw_arguments":self.args,
+            "tool_description":self.description,"tool_schema":self.schema,
+            "server_id":self.server_id})
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -91,11 +110,7 @@ impl InvocationClassifier for RuleBaseline {
     }
     fn classify(&self, invocation: &Invocation) -> anyhow::Result<Classification> {
         // Do not inherit the daemon's credentials or change original MCP frames.
-        let mut bytes = serde_json::to_vec(&json!({
-            "tool_name": invocation.tool, "raw_arguments": invocation.args,
-            "server_id": invocation.server_id, "tool_description": invocation.description,
-            "tool_schema": invocation.schema
-        }))?;
+        let mut bytes = serde_json::to_vec(&invocation.semantic_input())?;
         ensure!(bytes.len() <= 1024 * 1024, "classifier input exceeds limit");
         bytes.push(b'\n');
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -332,10 +347,34 @@ struct AdmittedTool {
     description: String,
     schema: Value,
     schema_sha256: String,
+    definition: Value,
+    definition_sha256: String,
 }
 struct Snapshot {
     sha256: String,
     tools: BTreeMap<String, AdmittedTool>,
+    server_info: Value,
+}
+
+fn prediction_identity(
+    server: &str,
+    snapshot: &Snapshot,
+    tool: &AdmittedTool,
+    name: &str,
+    args: &Value,
+    source: &str,
+    revision: Option<&str>,
+) -> String {
+    // Trusted profiles, policy, native IDs and permissions are not prediction-cache
+    // identity. No predictions are cached here: each invocation is recomputed.
+    sha(
+        canonical(&json!({"profile":"sou11-input-v1","server":server,
+        "server_info":snapshot.server_info,"snapshot":snapshot.sha256,
+        "tool":name,"schema":tool.schema_sha256,"definition":tool.definition_sha256,
+        "arguments":args,"classifier":source,"revision":revision}))
+        .to_string()
+        .as_bytes(),
+    )
 }
 
 pub struct AdmissionCfg {
@@ -362,62 +401,6 @@ pub fn test_classifier_from_env() -> anyhow::Result<Option<Arc<dyn InvocationCla
     }
 }
 
-struct InputSchema(BTreeSet<String>);
-
-impl InputSchema {
-    fn read(value: &Value) -> anyhow::Result<Self> {
-        keys(
-            value,
-            &["type", "properties", "required", "additionalProperties"],
-        )?;
-        ensure!(
-            value["type"] == "object" && value["additionalProperties"] == false,
-            "unsupported MCP input schema"
-        );
-        let properties = value["properties"]
-            .as_object()
-            .context("MCP string properties absent")?;
-        let mut names = BTreeSet::new();
-        for (name, schema) in properties {
-            keys(schema, &["type"])?;
-            ensure!(
-                schema["type"] == "string",
-                "only required string MCP arguments are supported"
-            );
-            names.insert(name.clone());
-        }
-        let mut required = BTreeSet::new();
-        if let Some(fields) = value.get("required") {
-            for field in fields.as_array().context("invalid MCP required fields")? {
-                let field = field.as_str().context("invalid MCP required field")?;
-                ensure!(
-                    required.insert(field.to_string()),
-                    "duplicate MCP required field"
-                );
-            }
-        }
-        ensure!(
-            required == names,
-            "MCP argument defaults and optional fields are unsupported"
-        );
-        Ok(Self(names))
-    }
-
-    fn validate(&self, args: &Value) -> anyhow::Result<()> {
-        let arguments = args
-            .as_object()
-            .context("MCP arguments must be an object")?;
-        ensure!(
-            arguments.len() == self.0.len()
-                && arguments
-                    .iter()
-                    .all(|(name, value)| self.0.contains(name) && value.is_string()),
-            "MCP arguments differ from the reviewed string schema"
-        );
-        Ok(())
-    }
-}
-
 fn sha(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -436,7 +419,7 @@ fn canonical(value: &Value) -> Value {
 }
 
 // JSON-RPC ids and arguments cannot acquire different meanings in different parsers.
-struct Strict(Value);
+pub(crate) struct Strict(pub(crate) Value);
 
 impl<'de> Deserialize<'de> for Strict {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -599,6 +582,17 @@ impl<'a> Collector<'a> {
             .tools
             .get(name)
             .context("classifier discovery state missing")?;
+        let source = classifier.source();
+        let revision = classifier.revision().map(str::to_owned);
+        let input_sha256 = prediction_identity(
+            &self.config.server_id,
+            snapshot,
+            tool,
+            name,
+            args,
+            source,
+            revision.as_deref(),
+        );
         let input = Invocation {
             server_id: self.config.server_id.clone(),
             host_call_id: host_call_id.clone(),
@@ -608,11 +602,14 @@ impl<'a> Collector<'a> {
             tool: name.into(),
             description: tool.description.clone(),
             schema: tool.schema.clone(),
+            definition: tool.definition.clone(),
+            server_info: snapshot.server_info.clone(),
+            definition_sha256: tool.definition_sha256.clone(),
+            input_sha256: input_sha256.clone(),
+            classifier_revision: revision.clone(),
             args: args.clone(),
             baseline,
         };
-        let source = classifier.source();
-        let revision = classifier.revision().map(str::to_owned);
         let started = std::time::Instant::now();
         let task = tokio::task::spawn_blocking(move || classifier.classify(&input));
         // ponytail: a timed-out classifier thread is abandoned, not killed; an
@@ -631,6 +628,7 @@ impl<'a> Collector<'a> {
             json!({"event":"mcp_classification","contract_version":CLASSIFICATION_CONTRACT,
             "source":source,"classifier_sha256":revision,"host_call_id":host_call_id,"server_id":self.config.server_id,
             "tool":name,"snapshot_sha256":snapshot.sha256,
+            "definition_sha256":tool.definition_sha256,"input_sha256":input_sha256,
             "schema_sha256":tool.schema_sha256,"args_sha256":sha(canonical(args).to_string().as_bytes()),
             "registry_sha256":self.config.native.registry_sha256,
             "classification":result.as_ref().map(|result| json!({"actions":result.actions,"unknown":result.unknown,
@@ -673,7 +671,25 @@ impl<'a> Collector<'a> {
     }
 
     async fn inspect_manifest(&self, value: &Value) -> anyhow::Result<()> {
-        let tools = value["tools"].as_array().context("MCP manifest absent")?.iter().map(|tool| json!({"name":tool["name"],"description":tool.get("description").cloned().unwrap_or_else(|| Value::String(String::new())),"schema":tool["inputSchema"]})).collect::<Vec<_>>();
+        let tools = value["tools"]
+            .as_array()
+            .context("MCP manifest absent")?
+            .iter()
+            .map(|tool| {
+                // Preserve the original definition in the snapshot; inspect annotation
+                // strings as untrusted metadata through the existing manifest boundary.
+                let mut description = tool["description"].as_str().unwrap_or("").to_owned();
+                if let Some(title) = tool
+                    .get("annotations")
+                    .and_then(|v| v.get("title"))
+                    .and_then(Value::as_str)
+                {
+                    description.push('\n');
+                    description.push_str(title);
+                }
+                json!({"name":tool["name"],"description":description,"schema":tool["inputSchema"]})
+            })
+            .collect::<Vec<_>>();
         let reply = self
             .post(
                 &self.config.manifest_url,
@@ -820,6 +836,7 @@ impl Pending {
 fn manifest(
     value: &Value,
     native: &NativeState,
+    server_info: &Value,
 ) -> anyhow::Result<(BTreeMap<String, InputSchema>, Snapshot)> {
     keys(value, &["tools"])?;
     let tools = value["tools"]
@@ -833,11 +850,37 @@ fn manifest(
     let mut schemas: BTreeMap<String, InputSchema> = BTreeMap::new();
     let mut admitted = BTreeMap::new();
     for tool in tools {
-        keys(tool, &["name", "description", "inputSchema"])?;
+        keys(tool, &["name", "description", "inputSchema", "annotations"])?;
         let name = tool["name"]
             .as_str()
             .context("MCP manifest tool name absent")?;
         ensure!(seen.insert(name), "duplicate MCP manifest tool");
+        ensure!(
+            !name.is_empty() && name.len() <= 128 && !name.chars().any(char::is_control),
+            "invalid MCP tool name"
+        );
+        if let Some(annotations) = tool.get("annotations") {
+            keys(
+                annotations,
+                &[
+                    "title",
+                    "readOnlyHint",
+                    "destructiveHint",
+                    "idempotentHint",
+                    "openWorldHint",
+                ],
+            )?;
+            for (key, value) in annotations.as_object().expect("checked object") {
+                ensure!(
+                    if key == "title" {
+                        value.is_string()
+                    } else {
+                        value.is_boolean()
+                    },
+                    "invalid MCP tool annotation"
+                );
+            }
+        }
         ensure!(
             tool.get("description").is_none_or(Value::is_string),
             "unsupported MCP tool description"
@@ -860,6 +903,8 @@ fn manifest(
                 description: tool["description"].as_str().unwrap_or("").into(),
                 schema: tool["inputSchema"].clone(),
                 schema_sha256,
+                definition: tool.clone(),
+                definition_sha256: sha(canonical(tool).to_string().as_bytes()),
             },
         );
     }
@@ -868,6 +913,7 @@ fn manifest(
         Snapshot {
             sha256: sha(canonical(value).to_string().as_bytes()),
             tools: admitted,
+            server_info: server_info.clone(),
         },
     ))
 }
@@ -884,8 +930,8 @@ fn initialization(value: &Value) -> anyhow::Result<()> {
     if let Some(tools) = value["capabilities"].get("tools") {
         keys(tools, &["listChanged"])?;
         ensure!(
-            tools.get("listChanged").is_none_or(|v| v == false),
-            "MCP manifest change notifications are unsupported"
+            tools.get("listChanged").is_none_or(Value::is_boolean),
+            "invalid MCP manifest change capability"
         );
     }
     keys(&value["serverInfo"], &["name", "version"])?;
@@ -1040,6 +1086,8 @@ where
     let mut ready = false;
     let mut schemas: BTreeMap<String, InputSchema> = BTreeMap::new();
     let mut admitted_snapshot: Option<Snapshot> = None;
+    let mut server_info = Value::Null;
+    let mut list_changed_supported = false;
     let mut used = BTreeSet::new();
     let mut client_partial = Vec::new();
     let mut server_partial = Vec::new();
@@ -1068,6 +1116,10 @@ where
                     "tools/list" => {
                         ensure!(initialized, "MCP manifest before initialization");
                         discovery_params(&params)?;
+                        // A refresh is a new admission, never fallback to old definitions.
+                        ready = false;
+                        schemas.clear();
+                        admitted_snapshot = None;
                         Pending::Manifest(request_id.clone())
                     }
                     "resources/list" | "resources/templates/list" => {
@@ -1111,6 +1163,16 @@ where
             raw = line(server, &mut server_partial) => {
                 let raw = raw?.context("MCP server closed before client completion")?;
                 let value = parse(&raw)?;
+                if value["method"] == "notifications/tools/list_changed" {
+                    keys(&value, &["jsonrpc", "method", "params"])?;
+                    ensure!(initialized && list_changed_supported && pending.is_none(), "unsupported MCP definition change timing");
+                    if let Some(params) = value.get("params") { keys(params, &[])?; }
+                    ready = false;
+                    schemas.clear();
+                    admitted_snapshot = None;
+                    write(host, &raw).await?;
+                    continue;
+                }
                 keys(&value, &["jsonrpc","id","result","error"])?;
                 let request = pending.take().context("unbound or replayed MCP server response")?;
                 ensure!(value.get("id") == Some(request.id()), "MCP response id mismatch");
@@ -1118,11 +1180,13 @@ where
                     Pending::Handshake(_) => {
                         ensure!(value.get("error").is_none() && value["result"].is_object(), "MCP initialization failed");
                         initialization(&value["result"])?;
+                        server_info = value["result"]["serverInfo"].clone();
+                        list_changed_supported = value["result"]["capabilities"]["tools"]["listChanged"] == true;
                         initialized = true;
                     }
                     Pending::Manifest(_) => {
                         ensure!(value.get("error").is_none(), "MCP tools/list failed");
-                        let (validated_schemas, snapshot) = manifest(&value["result"], &collector.config.native)?;
+                        let (validated_schemas, snapshot) = manifest(&value["result"], &collector.config.native, &server_info)?;
                         collector.inspect_manifest(&value["result"]).await?;
                         schemas = validated_schemas;
                         admitted_snapshot = Some(snapshot);
@@ -1185,6 +1249,183 @@ pub async fn run(config: AdmissionCfg) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod input_identity_tests {
+    use super::*;
+
+    fn discovered(description: &str) -> (NativeState, Value, Value) {
+        let schema: Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/mcp_inputs/nested_schema.json"
+        ))
+        .unwrap();
+        let registry = json!({"contract_version":CONTRACT,"registry_id":"sou11-fixture","tools":[
+            {"name":"inventory_lookup","schema_sha256":sha(canonical(&schema).to_string().as_bytes()),
+                "action_class":"read_only","result_provenance":"untrusted","egress":[]}]});
+        let bytes = registry.to_string().into_bytes();
+        let native =
+            NativeState::from_bytes(&bytes, &sha(&bytes), "fixture-token-1234567890".into())
+                .unwrap();
+        let result = json!({"tools":[{"name":"inventory_lookup","description":description,
+            "inputSchema":schema,"annotations":{"title":"Synthetic","readOnlyHint":true}}]});
+        (native, result, json!({"name":"fixture","version":"1"}))
+    }
+
+    #[test]
+    fn original_discovery_schema_and_annotations_are_retained() {
+        let (native, result, info) = discovered("fixture description");
+        let (_, snapshot) = manifest(&result, &native, &info).unwrap();
+        let tool = &snapshot.tools["inventory_lookup"];
+        assert_eq!(tool.definition, result["tools"][0]);
+        assert_eq!(tool.schema, result["tools"][0]["inputSchema"]);
+        assert_eq!(snapshot.server_info, info);
+        assert_eq!(tool.description, "fixture description");
+        let mut invocation = Invocation {
+            server_id: "selected-local-server".into(),
+            host_call_id: json!("original-id"),
+            registry_sha256: "trusted-registry".into(),
+            snapshot_sha256: snapshot.sha256.clone(),
+            schema_sha256: tool.schema_sha256.clone(),
+            tool: "inventory_lookup".into(),
+            description: tool.description.clone(),
+            schema: tool.schema.clone(),
+            definition: tool.definition.clone(),
+            server_info: info,
+            definition_sha256: tool.definition_sha256.clone(),
+            input_sha256: "input".into(),
+            classifier_revision: Some("revision".into()),
+            args: json!({"query":{"names":[],"limit":1}}),
+            baseline: ActionClass::ReadOnly,
+        };
+        let semantic = invocation.semantic_input();
+        assert_eq!(semantic["raw_arguments"], invocation.args);
+        assert_eq!(
+            semantic,
+            json!({"tool_name":"inventory_lookup","raw_arguments":invocation.args,
+            "tool_description":tool.description,"tool_schema":tool.schema,"server_id":"selected-local-server"})
+        );
+        invocation.host_call_id = json!("different-id");
+        invocation.registry_sha256 = "different-registry".into();
+        invocation.baseline = ActionClass::Destructive;
+        assert_eq!(
+            semantic,
+            invocation.semantic_input(),
+            "correlation and permissions are not semantic inputs"
+        );
+        assert_eq!(
+            tool.definition_sha256,
+            sha(canonical(&result["tools"][0]).to_string().as_bytes())
+        );
+    }
+
+    #[test]
+    fn prediction_identity_binds_server_arguments_metadata_and_classifier_revision() {
+        let (native, result, info) = discovered("first");
+        let (_, snapshot) = manifest(&result, &native, &info).unwrap();
+        let args = json!({"query":{"names":["alpha"],"limit":1}});
+        let identity =
+            |server: &str, snap: &Snapshot, args: &Value, source: &str, rev: Option<&str>| {
+                prediction_identity(
+                    server,
+                    snap,
+                    &snap.tools["inventory_lookup"],
+                    "inventory_lookup",
+                    args,
+                    source,
+                    rev,
+                )
+            };
+        let original = identity(
+            "operator-selected",
+            &snapshot,
+            &args,
+            "classifier",
+            Some("rev1"),
+        );
+        assert_eq!(
+            original,
+            identity(
+                "operator-selected",
+                &snapshot,
+                &args,
+                "classifier",
+                Some("rev1")
+            )
+        );
+        for changed in [
+            identity(
+                "different-server",
+                &snapshot,
+                &args,
+                "classifier",
+                Some("rev1"),
+            ),
+            identity(
+                "operator-selected",
+                &snapshot,
+                &json!({}),
+                "classifier",
+                Some("rev1"),
+            ),
+            identity(
+                "operator-selected",
+                &snapshot,
+                &args,
+                "classifier",
+                Some("rev2"),
+            ),
+            identity(
+                "operator-selected",
+                &snapshot,
+                &args,
+                "other-classifier",
+                Some("rev1"),
+            ),
+            identity("operator-selected", &snapshot, &args, "classifier", None),
+        ] {
+            assert_ne!(original, changed);
+        }
+        let mut updated = result.clone();
+        updated["tools"][0]["annotations"]["readOnlyHint"] = json!(false);
+        let (_, metadata_changed) = manifest(&updated, &native, &info).unwrap();
+        assert_ne!(
+            original,
+            identity(
+                "operator-selected",
+                &metadata_changed,
+                &args,
+                "classifier",
+                Some("rev1")
+            )
+        );
+        let (_, server_changed) =
+            manifest(&result, &native, &json!({"name":"fixture","version":"2"})).unwrap();
+        assert_ne!(
+            original,
+            identity(
+                "operator-selected",
+                &server_changed,
+                &args,
+                "classifier",
+                Some("rev1")
+            )
+        );
+    }
+
+    #[test]
+    fn changed_schema_tool_list_and_unsupported_annotations_require_readmission() {
+        let (native, result, info) = discovered("first");
+        let mut changed = result.clone();
+        changed["tools"][0]["inputSchema"]["properties"]["new"] = json!({"type":"string"});
+        assert!(manifest(&changed, &native, &info).is_err());
+        changed = result.clone();
+        changed["tools"] = json!([]);
+        assert!(manifest(&changed, &native, &info).is_err());
+        changed = result;
+        changed["tools"][0]["annotations"]["customPermission"] = json!("allow");
+        assert!(manifest(&changed, &native, &info).is_err());
+    }
+}
+
 #[cfg(all(test, unix))]
 mod classifier_revision_tests {
     use super::*;
@@ -1242,6 +1483,11 @@ mod classifier_revision_tests {
             tool: "read_file".into(),
             description: "synthetic read".into(),
             schema: json!({"type":"object"}),
+            definition: json!({"name":"read_file","inputSchema":{"type":"object"}}),
+            server_info: json!({"name":"fixture","version":"1"}),
+            definition_sha256: "definition".into(),
+            input_sha256: "input".into(),
+            classifier_revision: None,
             args: json!({"path":"fixture.txt"}),
             baseline: ActionClass::ReadOnly,
         };

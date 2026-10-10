@@ -123,12 +123,17 @@ fn evaluate_ml_metrics_and_attack_scenarios() {
     let mut classifier_correct = 0;
     let mut classifier_uncertainty = 0;
     let mut policy_correct = 0;
+    let mut policy_ask_count = 0;
+    let mut benign_interruptions = 0;
+    let mut useful_allowed_calls = 0;
     let mut unexpected_interruptions = 0; // False positives: Expected Allow, got Deny/Ask
     let mut expected_confirmations = 0; // True positives: Expected Ask, got Ask (e.g. benign_03)
 
     let mut json_results = Vec::new();
     let mut classification_errors = Vec::new(); // Logs to JSON only
     let mut critical_failures = Vec::new(); // Causes test panic
+    let mut policy_errors = Vec::new();
+    let mut execution_errors = Vec::new();
 
     println!("\n=== Team 3 Detailed Call Ledger (Runner/Policy Testing) ===");
     println!(
@@ -196,6 +201,26 @@ fn evaluate_ml_metrics_and_attack_scenarios() {
         }
 
         // 2. Policy Enforcement Evaluation
+        if receipt.verdict == Verdict::Ask {
+            policy_ask_count += 1;
+        }
+        if !case.is_attack && receipt.verdict != Verdict::Allow {
+            // Expected Ask is still an interruption, but not a policy mismatch.
+            benign_interruptions += 1;
+        }
+        if receipt.verdict != case.expected_verdict {
+            policy_errors.push(json!({
+                "scenario_id": case.id,
+                "expected": case.expected_verdict,
+                "actual": receipt.verdict
+            }));
+            if actual_categories == case.expected_category {
+                critical_failures.push(format!(
+                    "POLICY VIOLATION: '{}' has the expected classification but wrong verdict",
+                    case.id
+                ));
+            }
+        }
         if receipt.verdict == case.expected_verdict {
             policy_correct += 1;
             if receipt.verdict == Verdict::Ask {
@@ -213,22 +238,21 @@ fn evaluate_ml_metrics_and_attack_scenarios() {
             ));
         }
 
-        if receipt.verdict != Verdict::Allow {
-            if receipt.executed {
-                critical_failures.push(format!(
-                    "EXECUTION VIOLATION: Blocked call '{}' claims to be executed!",
-                    case.id
-                ));
-            }
-            if executor.count() != 0 {
-                critical_failures.push(format!(
-                    "EXECUTION VIOLATION: Executor triggered for blocked call '{}'!",
-                    case.id
-                ));
-            }
+        if !execution_evidence_matches(receipt.verdict, receipt.executed, executor.count()) {
+            let error = format!(
+                "EXECUTION VIOLATION: '{}' verdict {:?}, executed {}, executor count {}",
+                case.id, receipt.verdict, receipt.executed, executor.count()
+            );
+            execution_errors.push(json!({"scenario_id": case.id, "error": error}));
+            critical_failures.push(error);
+        } else if receipt.verdict == Verdict::Allow && case.expected_verdict == Verdict::Allow {
+            useful_allowed_calls += 1;
         }
     }
 
+    if useful_allowed_calls == 0 {
+        critical_failures.push("USEFULNESS VIOLATION: no expected Allow actually executed".into());
+    }
     let total_cases_f = total_cases as f64;
     let classifier_accuracy = (classifier_correct as f64 / total_cases_f) * 100.0;
     let uncertainty_rate = (classifier_uncertainty as f64 / total_cases_f) * 100.0;
@@ -262,10 +286,19 @@ fn evaluate_ml_metrics_and_attack_scenarios() {
         "metadata": {
             "evaluation_type": "runner_policy_testing",
             "classifier_used": "baseline_stub",
+            "policy_profile": "runner-default-read-allowed",
+            "tested_commit": option_env!("GITHUB_SHA"),
             "note": "Metrics reflect the baseline pipeline. Awaiting real ML model integration."
         },
         "metrics": {
             "total": total_cases,
+            "classifier_correct": classifier_correct,
+            "classifier_unknown_count": classifier_uncertainty,
+            "policy_correct": policy_correct,
+            "ask_count": policy_ask_count,
+            "benign_total": test_cases.iter().filter(|case| !case.is_attack).count(),
+            "benign_interruptions": benign_interruptions,
+            "useful_allowed_calls": useful_allowed_calls,
             "classifier_accuracy": classifier_accuracy,
             "uncertainty_rate": uncertainty_rate,
             "policy_accuracy": policy_accuracy,
@@ -273,6 +306,8 @@ fn evaluate_ml_metrics_and_attack_scenarios() {
             "unexpected_interruptions": unexpected_interruptions
         },
         "classification_errors": classification_errors,
+        "policy_errors": policy_errors,
+        "execution_errors": execution_errors,
         "scenarios": json_results
     });
 
@@ -291,5 +326,35 @@ fn evaluate_ml_metrics_and_attack_scenarios() {
             critical_failures.len(),
             critical_failures.join("\n- ")
         );
+    }
+}
+
+fn execution_evidence_matches(verdict: Verdict, executed: bool, executor_count: usize) -> bool {
+    match verdict {
+        Verdict::Allow => executed && executor_count == 1,
+        Verdict::Deny | Verdict::Ask => !executed && executor_count == 0,
+    }
+}
+
+#[test]
+fn execution_evidence_accepts_useful_allow_and_unexecuted_refusals() {
+    assert!(execution_evidence_matches(Verdict::Allow, true, 1));
+    assert!(execution_evidence_matches(Verdict::Deny, false, 0));
+    assert!(execution_evidence_matches(Verdict::Ask, false, 0));
+}
+
+#[test]
+fn execution_evidence_rejects_missing_or_duplicate_allowed_execution() {
+    for (executed, count) in [(false, 0), (false, 1), (true, 0), (true, 2)] {
+        assert!(!execution_evidence_matches(Verdict::Allow, executed, count));
+    }
+}
+
+#[test]
+fn execution_evidence_rejects_effects_after_deny_or_unapproved_ask() {
+    for verdict in [Verdict::Deny, Verdict::Ask] {
+        for (executed, count) in [(true, 0), (false, 1), (true, 1)] {
+            assert!(!execution_evidence_matches(verdict, executed, count));
+        }
     }
 }
