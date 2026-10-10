@@ -1,0 +1,313 @@
+{
+  "schema_version": "sou17-code-scanning-triage/0.1",
+  "observed_on": "2026-10-10",
+  "repository": "https://github.com/SoupTeam/soup-wall",
+  "access": "authorized authenticated GitHub UI; read-only",
+  "inventory_scope": "GitHub default-branch open alerts, is:open branch:main; each alert lists main as its only affected branch. Other unscanned branches are not certified.",
+  "open_alert_count": 6,
+  "open_severity_counts": {
+    "critical": 6
+  },
+  "closed_alert_count_observed": 74,
+  "analyzed_branch": "main",
+  "analyzed_commit": "bb1265c5369bdea1eecc1be71ba7e260b4fe8095",
+  "source_review_commit": "a8b237d8237bdda534ca294bf1ebed7af8d469bd",
+  "status": "refreshed authorized inventory: six evidence-backed false-positive recommendations; all alerts remain open pending technical review",
+  "scanner": {
+    "tool": "CodeQL",
+    "setup": "Default setup",
+    "analysis_status": "working as expected",
+    "last_scan_date": "2026-10-10",
+    "tool_version": "2.27.2",
+    "category": "/language:rust",
+    "extensions": {
+      "codeql/rust-queries": "0.1.44",
+      "codeql/rust-all": "0.2.23",
+      "codeql/threat-models": "1.0.59"
+    },
+    "languages_shown": [
+      "rust",
+      "python",
+      "actions"
+    ],
+    "events_shown": [
+      "push to main",
+      "pull request to main"
+    ],
+    "status_url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/tools/CodeQL/status/configurations/automatic/2b7122206b8ac86cd7b88fd927bd502861908b2a6bfb3dfdcf2968009cb71086"
+  },
+  "alerts": [
+    {
+      "number": 85,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/85",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "path": "vendor/kryptering/tests/provider_baseline.rs",
+      "line": 165,
+      "analyzed_branch": "main",
+      "analyzed_commit": "bb1265c5369bdea1eecc1be71ba7e260b4fe8095",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/bb1265c5369bdea1eecc1be71ba7e260b4fe8095/vendor/kryptering/tests/provider_baseline.rs#L165",
+      "test_function": "kdfs_match_known_answers",
+      "assessment": "evidence-backed false positive for a production hard-coded-secret defect",
+      "rationale": "PBKDF2 known-answer input with fixed expected bytes; FIPS mode rejects undersized parameters.",
+      "disposition": "recommended false positive; no dismissal made",
+      "file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "source_review_commit": "a8b237d8237bdda534ca294bf1ebed7af8d469bd",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/a8b237d8237bdda534ca294bf1ebed7af8d469bd/vendor/kryptering/tests/provider_baseline.rs#L165",
+      "source_matches_previous_triage": true,
+      "analysis_status": "Rust default setup working as expected; current main snippet and latest scan identify the analyzed commit",
+      "review_status": "awaiting coordinator/affected-code reviewer disposition",
+      "assignee_observation": "No GitHub assignee shown in refreshed alert detail",
+      "analyzed_file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_bytes_match_candidate": true
+    },
+    {
+      "number": 86,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/86",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "path": "vendor/kryptering/tests/provider_baseline.rs",
+      "line": 193,
+      "analyzed_branch": "main",
+      "analyzed_commit": "bb1265c5369bdea1eecc1be71ba7e260b4fe8095",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/bb1265c5369bdea1eecc1be71ba7e260b4fe8095/vendor/kryptering/tests/provider_baseline.rs#L193",
+      "test_function": "kdfs_match_known_answers",
+      "assessment": "evidence-backed false positive for a production hard-coded-secret defect",
+      "rationale": "Compliant PBKDF2 known-answer input; fixed expected output, independently documented Python hashlib comparison.",
+      "disposition": "recommended false positive; no dismissal made",
+      "file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "source_review_commit": "a8b237d8237bdda534ca294bf1ebed7af8d469bd",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/a8b237d8237bdda534ca294bf1ebed7af8d469bd/vendor/kryptering/tests/provider_baseline.rs#L193",
+      "source_matches_previous_triage": true,
+      "analysis_status": "Rust default setup working as expected; current main snippet and latest scan identify the analyzed commit",
+      "review_status": "awaiting coordinator/affected-code reviewer disposition",
+      "assignee_observation": "No GitHub assignee shown in refreshed alert detail",
+      "analyzed_file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_bytes_match_candidate": true
+    },
+    {
+      "number": 87,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/87",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "path": "vendor/kryptering/tests/provider_baseline.rs",
+      "line": 524,
+      "analyzed_branch": "main",
+      "analyzed_commit": "bb1265c5369bdea1eecc1be71ba7e260b4fe8095",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/bb1265c5369bdea1eecc1be71ba7e260b4fe8095/vendor/kryptering/tests/provider_baseline.rs#L524",
+      "test_function": "unsupported_operations_are_reported_before_key_parsing",
+      "assessment": "evidence-backed false positive for a production hard-coded-secret defect",
+      "rationale": "Negative RustCrypto test asserts UnsupportedAlgorithm before input parsing; no credential is installed.",
+      "disposition": "recommended false positive; no dismissal made",
+      "file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "source_review_commit": "a8b237d8237bdda534ca294bf1ebed7af8d469bd",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/a8b237d8237bdda534ca294bf1ebed7af8d469bd/vendor/kryptering/tests/provider_baseline.rs#L524",
+      "source_matches_previous_triage": true,
+      "analysis_status": "Rust default setup working as expected; current main snippet and latest scan identify the analyzed commit",
+      "review_status": "awaiting coordinator/affected-code reviewer disposition",
+      "assignee_observation": "No GitHub assignee shown in refreshed alert detail",
+      "analyzed_file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_bytes_match_candidate": true
+    },
+    {
+      "number": 88,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/88",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "path": "vendor/kryptering/tests/provider_baseline.rs",
+      "line": 549,
+      "analyzed_branch": "main",
+      "analyzed_commit": "bb1265c5369bdea1eecc1be71ba7e260b4fe8095",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/bb1265c5369bdea1eecc1be71ba7e260b4fe8095/vendor/kryptering/tests/provider_baseline.rs#L549",
+      "test_function": "unsupported_operations_are_reported_before_key_parsing",
+      "assessment": "evidence-backed false positive for a production hard-coded-secret defect",
+      "rationale": "Negative FIPS test asserts refusal of SHA-1 PBKDF2 before parameter validation.",
+      "disposition": "recommended false positive; no dismissal made",
+      "file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "source_review_commit": "a8b237d8237bdda534ca294bf1ebed7af8d469bd",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/a8b237d8237bdda534ca294bf1ebed7af8d469bd/vendor/kryptering/tests/provider_baseline.rs#L549",
+      "source_matches_previous_triage": true,
+      "analysis_status": "Rust default setup working as expected; current main snippet and latest scan identify the analyzed commit",
+      "review_status": "awaiting coordinator/affected-code reviewer disposition",
+      "assignee_observation": "No GitHub assignee shown in refreshed alert detail",
+      "analyzed_file_sha256": "70755b1ffd48ba145a7689b0a0572fc8be4d833c35dd419528a14fc9ad212fce",
+      "analyzed_bytes_match_candidate": true
+    },
+    {
+      "number": 89,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/89",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "path": "vendor/kryptering/tests/provider_parity.rs",
+      "line": 502,
+      "analyzed_branch": "main",
+      "analyzed_commit": "bb1265c5369bdea1eecc1be71ba7e260b4fe8095",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/bb1265c5369bdea1eecc1be71ba7e260b4fe8095/vendor/kryptering/tests/provider_parity.rs#L502",
+      "test_function": "kdfs_match_rfc_vectors",
+      "assessment": "evidence-backed false positive for a production hard-coded-secret defect",
+      "rationale": "Fixed PBKDF2 expected outputs check provider parity; FIPS mode rejects undersized parameters.",
+      "disposition": "recommended false positive; no dismissal made",
+      "file_sha256": "29afd20f093375a539bb2efd8b0818bd6017671c966001be396bdafc0ad3889f",
+      "source_review_commit": "a8b237d8237bdda534ca294bf1ebed7af8d469bd",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/a8b237d8237bdda534ca294bf1ebed7af8d469bd/vendor/kryptering/tests/provider_parity.rs#L502",
+      "source_matches_previous_triage": true,
+      "analysis_status": "Rust default setup working as expected; current main snippet and latest scan identify the analyzed commit",
+      "review_status": "awaiting coordinator/affected-code reviewer disposition",
+      "assignee_observation": "No GitHub assignee shown in refreshed alert detail",
+      "analyzed_file_sha256": "29afd20f093375a539bb2efd8b0818bd6017671c966001be396bdafc0ad3889f",
+      "analyzed_bytes_match_candidate": true
+    },
+    {
+      "number": 90,
+      "url": "https://github.com/SoupTeam/soup-wall/security/code-scanning/90",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "rule_name": "Hard-coded cryptographic value",
+      "severity": "critical",
+      "github_state": "open",
+      "path": "vendor/kryptering/tests/provider_parity.rs",
+      "line": 532,
+      "analyzed_branch": "main",
+      "analyzed_commit": "bb1265c5369bdea1eecc1be71ba7e260b4fe8095",
+      "source_url": "https://github.com/SoupTeam/soup-wall/blob/bb1265c5369bdea1eecc1be71ba7e260b4fe8095/vendor/kryptering/tests/provider_parity.rs#L532",
+      "test_function": "kdfs_match_rfc_vectors",
+      "assessment": "evidence-backed false positive for a production hard-coded-secret defect",
+      "rationale": "Compliant PBKDF2 parameter variants check fixed expected outputs across providers.",
+      "disposition": "recommended false positive; no dismissal made",
+      "file_sha256": "29afd20f093375a539bb2efd8b0818bd6017671c966001be396bdafc0ad3889f",
+      "source_review_commit": "a8b237d8237bdda534ca294bf1ebed7af8d469bd",
+      "source_review_url": "https://github.com/SoupTeam/soup-wall/blob/a8b237d8237bdda534ca294bf1ebed7af8d469bd/vendor/kryptering/tests/provider_parity.rs#L532",
+      "source_matches_previous_triage": true,
+      "analysis_status": "Rust default setup working as expected; current main snippet and latest scan identify the analyzed commit",
+      "review_status": "awaiting coordinator/affected-code reviewer disposition",
+      "assignee_observation": "No GitHub assignee shown in refreshed alert detail",
+      "analyzed_file_sha256": "29afd20f093375a539bb2efd8b0818bd6017671c966001be396bdafc0ad3889f",
+      "analyzed_bytes_match_candidate": true
+    }
+  ],
+  "shared_evidence": [
+    {
+      "path": "Cargo.toml",
+      "lines": [
+        4
+      ],
+      "observation": "The application workspace excludes vendor/kryptering."
+    },
+    {
+      "path": "vendor/kryptering/Cargo.toml",
+      "lines": [
+        99,
+        119,
+        124
+      ],
+      "observation": "Production library is src/lib.rs; affected files are separate integration-test targets."
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "lines": [
+        119,
+        138
+      ],
+      "observation": "Release packaging includes application binaries and vendored licence, not test targets."
+    },
+    {
+      "path": "vendor/kryptering/src/lib.rs",
+      "observation": "No production import or include of these test files found in source search."
+    }
+  ],
+  "confirmed_defects": [],
+  "remediation_issues": [],
+  "fix_prs": [],
+  "dismissals_performed": [],
+  "pending_actions": [
+    "Nari_Ab coordinates affected-code technical review and records reviewer-supported disposition for each recommendation; any actual dismissal needs its rationale.",
+    "Refresh inventory and exact-source scan evidence for the final integrated revision; changed source requires affected checks to rerun.",
+    "Create focused linked remediation issues with implementation owner/reviewer for newly confirmed defects; retain unresolved scope and dependency risks.",
+    "SOU-18 owns scan/ruleset configuration verification and live gate evidence. These observations do not prove required merge checks or runtime enforcement."
+  ],
+  "review_coordination": {
+    "triage_owner": "konung3",
+    "pr_review_coordinator": "Nari_Ab",
+    "affected_code_review": "Coordinated by Nari_Ab; no CODEOWNERS assignment verified",
+    "configuration_owner": "userarlan via SOU-18"
+  },
+  "upstream_limit": "PATCH.md records retained upstream tests; upstream archive byte identity was not independently re-verified in this triage.",
+  "source_review_limit": "Candidate source matches previously triaged fixture bytes. Main analyzed source and PR delta checks are separate observations; successful PR checks do not clear existing main alerts.",
+  "candidate_pr_scan": {
+    "number": 62,
+    "url": "https://github.com/SoupTeam/soup-wall/pull/62",
+    "head_commit": "a8b237d8237bdda534ca294bf1ebed7af8d469bd",
+    "observation": "Authorized GitHub UI on the exact PR head; no new alerts in the PR delta, with successful Rust/Python/Actions analysis jobs.",
+    "results_check": {
+      "name": "CodeQL",
+      "status": "completed",
+      "conclusion": "success",
+      "new_alerts_reported": false,
+      "url": "https://github.com/SoupTeam/soup-wall/pull/62/checks?check_run_id=114228049623",
+      "evidence_origin": "Direct authenticated UI observation by the coordinating agent; saved checks index records the exact head and analysis jobs."
+    },
+    "workflow_url": "https://github.com/SoupTeam/soup-wall/actions/runs/38057184888",
+    "rust_analysis_job_url": "https://github.com/SoupTeam/soup-wall/actions/runs/38057184888/job/114227952718?pr=62",
+    "scope_limit": "No-new-alerts PR delta result is not a clean main inventory, remediation rescan, proof of merge protection, or runtime acceptance."
+  },
+  "remediation_rescan": {
+    "status": "not_applicable_no_confirmed_fix",
+    "fix_commit": null,
+    "analysis_url": null,
+    "limitation": "No confirmed defect or fix was established for these six findings. Main scan refresh and candidate PR checks must not be labeled remediation verification."
+  },
+  "local_evidence": {
+    "handling": "Sanitized structured summary; excludes authenticated account/navigation details and literal cryptographic fixture values. Raw UI snapshots remain local build evidence.",
+    "files": [
+      {
+        "path": "target/sou17-validation-a8b237d/github/main-alerts.txt",
+        "sha256": "a6e4df7970697033bd5ea48dee9459a29e15f30c0248b7aaaab38e88b406945c"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/main-rust-configuration.txt",
+        "sha256": "bdc3eaeadbbf2d723a7b3bdaecbf825ec1f781bb955d9e3a9b26cf2de27f2a8d"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/alert-85.txt",
+        "sha256": "a305a52ef9f8e1cf0ce0c292e8712fa54972b39cc117c4ee5b465c1c92bff3e7"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/alert-86.txt",
+        "sha256": "ec801cae315263d44642250e97585a70a7b68acfdfc4dad61ceb1c8df554d36b"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/alert-87.txt",
+        "sha256": "684bde87dc05fc94f6444392bedbde5f4669c883e8c45cba5af138c49a203622"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/alert-88.txt",
+        "sha256": "dc22b5f65491bc7d196beb0b5230b209435c849a0ed6151fe5e9f3a01b4885fd"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/alert-89.txt",
+        "sha256": "7f8c843e97f939026de7cd7c6f638d0ec1f23d86315d94eb0a54ce3267eeea58"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/alert-90.txt",
+        "sha256": "33e24a1a11ac656d1e2251e6b8a2116ea3c8db9e0b291cf839ccf832178b3202"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/pr62-checks.txt",
+        "sha256": "c4e99dbfb8b28be500f86a106592d271a36b58dad1d60cfea4706d99f08267ba"
+      },
+      {
+        "path": "target/sou17-validation-a8b237d/github/pr62.txt",
+        "sha256": "4c2a473743bae660c0212ec3c68f33871de1901d3a0f49af59b961b76559cac3"
+      }
+    ]
+  }
+}

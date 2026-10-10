@@ -13,6 +13,20 @@ but that production path does not yet call the shared adapter runner. Passing th
 two surfaces separately does not establish the integrated milestone. No test-local
 classifier or policy pipeline is substituted for the missing integration.
 
+## Candidate verification — 2026-10-10
+
+The [dated candidate report](evidence/sou17_candidate_a8b237d_2026-10-10.md)
+records an independent clean-source run of SOU-15 PR #62 at
+`a8b237d8237bdda534ca294bf1ebed7af8d469bd`: 91/91 regressions and 18 additional
+input/resource tests passed. A separate production-boundary diagnostic recorded
+shared-policy Ask together with one execution and 122 original result bytes
+released. Shared verdicts remain advisory, extracted resources are not bound to
+policy/receipts, and executor destination confinement is not verified.
+**Integrated acceptance remains blocked.** The dated report retains raw outcomes,
+source/configuration hashes, fixture-only latency/false-interruption observations,
+a runnable diagnostic and the refreshed CodeQL inventory. The historical
+preparation results below remain unchanged.
+
 ## Reproduce and retain raw evidence
 
 Use the Rust/native compiler/Python prerequisites in [DEVELOPMENT](../DEVELOPMENT.md).

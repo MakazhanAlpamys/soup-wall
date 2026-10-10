@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ from unittest.mock import patch
 from experiments.local_classifier.model import (
     ACTIONS, HEADS, Config, LinearClassifier, check_labels, features, input_identity,
 )
-from experiments.local_classifier.pilot import evaluate, load_approved, main, read_json, toy_data, validate_dataset
+from experiments.local_classifier.pilot import evaluate, load_approved, load_baseline, main, read_json, toy_data, validate_dataset
 
 
 def labels(**values):
@@ -131,6 +132,29 @@ class ModelSafety(unittest.TestCase):
 
 
 class DatasetAndExperimentSafety(unittest.TestCase):
+    def test_baseline_code_matches_digest_even_with_same_size_and_timestamp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'rule_baseline.py'
+            source.write_bytes(b'classify = lambda _: 1\n')
+            stamp = source.stat()
+            first, first_hash = load_baseline(source.parent)
+            revised = b'classify = lambda _: 2\n'
+            source.write_bytes(revised)
+            os.utime(source, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+            second, second_hash = load_baseline(source.parent)
+            self.assertEqual(first({}), 1)
+            self.assertEqual(second({}), 2)
+            self.assertNotEqual(first_hash, second_hash)
+            self.assertEqual(second_hash, hashlib.sha256(revised).hexdigest())
+
+    def test_baseline_loader_rejects_oversized_source_and_missing_entrypoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'rule_baseline.py'
+            for data in (b'#' * (1024 * 1024 + 1), b'classify = 1\n'):
+                source.write_bytes(data)
+                with self.assertRaises(ValueError):
+                    load_baseline(source.parent)
+
     def test_malformed_json_and_byte_limits_are_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'input.json'
@@ -189,6 +213,54 @@ class DatasetAndExperimentSafety(unittest.TestCase):
             return {'actions': ['read'], 'unknown': False}
         evaluate([row], classify)
 
+    def test_d05_alternatives_accept_abstention_but_keep_read_retention_error(self):
+        row = toy_data()['cases'][0]
+        row['labels'] = labels(read=True, unknown=True)
+        row['accepted_outputs'] = [{'actions': ['read'], 'unknown': True},
+                                   {'actions': [], 'unknown': True}]
+        for actions in (['read'], []):
+            def classify(inp):
+                self.assertEqual(inp, row['input'])
+                self.assertNotIn('accepted_outputs', inp)
+                return {'actions': actions, 'unknown': True}
+            result = evaluate([row], classify)
+            self.assertEqual(result['contract_scored'], 1)
+            self.assertEqual(result['contract_matches'], 1)
+            self.assertEqual(result['per_label']['read']['fn'], int(not actions))
+            self.assertEqual(result['per_label']['delete']['known'], 0)
+            self.assertEqual(result['abstentions'], 1)
+        result = evaluate([row], lambda _: {'actions': ['read'], 'unknown': False})
+        self.assertEqual(result['contract_matches'], 0)
+        self.assertEqual(result['unknown']['lost_unknown'], 1)
+
+    def test_invalid_alternative_oracles_are_not_dataset_labels(self):
+        for alternatives in ([], [{'actions': [], 'unknown': False}],
+                             [{'actions': ['delete'], 'unknown': True}],
+                             [{'actions': ['read', 'read'], 'unknown': True}],
+                             [{'actions': [], 'unknown': True}] * 2):
+            data = toy_data()
+            data['cases'][0]['labels'] = labels(read=True, unknown=True)
+            data['cases'][0]['accepted_outputs'] = alternatives
+            with self.subTest(alternatives=alternatives), self.assertRaises(ValueError):
+                validate_dataset(data)
+
+    def test_reviewed_alternatives_do_not_change_train_or_calibration(self):
+        data = toy_data()
+        for index in (0, 8):
+            data['cases'][index]['labels'] = labels(read=True, unknown=True)
+        original = validate_dataset(copy.deepcopy(data))
+        for index in (0, 8):
+            data['cases'][index]['accepted_outputs'] = [{'actions': ['read'], 'unknown': True},
+                                                       {'actions': [], 'unknown': True}]
+        revised = validate_dataset(data)
+        candidates = []
+        for splits in (original, revised):
+            candidate = LinearClassifier(Config(dimensions=32, epochs=2))
+            candidate.fit(splits['train'])
+            candidate.calibrate(splits['calibration'])
+            candidates.append(candidate.artifact())
+        self.assertEqual(candidates[0], candidates[1])
+
     def test_official_modes_without_review_do_not_train(self):
         for mode in ('train', 'evaluate'):
             with self.subTest(mode=mode), patch('experiments.local_classifier.pilot.train_model') as train, patch('sys.stderr'):
@@ -218,9 +290,18 @@ class DatasetAndExperimentSafety(unittest.TestCase):
                 'dataset_sha256': hashlib.sha256(dataset.read_bytes()).hexdigest()}))
             common = ['--dataset', str(dataset), '--approval', str(approval)]
             main(['train', *common, '--output-dir', str(output), '--epochs', '2', '--dimensions', '32'])
-            evaluate_args = ['evaluate', *common, '--model-dir', str(output), '--baseline-path', str(folder)]
+            authorization, ledger = folder / 'run.json', folder / 'ledger'
+            ledger.mkdir()
+            authorization.write_text(json.dumps({'format': 'soup-wall/classifier-run-authorization/1',
+                'run_id': 'UNIT TEST ONLY', 'holdout_id': 'toy-test-holdout',
+                'approval_reference': 'UNIT TEST ONLY',
+                'dataset_sha256': hashlib.sha256(dataset.read_bytes()).hexdigest(),
+                'model_sha256': hashlib.sha256((output / 'model.json').read_bytes()).hexdigest(),
+                'baseline_sha256': 'b' * 64}))
+            evaluate_args = ['evaluate', *common, '--model-dir', str(output), '--baseline-path', str(folder),
+                             '--run-authorization', str(authorization), '--run-ledger-dir', str(ledger)]
             with patch('experiments.local_classifier.pilot.load_baseline',
-                       return_value=(lambda _: {'actions': [], 'unknown': True}, 'test-baseline')):
+                       return_value=(lambda _: {'actions': [], 'unknown': True}, 'b' * 64)):
                 main(evaluate_args)
                 with self.assertRaises(FileExistsError):
                     main(evaluate_args)

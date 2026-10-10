@@ -61,6 +61,7 @@ no-op remains an untrusted model claim and grants no permission.
 
 ```sh
 python -m unittest experiments.local_classifier.test_model -v
+python -m unittest experiments.local_classifier.test_ledger -v
 python -m experiments.local_classifier.pilot smoke \
   --baseline-path rule_baseline \
   --output-dir target/local-classifier-smoke
@@ -119,7 +120,9 @@ python -m experiments.local_classifier.pilot train \
 python -m experiments.local_classifier.pilot evaluate \
   --dataset /path/to/approved.json --approval /path/to/review.json \
   --model-dir target/approved-linear \
-  --baseline-path rule_baseline
+  --baseline-path /path/to/frozen-rule-baseline \
+  --run-authorization /custodian/pilot-run.json \
+  --run-ledger-dir /custodian/shared-run-ledger
 ```
 
 Train never passes holdout rows into fitting or threshold selection. Explicit
@@ -129,6 +132,91 @@ that artifact directory fails, even after an interrupted attempt. This local
 guard cannot prevent copying artifacts or recreating runs: honest one-shot
 evaluation also requires coordinator review and an external run ledger. After
 inspecting holdout results, do not retune and call the same split untouched.
+
+### Reviewed run ledger
+
+Official evaluation now also requires a custodian-issued run record and an
+existing shared ledger directory outside the model artifacts. The run record
+binds the reviewed dataset bytes, frozen calibrated model and the exact baseline
+source used in the comparison. It is an experimental bookkeeping format, not
+the shared classification or execution-approval contract:
+
+The loader compiles and hashes the same captured baseline source bytes (bounded
+to 1 MiB), bypassing timestamp-based bytecode caches. Equal-size edits with the
+same timestamp cannot execute old code under a new recorded digest. The supplied
+baseline is reviewed trusted Python code; this loader is not a sandbox.
+
+```json
+{
+  "format": "soup-wall/classifier-run-authorization/1",
+  "run_id": "<reviewed experiment identity>",
+  "holdout_id": "<custodian's stable identity for the untouched test manifest>",
+  "approval_reference": "<actual review link for the frozen experiment>",
+  "dataset_sha256": "<exact reviewed dataset SHA-256>",
+  "model_sha256": "<frozen calibrated model SHA-256>",
+  "baseline_sha256": "<frozen rule_baseline.py SHA-256>"
+}
+```
+
+The custodian retains the same `holdout_id` and ledger for all copies/rebuilds
+using those held-out cases. Changing model directories or `run_id` cannot reserve
+that identity again in the same ledger. Exclusive file creation reserves the
+attempt before holdout inference; interrupted attempts stay consumed. A separate
+completion receipt binds the reservation and saved evaluation digests, while the
+original reservation remains intact. Copying artifacts without their local marker
+is covered by a regression check. Concurrent reservations admit only one attempt.
+
+The JSON review reference is an assertion, not authenticated approval. The caller
+can still select another ledger, forge a record or change `holdout_id`; filesystem
+bookkeeping cannot prevent a dishonest experimenter. The reviewer/custodian must
+control and reconcile the ledger, review identities and retain failed attempts.
+This workflow grants no tool execution permissions or production acceptance.
+
+### SOU-13 handoff prerequisites
+
+The 10 October checkpoint contains only provisional development fixtures. It
+does not supply approved pilot data, a final dataset license or frozen family
+manifests. A technical review of these fixtures does not invent human sign-off.
+Do not train or issue a real run authorization from that checkpoint alone.
+
+Before training, SOU-13's owner and named reviewer must release reviewed labels
+with rationale/evidence and the agreed dataset license. Export the five tri-state
+action targets and separate unknown directly; check each known mask against null.
+Do not derive negative targets from missing actions in `contract_view`. Pending
+disputes and technical-error cases stay outside the training/evaluation export.
+
+Freeze train/validation/calibration/test manifests before candidate variants or
+tuning, with aliases and near-duplicate templates grouped by family. Keep the
+validation manifest in the reviewed provenance; this linear pilot fits only train
+and calibrates only calibration. The experimental export calls test `holdout`.
+The export and all original manifests need review before their digest is approved;
+the local three-split loader cannot independently establish the original four-way
+family partition. A separate test custodian reviews held-out gold without exposing
+it to the candidate author during development. Lock the same baseline source for
+both the model comparison and the externally recorded experiment.
+
+For D05 out-of-scope shell calls, the contract owner confirmed on 10 October
+that both safely retained actions and complete abstention are valid with unknown
+true. A reviewed experimental row can optionally carry `accepted_outputs`:
+
+```json
+{
+  "accepted_outputs": [
+    {"actions": ["read"], "unknown": true},
+    {"actions": [], "unknown": true}
+  ]
+}
+```
+
+This field is evaluation metadata, never inference input or training supervision.
+It requires gold unknown true; each alternative retains unknown and contains only
+proven positive actions. The approved dataset digest covers the alternatives.
+Report `contract_scored` / `contract_matches` separately from action-label errors,
+exact fully annotated matches and abstentions. For the accepted empty answer above,
+read retention still records an FN while contract matching passes. Null action
+labels remain masked. This does not approve unknown=false or change the runtime
+contract. DEV-09's missing admission remains a separate barrier test; an admitted
+opaque tool with neutral identity is the suggested classification replacement.
 
 Evidence reports per-label critical misses/false positives with known-label
 denominators, technical failures, unknown/coverage, mixed examples, p50/p95,

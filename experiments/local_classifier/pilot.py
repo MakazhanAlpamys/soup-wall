@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+from datetime import datetime, timezone
 from dataclasses import asdict
 import hashlib
 import importlib.util
@@ -15,6 +16,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import statistics
 import time
 import tracemalloc
@@ -63,7 +65,8 @@ def validate_dataset(record: dict) -> dict[str, list[dict]]:
     ids, families, identities = set(), {}, {}
     splits = {s: [] for s in SPLITS}
     for row in rows:
-        if not isinstance(row, dict) or set(row) != {'id', 'family', 'split', 'input', 'labels'}:
+        required = {'id', 'family', 'split', 'input', 'labels'}
+        if not isinstance(row, dict) or not required <= set(row) or set(row) - required - {'accepted_outputs'}:
             raise ValueError('unexpected or missing dataset row fields')
         case_id, family, split = row['id'], row['family'], row['split']
         if not isinstance(case_id, str) or not case_id or case_id in ids:
@@ -76,6 +79,7 @@ def validate_dataset(record: dict) -> dict[str, list[dict]]:
         if identity in identities and identities[identity] != split:
             raise ValueError('semantic duplicate leaked across splits')
         check_labels(row['labels'])
+        check_accepted_outputs(row)
         ids.add(case_id)
         families[family], identities[identity] = split, split
         splits[split].append(row)
@@ -95,6 +99,48 @@ def load_approved(dataset: Path, approval: Path) -> tuple[dict, dict]:
     if review.get('dataset_sha256') != dataset_hash:
         raise ValueError('dataset does not match the reviewed immutable digest')
     return validate_dataset(record), review
+
+
+def reserve_reviewed_run(authorization_path: Path, ledger_dir: Path, model_dir: Path,
+                         dataset_hash: str, model_hash: str, baseline_hash: str) -> tuple[Path, dict]:
+    """Consume a custodian-issued run in a shared ledger before holdout inference.
+
+    JSON records assert review; they do not authenticate the reviewer. The custodian
+    must control the ledger's location and preserve it across artifact copies/runs.
+    """
+    model_root = model_dir.resolve()
+    if (ledger_dir.resolve().is_relative_to(model_root)
+            or authorization_path.resolve().is_relative_to(model_root)):
+        raise ValueError('run authorization and shared ledger must be outside model artifacts')
+    if not ledger_dir.is_dir():
+        raise ValueError('existing custodian-managed run ledger directory required')
+    authorization, authorization_hash = read_json(authorization_path, 16384)
+    required = {'format', 'run_id', 'holdout_id', 'approval_reference',
+                'dataset_sha256', 'model_sha256', 'baseline_sha256'}
+    if set(authorization) != required or authorization['format'] != 'soup-wall/classifier-run-authorization/1':
+        raise ValueError('unsupported or incomplete external run authorization')
+    for key in ('run_id', 'holdout_id', 'approval_reference'):
+        value = authorization[key]
+        if not isinstance(value, str) or not value.strip() or len(value) > 2048:
+            raise ValueError('nonempty bounded run identity and review reference required')
+    for key, expected in (('dataset_sha256', dataset_hash), ('model_sha256', model_hash),
+                          ('baseline_sha256', baseline_hash)):
+        value = authorization[key]
+        if not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}', value) or value != expected:
+            raise ValueError('run authorization does not match frozen ' + key)
+    # The holdout identity is issued by the custodian and stays fixed even when a
+    # caller copies artifacts, changes run_id or rebuilds a dataset wrapper/model.
+    key = hashlib.sha256(authorization['holdout_id'].encode('utf-8')).hexdigest()
+    journal = ledger_dir / (key + '.reserved.json')
+    reservation = {'format': 'soup-wall/classifier-run-reservation/1',
+                   'authorization': authorization, 'authorization_sha256': authorization_hash,
+                   'reserved_at': datetime.now(timezone.utc).isoformat(),
+                   'state': 'reserved_attempt_consumed'}
+    with journal.open('x', encoding='utf-8') as handle:
+        handle.write(json.dumps(reservation, indent=2, allow_nan=False) + '\n')
+        handle.flush()
+        os.fsync(handle.fileno())
+    return journal, reservation
 
 
 def peak_rss_bytes() -> int | None:
@@ -156,12 +202,36 @@ def validate_prediction(out: dict) -> None:
         raise ValueError('baseline reported a technical failure')
 
 
+def check_accepted_outputs(row: dict) -> None:
+    """Review-only alternative oracles for uncertain calls, never training targets."""
+    if 'accepted_outputs' not in row:
+        return
+    outputs = row['accepted_outputs']
+    if (row['labels']['unknown'] is not True or not isinstance(outputs, list)
+            or not 1 <= len(outputs) <= 16):
+        raise ValueError('bounded reviewed alternatives require expected unknown=true')
+    positive = {a for a in ACTIONS if row['labels'][a] is True}
+    seen = set()
+    for out in outputs:
+        if not isinstance(out, dict) or set(out) != {'actions', 'unknown'}:
+            raise ValueError('alternative oracle must contain only the classification core')
+        validate_prediction(out)
+        if out['unknown'] is not True or not set(out['actions']) <= positive:
+            raise ValueError('alternative oracle must retain unknown and only proven actions')
+        identity = frozenset(out['actions'])
+        if identity in seen:
+            raise ValueError('duplicate alternative classification oracle')
+        seen.add(identity)
+
+
 def evaluate(rows: list[dict], classify) -> dict:
     results, latencies = [], []
     per_label = {a: {'known': 0, 'positive': 0, 'negative': 0, 'fn': 0, 'fp': 0} for a in ACTIONS}
     unknown = {'known': 0, 'lost_unknown': 0, 'false_unknown': 0}
     valid = abstentions = exact = fully_annotated = mixed = mixed_exact = 0
+    contract_scored = contract_matches = 0
     for row in rows:
+        check_accepted_outputs(row)
         start = time.perf_counter()
         try:
             # Nothing from id/family/split/gold labels reaches inference.
@@ -190,6 +260,15 @@ def evaluate(rows: list[dict], classify) -> dict:
         all_known = all(gold[h] is not None for h in HEADS)
         expected = [a for a in ACTIONS if gold[a] is True]
         match = set(expected) == set(out['actions']) and gold['unknown'] == out['unknown']
+        contract_match = None
+        if 'accepted_outputs' in row:
+            contract_match = any(set(item['actions']) == set(out['actions'])
+                                 and item['unknown'] == out['unknown'] for item in row['accepted_outputs'])
+        elif all_known:
+            contract_match = match
+        if contract_match is not None:
+            contract_scored += 1
+            contract_matches += int(contract_match)
         if all_known:
             fully_annotated += 1
             exact += int(match)
@@ -197,7 +276,8 @@ def evaluate(rows: list[dict], classify) -> dict:
             mixed += 1
             mixed_exact += int(match)
         results.append({'id': row['id'], 'actions': out['actions'], 'unknown': out['unknown'],
-                        'fully_annotated': all_known, 'exact_match': match if all_known else None})
+                        'fully_annotated': all_known, 'exact_match': match if all_known else None,
+                        'contract_match': contract_match})
     ordered = sorted(latencies)
     for values in per_label.values():
         values['fn_rate'] = values['fn'] / values['positive'] if values['positive'] else None
@@ -206,6 +286,7 @@ def evaluate(rows: list[dict], classify) -> dict:
             'per_label': per_label, 'unknown': unknown, 'abstentions': abstentions,
             'coverage': (valid - abstentions) / valid if valid else None,
             'fully_annotated': fully_annotated, 'exact_matches': exact,
+            'contract_scored': contract_scored, 'contract_matches': contract_matches,
             'mixed_cases': mixed, 'mixed_exact_matches': mixed_exact,
             'latency': {'p50_ms': statistics.median(ordered) if ordered else None,
                         'p95_ms': ordered[max(0, math_ceil_95(len(ordered)) - 1)] if ordered else None},
@@ -218,12 +299,20 @@ def math_ceil_95(count: int) -> int:
 
 def load_baseline(path: Path):
     source = path / 'rule_baseline.py'
+    with source.open('rb') as handle:
+        data = handle.read(1024 * 1024 + 1)
+    if len(data) > 1024 * 1024:
+        raise ValueError('reviewed baseline source exceeds byte limit')
     spec = importlib.util.spec_from_file_location('soup_pilot_external_baseline', source)
     if spec is None or spec.loader is None:
         raise ValueError('external baseline module unavailable')
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.classify, digest(source)
+    # Execute and digest the same captured bytes. A timestamp/size-based cached
+    # .pyc could otherwise run old code while reporting a new source digest.
+    exec(compile(data, str(source), 'exec'), module.__dict__)
+    if not callable(getattr(module, 'classify', None)):
+        raise ValueError('reviewed baseline must export a callable classify')
+    return module.classify, hashlib.sha256(data).hexdigest()
 
 
 def toy_data() -> dict:
@@ -258,6 +347,8 @@ def main(argv=None) -> int:
     parser.add_argument('--output-dir', type=Path, default=Path('target/local-classifier-smoke'))
     parser.add_argument('--model-dir', type=Path)
     parser.add_argument('--baseline-path', type=Path)
+    parser.add_argument('--run-authorization', type=Path)
+    parser.add_argument('--run-ledger-dir', type=Path)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--dimensions', type=int, default=512)
     parser.add_argument('--seed', type=int, default=42)
@@ -293,8 +384,9 @@ def main(argv=None) -> int:
                           'peak_process_rss_bytes': report['environment']['peak_process_rss_bytes'],
                           'official_heldout_run': False, 'output': str(args.output_dir)}))
         return 0
-    if args.model_dir is None or args.baseline_path is None:
-        parser.error('evaluate requires a frozen model directory and external rule baseline')
+    if any(value is None for value in (args.model_dir, args.baseline_path,
+                                      args.run_authorization, args.run_ledger_dir)):
+        parser.error('evaluate requires frozen model/baseline, external run authorization and shared ledger')
     splits, approval = load_approved(args.dataset, args.approval)
     training, _ = read_json(args.model_dir / 'training.json', 65536)
     model_path = args.model_dir / 'model.json'
@@ -307,19 +399,37 @@ def main(argv=None) -> int:
     if not model.calibrated:
         raise ValueError('model must be calibrated separately before holdout evaluation')
     baseline, baseline_hash = load_baseline(args.baseline_path)
-    # Reserve before first inference. A failed run is still consumed and retained.
+    # Validate the local marker before consuming the external run, then reserve
+    # centrally first. A failure after reservation still consumes the attempt.
     journal = args.model_dir / ('.holdout-' + approval['dataset_sha256'] + '.reserved')
+    if journal.exists():
+        raise FileExistsError('holdout already reserved in this artifact directory')
+    external_journal, reservation = reserve_reviewed_run(
+        args.run_authorization, args.run_ledger_dir, args.model_dir,
+        approval['dataset_sha256'], model_hash, baseline_hash)
+    # Reserve before first inference. A failed run is still consumed and retained.
     with journal.open('x', encoding='utf-8') as handle:
         handle.write(json.dumps({'dataset_sha256': approval['dataset_sha256'],
                                  'model_sha256': model_hash, 'baseline_sha256': baseline_hash}) + '\n')
     report = {'format': 'soup-wall/local-classifier-evaluation/1', 'mode': 'approved_shadow_pilot',
               'official_heldout_run': True, 'approval': approval,
               'model_sha256': model_hash, 'baseline_sha256': baseline_hash,
+              'reviewed_run': reservation,
               'environment': environment(), 'candidate': evaluate(splits['holdout'], model.classify),
               'baseline': evaluate(splits['holdout'], baseline),
               'api_requests': 0, 'api_cost_usd': 0, 'tool_executions': 0,
               'recommendation': 'manual_continue_revise_or_reject_review_required'}
     write_json(args.model_dir / 'evaluation.json', report)
+    receipt = {'format': 'soup-wall/classifier-run-result/1',
+               'reservation_sha256': digest(external_journal),
+               'evaluation_sha256': digest(args.model_dir / 'evaluation.json'),
+               'completed_at': datetime.now(timezone.utc).isoformat(),
+               'run_id': reservation['authorization']['run_id'],
+               'holdout_id': reservation['authorization']['holdout_id']}
+    with external_journal.with_suffix('.result.json').open('x', encoding='utf-8') as handle:
+        handle.write(json.dumps(receipt, indent=2, allow_nan=False) + '\n')
+        handle.flush()
+        os.fsync(handle.fileno())
     print('Held-out shadow evidence retained; no runtime adoption or execution authority granted.')
     return 0
 
