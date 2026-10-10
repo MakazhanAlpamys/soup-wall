@@ -231,8 +231,11 @@ def _shell(text: str, ev, depth: int = 0) -> int:
         reads = bool(READ_CMD.search(rest)) and not strong
         if reads:
             ev("read", 0.8, "shell", "read-only command")
-        if not (strong or redirect or reads or NOOP_CMD.search(rest)):
-            unmatched += 1
+        if not (strong or redirect or reads):
+            if NOOP_CMD.search(rest):
+                ev.noop.append(seg)  # recognised, proven to have no effect
+            else:
+                unmatched += 1
     return unmatched
 
 # ---------------------------------------------------------------- argument rules
@@ -426,6 +429,7 @@ def classify(event: Any) -> dict[str, Any]:
     def ev(cat: str, w: float, src: str, detail: str) -> None:
         evid.setdefault(cat, []).append((w, src, detail))
 
+    ev.noop = []  # shell segments proven to have no effect (D07)
     walk = _Walk()
     walk.go(args)
     if isinstance(args, str):
@@ -467,6 +471,12 @@ def classify(event: Any) -> dict[str, Any]:
         "truncated": walk.truncated,
     }
     out: dict[str, Any] = dict(flags)
+    if not included and ev.noop and walk.unmatched == 0 and not walk.truncated:
+        # D07: every examined command is a proven no-op -> no actions, nothing unknown
+        out.update(status="ok", actions=[], unknown=False, confidence=0.9, uncertainty=0.1,
+                   reason_codes=["proven_noop"] + [k for k, v in flags.items() if v],
+                   reason="all commands are proven no-ops (echo/printf/true/false/:/sleep)", scores=scores)
+        return out
     if not included:
         out.update(status="unknown", actions=[], unknown=True, confidence=0.0, uncertainty=1.0,
                    reason_codes=["no_rule_matched"] + [k for k, v in flags.items() if v],

@@ -81,5 +81,25 @@ class UnknownIsNotLost(unittest.TestCase):
         self.assertTrue(unk)
 
 
+class ProvenNoopD07(unittest.TestCase):
+    def test_noop_commands(self):
+        from rule_baseline import classify
+        for cmd in ("echo hi", "true", "sleep 1", "echo a; echo b"):
+            r = classify({"tool_name": "bash", "raw_arguments": {"command": cmd}})
+            self.assertEqual((r["actions"], r["unknown"]), ([], False), cmd)
+
+    def test_noop_with_real_action_keeps_action(self):
+        from rule_baseline import classify
+        r = classify({"tool_name": "bash", "raw_arguments": {"command": "echo hi; rm x"}})
+        self.assertIn("delete", r["actions"])
+
+    def test_unrecognised_command_stays_unknown(self):
+        from rule_baseline import classify
+        r = classify({"tool_name": "bash", "raw_arguments": {"command": "frobnicate --now"}})
+        self.assertTrue(r["unknown"])
+        r = classify({"tool_name": "bash", "raw_arguments": {"command": "echo hi; frobnicate"}})
+        self.assertTrue(r["unknown"])
+
+
 if __name__ == "__main__":
     unittest.main()
