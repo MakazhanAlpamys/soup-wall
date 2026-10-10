@@ -218,9 +218,18 @@ class DatasetAndExperimentSafety(unittest.TestCase):
                 'dataset_sha256': hashlib.sha256(dataset.read_bytes()).hexdigest()}))
             common = ['--dataset', str(dataset), '--approval', str(approval)]
             main(['train', *common, '--output-dir', str(output), '--epochs', '2', '--dimensions', '32'])
-            evaluate_args = ['evaluate', *common, '--model-dir', str(output), '--baseline-path', str(folder)]
+            authorization, ledger = folder / 'run.json', folder / 'ledger'
+            ledger.mkdir()
+            authorization.write_text(json.dumps({'format': 'soup-wall/classifier-run-authorization/1',
+                'run_id': 'UNIT TEST ONLY', 'holdout_id': 'toy-test-holdout',
+                'approval_reference': 'UNIT TEST ONLY',
+                'dataset_sha256': hashlib.sha256(dataset.read_bytes()).hexdigest(),
+                'model_sha256': hashlib.sha256((output / 'model.json').read_bytes()).hexdigest(),
+                'baseline_sha256': 'b' * 64}))
+            evaluate_args = ['evaluate', *common, '--model-dir', str(output), '--baseline-path', str(folder),
+                             '--run-authorization', str(authorization), '--run-ledger-dir', str(ledger)]
             with patch('experiments.local_classifier.pilot.load_baseline',
-                       return_value=(lambda _: {'actions': [], 'unknown': True}, 'test-baseline')):
+                       return_value=(lambda _: {'actions': [], 'unknown': True}, 'b' * 64)):
                 main(evaluate_args)
                 with self.assertRaises(FileExistsError):
                     main(evaluate_args)

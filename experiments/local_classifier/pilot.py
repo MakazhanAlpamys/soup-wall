@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+from datetime import datetime, timezone
 from dataclasses import asdict
 import hashlib
 import importlib.util
@@ -15,6 +16,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import statistics
 import time
 import tracemalloc
@@ -95,6 +97,48 @@ def load_approved(dataset: Path, approval: Path) -> tuple[dict, dict]:
     if review.get('dataset_sha256') != dataset_hash:
         raise ValueError('dataset does not match the reviewed immutable digest')
     return validate_dataset(record), review
+
+
+def reserve_reviewed_run(authorization_path: Path, ledger_dir: Path, model_dir: Path,
+                         dataset_hash: str, model_hash: str, baseline_hash: str) -> tuple[Path, dict]:
+    """Consume a custodian-issued run in a shared ledger before holdout inference.
+
+    JSON records assert review; they do not authenticate the reviewer. The custodian
+    must control the ledger's location and preserve it across artifact copies/runs.
+    """
+    model_root = model_dir.resolve()
+    if (ledger_dir.resolve().is_relative_to(model_root)
+            or authorization_path.resolve().is_relative_to(model_root)):
+        raise ValueError('run authorization and shared ledger must be outside model artifacts')
+    if not ledger_dir.is_dir():
+        raise ValueError('existing custodian-managed run ledger directory required')
+    authorization, authorization_hash = read_json(authorization_path, 16384)
+    required = {'format', 'run_id', 'holdout_id', 'approval_reference',
+                'dataset_sha256', 'model_sha256', 'baseline_sha256'}
+    if set(authorization) != required or authorization['format'] != 'soup-wall/classifier-run-authorization/1':
+        raise ValueError('unsupported or incomplete external run authorization')
+    for key in ('run_id', 'holdout_id', 'approval_reference'):
+        value = authorization[key]
+        if not isinstance(value, str) or not value.strip() or len(value) > 2048:
+            raise ValueError('nonempty bounded run identity and review reference required')
+    for key, expected in (('dataset_sha256', dataset_hash), ('model_sha256', model_hash),
+                          ('baseline_sha256', baseline_hash)):
+        value = authorization[key]
+        if not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}', value) or value != expected:
+            raise ValueError('run authorization does not match frozen ' + key)
+    # The holdout identity is issued by the custodian and stays fixed even when a
+    # caller copies artifacts, changes run_id or rebuilds a dataset wrapper/model.
+    key = hashlib.sha256(authorization['holdout_id'].encode('utf-8')).hexdigest()
+    journal = ledger_dir / (key + '.reserved.json')
+    reservation = {'format': 'soup-wall/classifier-run-reservation/1',
+                   'authorization': authorization, 'authorization_sha256': authorization_hash,
+                   'reserved_at': datetime.now(timezone.utc).isoformat(),
+                   'state': 'reserved_attempt_consumed'}
+    with journal.open('x', encoding='utf-8') as handle:
+        handle.write(json.dumps(reservation, indent=2, allow_nan=False) + '\n')
+        handle.flush()
+        os.fsync(handle.fileno())
+    return journal, reservation
 
 
 def peak_rss_bytes() -> int | None:
@@ -258,6 +302,8 @@ def main(argv=None) -> int:
     parser.add_argument('--output-dir', type=Path, default=Path('target/local-classifier-smoke'))
     parser.add_argument('--model-dir', type=Path)
     parser.add_argument('--baseline-path', type=Path)
+    parser.add_argument('--run-authorization', type=Path)
+    parser.add_argument('--run-ledger-dir', type=Path)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--dimensions', type=int, default=512)
     parser.add_argument('--seed', type=int, default=42)
@@ -293,8 +339,9 @@ def main(argv=None) -> int:
                           'peak_process_rss_bytes': report['environment']['peak_process_rss_bytes'],
                           'official_heldout_run': False, 'output': str(args.output_dir)}))
         return 0
-    if args.model_dir is None or args.baseline_path is None:
-        parser.error('evaluate requires a frozen model directory and external rule baseline')
+    if any(value is None for value in (args.model_dir, args.baseline_path,
+                                      args.run_authorization, args.run_ledger_dir)):
+        parser.error('evaluate requires frozen model/baseline, external run authorization and shared ledger')
     splits, approval = load_approved(args.dataset, args.approval)
     training, _ = read_json(args.model_dir / 'training.json', 65536)
     model_path = args.model_dir / 'model.json'
@@ -307,19 +354,37 @@ def main(argv=None) -> int:
     if not model.calibrated:
         raise ValueError('model must be calibrated separately before holdout evaluation')
     baseline, baseline_hash = load_baseline(args.baseline_path)
-    # Reserve before first inference. A failed run is still consumed and retained.
+    # Validate the local marker before consuming the external run, then reserve
+    # centrally first. A failure after reservation still consumes the attempt.
     journal = args.model_dir / ('.holdout-' + approval['dataset_sha256'] + '.reserved')
+    if journal.exists():
+        raise FileExistsError('holdout already reserved in this artifact directory')
+    external_journal, reservation = reserve_reviewed_run(
+        args.run_authorization, args.run_ledger_dir, args.model_dir,
+        approval['dataset_sha256'], model_hash, baseline_hash)
+    # Reserve before first inference. A failed run is still consumed and retained.
     with journal.open('x', encoding='utf-8') as handle:
         handle.write(json.dumps({'dataset_sha256': approval['dataset_sha256'],
                                  'model_sha256': model_hash, 'baseline_sha256': baseline_hash}) + '\n')
     report = {'format': 'soup-wall/local-classifier-evaluation/1', 'mode': 'approved_shadow_pilot',
               'official_heldout_run': True, 'approval': approval,
               'model_sha256': model_hash, 'baseline_sha256': baseline_hash,
+              'reviewed_run': reservation,
               'environment': environment(), 'candidate': evaluate(splits['holdout'], model.classify),
               'baseline': evaluate(splits['holdout'], baseline),
               'api_requests': 0, 'api_cost_usd': 0, 'tool_executions': 0,
               'recommendation': 'manual_continue_revise_or_reject_review_required'}
     write_json(args.model_dir / 'evaluation.json', report)
+    receipt = {'format': 'soup-wall/classifier-run-result/1',
+               'reservation_sha256': digest(external_journal),
+               'evaluation_sha256': digest(args.model_dir / 'evaluation.json'),
+               'completed_at': datetime.now(timezone.utc).isoformat(),
+               'run_id': reservation['authorization']['run_id'],
+               'holdout_id': reservation['authorization']['holdout_id']}
+    with external_journal.with_suffix('.result.json').open('x', encoding='utf-8') as handle:
+        handle.write(json.dumps(receipt, indent=2, allow_nan=False) + '\n')
+        handle.flush()
+        os.fsync(handle.fileno())
     print('Held-out shadow evidence retained; no runtime adoption or execution authority granted.')
     return 0
 
