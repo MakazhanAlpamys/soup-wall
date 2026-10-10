@@ -1,13 +1,13 @@
 # Task 1: Tool-call classification, final evaluation report (SOU-20)
 
 Date: 10 October 2026. Owner: @iazizza. PR review coordinator and parent
-delivery owner: @sake_ai. Parent tasks: SOU-5 (Task 1), SOU-7 (Task 3).
+delivery owner: @sake_ai. Parent task: SOU-5 (Task 1); evaluation handoff: SOU-7 (Task 3).
 Roadmap: A06, F07; E02/E04 measurement preparation.
 Contract: [SOU-10 v0.4](../../contract/updated_contract2.md), decisions D01 to D10 accepted.
 
 This report consolidates the Task 1 research, evaluation runs, add-on fixtures
 and defect notes into one place. Section 4 is the **final current-baseline run**,
-made for this report on `main` at commit `8e1d4d7`. Section 5 holds the
+made for this report on `main` at commit `8e1d4d7d81da525f7592e2111d36eedba2da9706`. Section 5 holds the
 **historical runs**, kept for traceability only. All results are synthetic
 developer regression evidence, not held-out accuracy and not proof of execution
 safety. Gold labels stay provisional until the contract fixture updates and a
@@ -23,24 +23,27 @@ second label review are complete.
 - **Final run:** 54/60 scored cases pass on four fixture suites, 0 technical
   errors, 3 pending. Core suites alone: 49/55.
 - **Critical labels:** no confident miss. The one missed critical label
-  (`delete` on CU02) comes back with `unknown=true`, so under D08 it reaches
-  policy as Ask. It still counts as a miss, not a success.
+  (`delete` on CU02) comes back with `unknown=true`. D08 requires policy Ask
+  or trusted Deny for unresolved effects. This run measured neither policy nor
+  execution; the current MCP bridge refuses unknown/mixed mappings before
+  native policy rather than implementing Ask continuation. CU02 remains a miss.
 - **Untrusted descriptions:** misleading-metadata cases pass 12/13.
 - **Model-based candidates:** the v5 research plan, a Jev shadow adapter (SOU-6)
   and a local learned pilot (SOU-16) exist, but **no model has a measured
   quality run**. No model accuracy is claimed.
-- **Recommendation:** use the rule baseline as the milestone classifier; keep
-  model candidates in shadow mode until approved data (SOU-13) and access exist.
+- **Recommendation:** retain the rule baseline as the runnable reference while
+  its D06/D07 gaps and generic/runtime integration are completed. Keep model
+  candidates in shadow mode until reviewed data and approved access exist.
 
 ## 2. Sources and provenance
 
 | Source | Author / owner | Date | Where it lives | Used for |
 |---|---|---|---|---|
-| Task 1.2 research, revision 5 (`task-1.2-report-v5`, 10 examples) | DANTOK (SOU-9) | 8 Oct | Linear SOU-9 attachment | Output format, model plan, case 10 (section 6) |
+| Task 1.2 research, revision 5 (`task-1.2-report-v5`, 10 examples) | @KAZDANTOK (SOU-9) | 8 Oct | [Accepted research and asset digests](https://linear.app/soup-wall/issue/SOU-9/task-12-research-custom-tool-call-classifier) | Output/label format and proposed model/evaluation plan |
 | Evaluation v0.4 report and runner | @aisarasd (SOU-5 D3) | 8 Oct | [`eval/evidence/sou5_original/`](../../eval/evidence/sou5_original/EVALUATION_REPORT.md) | Historical run 1, defects D1 to D9 |
 | Evaluation v0.4.1 / v0.4.2 (documentation updates, DX defect, 43/59) | @aisarasd | 8 Oct | Shared archive `Soup_Task1_3_Evaluation_v0.4.2_contract_aligned.zip` | Historical run 2, DX |
 | Mixed-action add-on UX01 to UX04 | @urtisto (SOU-21) | 8 to 9 Oct | [`eval/fixtures/`](../../eval/README.md), PR #49 | Fixtures, before/after evidence |
-| Classifier fixes and edge review | @sake_ai, SOU-19 | 9 to 10 Oct | [`eval/evidence/sou19_review/`](../../eval/evidence/sou19_review/README.md) | Historical run 3 |
+| Classifier fixes and edge review | @sake_ai, @Nask0fe (SOU-19) | 9 to 10 Oct | [`eval/evidence/sou19_review/`](../../eval/evidence/sou19_review/README.md) | Historical run 3 |
 | Contract SOU-10 v0.4 | @Nari_Ab | 10 Oct | [`contract/updated_contract2.md`](../../contract/updated_contract2.md) | Rules D01 to D10 |
 | Jev adapter, local pilot | SOU-6, SOU-16 owners | 9 to 10 Oct | [`experiments/`](../../experiments/classification/README.md) | Model comparison (section 6) |
 
@@ -51,7 +54,7 @@ as merged.
 
 | Item | Revision |
 |---|---|
-| Repository | `main` at `8e1d4d7` |
+| Repository | `main` at `8e1d4d7d81da525f7592e2111d36eedba2da9706` |
 | Classifier | `rule_baseline/rule_baseline.py`, Git blob `ab01f17b96b57d9decae24deec43a2dbc7a45b9d`, sha256 `811af2e841c57914256a6bdb680d8e1c7443bf292505e08c8ae197a3c1b6da1d` |
 | Runner | `eval/eval_runner.py`, sha256 `fd2d620c7cb7be4ce9bd4bcb6d138d108b211594a0e190ad877fc62a430c004f` |
 | Core fixtures v0.4 | sha256 `047d522c8fcaaa61aa479f12a9e34eb7c6bd47dcd4c7005909e6837afea91044` |
@@ -86,15 +89,16 @@ Unit checks on the same commit: baseline 59/59, runner 32/32.
 
 ### 4.3 Per-label errors (known-label denominators)
 
-Denominator = scored cases where the gold label is present.
+Each label has 60 provisional scored, non-technical observations. Positive
+and negative denominators are separate; pending rows enter neither.
 
-| Label | Expected present | Missed | Spurious |
-|---|---|---|---|
-| read | 31 | 3 | 0 |
-| write | 11 | 1 | 0 |
-| delete (critical) | 13 | 1 (CU02, with unknown=true) | 0 |
-| send_data (critical) | 11 | 0 | 0 |
-| change_permissions (critical) | 9 | 0 | 0 |
+| Label | Expected present | Expected absent | Missed | Spurious |
+|---|---|---|---|---|
+| read | 31 | 29 | 3 | 0 |
+| write | 11 | 49 | 1 | 0 |
+| delete (critical) | 13 | 47 | 1 (CU02, with unknown=true) | 0 |
+| send_data (critical) | 11 | 49 | 0 | 0 |
+| change_permissions (critical) | 9 | 51 | 0 | 0 |
 
 ### 4.4 Unknown and abstention
 
@@ -122,7 +126,11 @@ The original evaluation marked CU01, CU03, CM01 and CX06 as disputed gold labels
 
 Rule baseline only, in-process, 63 inputs x 20 rounds after warmup: p50 0.058 ms,
 p95 0.147 ms, max 3.2 ms. This is classifier time, not pipeline or policy time,
-and one local run is not a latency gate. No model latency was measured.
+and one local run is not a latency gate. No model latency was measured. These
+are the report owner's exploratory Linux observations; raw samples and the
+percentile procedure were not supplied. Review independently reproduced the
+classification outcomes, not these quantiles. Retain raw timing samples and a
+pinned procedure before using latency for performance acceptance.
 
 ## 5. Historical runs (provisional, kept for traceability)
 
@@ -161,7 +169,7 @@ The minimal inputs from the evaluation report were rerun on blob `ab01f17b`.
 | Status | Evaluated (section 4) | Not trained | Mock only (4/55 is plumbing, not Jev) | Smoke test only |
 | Measured quality | 54/60 | none | none | none |
 | Uses description | No | Untrusted input | Data only | Excluded from features |
-| Blocker | none | needs reviewed dataset and GPU time | no approved API access or budget | no approved dataset (SOU-13) |
+| Remaining prerequisites | D06/D07 fixes; generic classifier and integrated acceptance | needs reviewed dataset and resources | no approved API access or budget | no approved dataset (SOU-13) |
 
 The v5 report also proposed pilot gates (for example at most 1% critical misses
 per action with an exact binomial bound). These are proposals, not measured
@@ -171,8 +179,10 @@ results. SOU-13 pilot data will extend this report; it does not block it.
 
 This report measures **classification only**: which actions a call performs.
 
-- **Policy** (Allow/Ask/Deny) belongs to Team 2. Under D08, `unknown=true`
-  forwards to policy as Ask or a trusted Deny. No policy was run here.
+- **Policy** (Allow/Ask/Deny) belongs to Team 2. D08 requires unresolved effects
+  to receive Ask or a trusted Deny. The selected current MCP bridge instead
+  refuses unsupported unknown/mixed mappings before policy. No policy was run
+  here, so contract requirements are not observations of runtime protection.
 - **Execution protection** (blocked calls never reach the executor, results
   withheld) belongs to Task 2/3 and SOU-15/SOU-17. Integrated runtime acceptance
   is still pending ([SOU-17 verification](sou17_verification.md)).
@@ -188,19 +198,29 @@ This report measures **classification only**: which actions a call performs.
 | D03 GET is read; no implied write/read | Yes |
 | D04 description is untrusted | Yes |
 | D05 bounded shell parsing, else unknown | Yes |
-| D06 technical failures on a separate channel | **Not yet** (D9; local `status="error"`) |
-| D07 proven no-op is `[]` + `unknown=false` | **Not yet** (U07, CS03 return unknown; conservative) |
+| D06 technical failures on a separate channel | **Raw API gap** (D9, local `status="error"`); the reviewed bridge already has typed failures and the collector rejects null before classification. |
+| D07 proven no-op is `[]` + `unknown=false` | **Not yet** (U07, CS03 return unknown); reviewed fixture and baseline follow-up required. |
+| D08 unresolved effects | Ask/trusted Deny is required by contract; policy was not measured here. |
+| D09 all relevant actions/resource constraints | Not evaluated; authoritative production composition remains SOU-15 work. |
+| D10 distinct error layers and reviewed gold | Technical/classification outcomes stay separate; pending/disputed labels remain provisional and no execution verdict is inferred. |
 
 ## 9. Open items and owners
 
 | Item | Owner |
 |---|---|
-| Update U07/CS03 to the D07 no-op; decide E01 | @aisarasd, SOU-13 / SOU-21 |
+| Review fixture updates for U07/CS03 under accepted D07 and E01 under accepted D06; preserve this historical run | @aisarasd (SOU-13), @Nari_Ab (SOU-10 contract review) |
 | Second review of disputed labels CU01, CU03, CM01, CX06 | @aisarasd, @sake_ai |
 | D06 failure channel, D4, D5, D9 in the baseline | @sake_ai |
 | Approved pilot dataset and family-held-out split | SOU-13 |
-| Live Jev run | SOU-6, after access and budget approval |
-| Integrated runtime acceptance | SOU-15 / SOU-17 |
+| Future live Jev run | @KAZDANTOK, after access and budget approval; accepted SOU-6 was explicitly mock-only |
+| Integrated runtime acceptance | @Nari_Ab (SOU-15), @konung3 (SOU-17) |
+
+D1-D9/DX are historical baseline defect IDs, distinct from accepted contract
+decisions D01-D10. Gold acceptance is still a separate review; approving the
+contract does not retroactively confirm every fixture. The SOU-21 add-on is
+already merged; follow-up annotations do not reopen that completed contribution.
+This report is delivered to @sake_ai (SOU-5) and @sayowannafly (SOU-7); model
+pilot data will extend the evidence after SOU-13 review.
 
 ## 10. Reproduce
 
