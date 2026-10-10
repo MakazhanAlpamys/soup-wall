@@ -141,6 +141,11 @@ binds the reviewed dataset bytes, frozen calibrated model and the exact baseline
 source used in the comparison. It is an experimental bookkeeping format, not
 the shared classification or execution-approval contract:
 
+The loader compiles and hashes the same captured baseline source bytes (bounded
+to 1 MiB), bypassing timestamp-based bytecode caches. Equal-size edits with the
+same timestamp cannot execute old code under a new recorded digest. The supplied
+baseline is reviewed trusted Python code; this loader is not a sandbox.
+
 ```json
 {
   "format": "soup-wall/classifier-run-authorization/1",

@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ from unittest.mock import patch
 from experiments.local_classifier.model import (
     ACTIONS, HEADS, Config, LinearClassifier, check_labels, features, input_identity,
 )
-from experiments.local_classifier.pilot import evaluate, load_approved, main, read_json, toy_data, validate_dataset
+from experiments.local_classifier.pilot import evaluate, load_approved, load_baseline, main, read_json, toy_data, validate_dataset
 
 
 def labels(**values):
@@ -131,6 +132,29 @@ class ModelSafety(unittest.TestCase):
 
 
 class DatasetAndExperimentSafety(unittest.TestCase):
+    def test_baseline_code_matches_digest_even_with_same_size_and_timestamp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'rule_baseline.py'
+            source.write_bytes(b'classify = lambda _: 1\n')
+            stamp = source.stat()
+            first, first_hash = load_baseline(source.parent)
+            revised = b'classify = lambda _: 2\n'
+            source.write_bytes(revised)
+            os.utime(source, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+            second, second_hash = load_baseline(source.parent)
+            self.assertEqual(first({}), 1)
+            self.assertEqual(second({}), 2)
+            self.assertNotEqual(first_hash, second_hash)
+            self.assertEqual(second_hash, hashlib.sha256(revised).hexdigest())
+
+    def test_baseline_loader_rejects_oversized_source_and_missing_entrypoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'rule_baseline.py'
+            for data in (b'#' * (1024 * 1024 + 1), b'classify = 1\n'):
+                source.write_bytes(data)
+                with self.assertRaises(ValueError):
+                    load_baseline(source.parent)
+
     def test_malformed_json_and_byte_limits_are_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'input.json'

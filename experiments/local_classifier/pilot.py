@@ -299,12 +299,20 @@ def math_ceil_95(count: int) -> int:
 
 def load_baseline(path: Path):
     source = path / 'rule_baseline.py'
+    with source.open('rb') as handle:
+        data = handle.read(1024 * 1024 + 1)
+    if len(data) > 1024 * 1024:
+        raise ValueError('reviewed baseline source exceeds byte limit')
     spec = importlib.util.spec_from_file_location('soup_pilot_external_baseline', source)
     if spec is None or spec.loader is None:
         raise ValueError('external baseline module unavailable')
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.classify, digest(source)
+    # Execute and digest the same captured bytes. A timestamp/size-based cached
+    # .pyc could otherwise run old code while reporting a new source digest.
+    exec(compile(data, str(source), 'exec'), module.__dict__)
+    if not callable(getattr(module, 'classify', None)):
+        raise ValueError('reviewed baseline must export a callable classify')
+    return module.classify, hashlib.sha256(data).hexdigest()
 
 
 def toy_data() -> dict:
