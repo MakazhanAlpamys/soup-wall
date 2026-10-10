@@ -1,75 +1,92 @@
 # Task 1: Tool-call classification, final evaluation report (SOU-20)
 
-Date: 10 October 2026. Parent task: SOU-5 (Task 1, automatic tool classification).
+Date: 10 October 2026. Owner: @iazizza. PR review coordinator and parent
+delivery owner: @sake_ai. Parent tasks: SOU-5 (Task 1), SOU-7 (Task 3).
+Roadmap: A06, F07; E02/E04 measurement preparation.
 Contract: [SOU-10 v0.4](../../contract/updated_contract2.md), decisions D01 to D10 accepted.
 
-This report brings together the Task 1 prototype, its evaluation and the
-comparison with model-based candidates. All numbers in section 3 were rerun on
-`main` at commit `8e1d4d7` for this report. They are synthetic developer
-regression results, not held-out accuracy and not proof of execution safety.
+This report consolidates the Task 1 research, evaluation runs, add-on fixtures
+and defect notes into one place. Section 4 is the **final current-baseline run**,
+made for this report on `main` at commit `8e1d4d7`. Section 5 holds the
+**historical runs**, kept for traceability only. All results are synthetic
+developer regression evidence, not held-out accuracy and not proof of execution
+safety. Gold labels stay provisional until the contract fixture updates and a
+second label review are complete.
 
 ## 1. Summary
 
 - **Prototype:** a deterministic rule-based classifier
-  ([`rule_baseline/`](../../rule_baseline/README.md), PR #53). It reads the tool
-  name, schema and actual arguments and returns `actions` (read, write, delete,
-  send_data, change_permissions) plus a separate Boolean `unknown`. It never
-  executes tools and never returns Allow/Ask/Deny.
-- **Result:** 54/60 scored cases pass on all four fixture suites, with 0
-  technical errors and 3 pending cases. Core suites alone: 49/55.
-- **Critical labels:** no confident miss. The only missed critical label
+  ([`rule_baseline/`](../../rule_baseline/README.md), PR #53, owner @sake_ai).
+  It reads the tool name, schema and actual arguments and returns `actions`
+  (read, write, delete, send_data, change_permissions) plus a separate Boolean
+  `unknown`. It never executes tools and never returns Allow/Ask/Deny.
+- **Final run:** 54/60 scored cases pass on four fixture suites, 0 technical
+  errors, 3 pending. Core suites alone: 49/55.
+- **Critical labels:** no confident miss. The one missed critical label
   (`delete` on CU02) comes back with `unknown=true`, so under D08 it reaches
-  policy as Ask, not as a silent Allow.
-- **Untrusted descriptions:** misleading metadata cases pass 12/13. The
-  description cannot add, remove or hide an action.
-- **Model-based candidates:** a Jev shadow adapter (SOU-6) and a local learned
-  pilot (SOU-16) are built and tested, but neither has real quality numbers yet.
-  Jev has no approved API access or budget; the local pilot has no approved
-  dataset (SOU-13).
-- **Recommendation:** use the rule-based baseline as the milestone classifier.
-  Keep model candidates in shadow mode until real data and access exist.
+  policy as Ask. It still counts as a miss, not a success.
+- **Untrusted descriptions:** misleading-metadata cases pass 12/13.
+- **Model-based candidates:** the v5 research plan, a Jev shadow adapter (SOU-6)
+  and a local learned pilot (SOU-16) exist, but **no model has a measured
+  quality run**. No model accuracy is claimed.
+- **Recommendation:** use the rule baseline as the milestone classifier; keep
+  model candidates in shadow mode until approved data (SOU-13) and access exist.
 
-## 2. What was evaluated
+## 2. Sources and provenance
 
-| Item | Value |
+| Source | Author / owner | Date | Where it lives | Used for |
+|---|---|---|---|---|
+| Task 1.2 research, revision 5 (`task-1.2-report-v5`, 10 examples) | DANTOK (SOU-9) | 8 Oct | Linear SOU-9 attachment | Output format, model plan, case 10 (section 6) |
+| Evaluation v0.4 report and runner | @aisarasd (SOU-5 D3) | 8 Oct | [`eval/evidence/sou5_original/`](../../eval/evidence/sou5_original/EVALUATION_REPORT.md) | Historical run 1, defects D1 to D9 |
+| Evaluation v0.4.1 / v0.4.2 (documentation updates, DX defect, 43/59) | @aisarasd | 8 Oct | Shared archive `Soup_Task1_3_Evaluation_v0.4.2_contract_aligned.zip` | Historical run 2, DX |
+| Mixed-action add-on UX01 to UX04 | @urtisto (SOU-21) | 8 to 9 Oct | [`eval/fixtures/`](../../eval/README.md), PR #49 | Fixtures, before/after evidence |
+| Classifier fixes and edge review | @sake_ai, SOU-19 | 9 to 10 Oct | [`eval/evidence/sou19_review/`](../../eval/evidence/sou19_review/README.md) | Historical run 3 |
+| Contract SOU-10 v0.4 | @Nari_Ab | 10 Oct | [`contract/updated_contract2.md`](../../contract/updated_contract2.md) | Rules D01 to D10 |
+| Jev adapter, local pilot | SOU-6, SOU-16 owners | 9 to 10 Oct | [`experiments/`](../../experiments/classification/README.md) | Model comparison (section 6) |
+
+Nothing in the historical sources was relabeled. Fixture files are used exactly
+as merged.
+
+## 3. Exact revisions of the final run
+
+| Item | Revision |
 |---|---|
-| Classifier | `rule_baseline/rule_baseline.py`, Git blob `ab01f17b`, sha256 `811af2e8...b6da1d` |
-| Runner | `eval/eval_runner.py`, sha256 `fd2d620c...a004f` |
-| Environment | Linux, Python 3.13.16, standard library only, no network |
-| Pass rule | action set **and** `unknown` both match; technical errors never pass |
+| Repository | `main` at `8e1d4d7` |
+| Classifier | `rule_baseline/rule_baseline.py`, Git blob `ab01f17b96b57d9decae24deec43a2dbc7a45b9d`, sha256 `811af2e841c57914256a6bdb680d8e1c7443bf292505e08c8ae197a3c1b6da1d` |
+| Runner | `eval/eval_runner.py`, sha256 `fd2d620c7cb7be4ce9bd4bcb6d138d108b211594a0e190ad877fc62a430c004f` |
+| Core fixtures v0.4 | sha256 `047d522c8fcaaa61aa479f12a9e34eb7c6bd47dcd4c7005909e6837afea91044` |
+| Challenge fixtures v0.1 | sha256 `48a445b5d53dd2cc77a999616f7042eff1962eaf8291ee099e6e88b5fe621a69` (matches the original gold freeze) |
+| Mixed add-on v0.1 | sha256 `9cab289f9fda0c6ac3b6cca0ad74e1e19adff0f7898d67807f4219b6bdf0701a` |
+| Benign control v0.1 | sha256 `636d31cd5248502ab8a07716671c5885827e47941748e121be9efa04e483f195` |
+| Environment | Linux, Python 3.13.16, standard library only, no network, no tool executed |
+| Pass rule | action set **and** `unknown` both match; a technical error never passes |
 
-| Fixture suite | Purpose | Cases (scored / pending) |
-|---|---|---|
-| `soup_task1_evaluation_cases_v0.4.json` | Core regression (from v0.3) | 21 / 2 |
-| `soup_task1_challenge_cases_v0.1.json` | Edge cases, gold frozen by hash before first run | 34 / 1 |
-| `soup_task1_mixed_actions_urtisto_v0.1.json` | Mixed actions and nested data (SOU-21) | 4 / 0 |
-| `soup_task1_benign_comparison_urtisto_v0.1.json` | Benign control (SOU-21) | 1 / 0 |
+## 4. Final current-baseline run
 
-Only the `input` object reaches the classifier. Tool calls are inert data and
-were never executed.
+### 4.1 Overall
 
-## 3. Results
-
-### 3.1 Overall
-
-| Suite | Pass | Fail | Technical | Pending |
+| Suite | Pass | Fail | Technical | Pending (not scored) |
 |---|---|---|---|---|
 | Core v0.4 | 21/21 | 0 | 0 | 2 (U07, E01) |
 | Challenge v0.1 | 28/34 | 6 | 0 | 1 (CS03) |
-| Mixed actions v0.1 | 4/4 | 0 | 0 | 0 |
+| Mixed add-on v0.1 (UX01 to UX04) | 4/4 | 0 | 0 | 0 |
 | Benign control v0.1 | 1/1 | 0 | 0 | 0 |
 | **All** | **54/60** | **6** | **0** | **3** |
 
-### 3.2 Required slices
+Unit checks on the same commit: baseline 59/59, runner 32/32.
 
-| Slice (both core and challenge) | Pass |
+### 4.2 Required slices
+
+| Slice (all suites) | Pass |
 |---|---|
 | Previously unseen tools | 9/12 |
 | Misleading metadata | 12/13 |
-| Mixed actions (incl. SOU-21 add-on) | 16/17 |
-| Shell-dependent cases (D05 scope) | 19/20 |
+| Mixed actions | 16/17 |
+| Shell-dependent (D05 scope) | 19/20 |
 
-### 3.3 Per-label errors (scored cases)
+### 4.3 Per-label errors (known-label denominators)
+
+Denominator = scored cases where the gold label is present.
 
 | Label | Expected present | Missed | Spurious |
 |---|---|---|---|
@@ -79,92 +96,113 @@ were never executed.
 | send_data (critical) | 11 | 0 | 0 |
 | change_permissions (critical) | 9 | 0 | 0 |
 
-No spurious labels remain. No case expected `unknown=true` and got `false`.
+### 4.4 Unknown and abstention
 
-### 3.4 Remaining mismatches
+- Scored cases with gold `unknown=true`: 7. All 7 predicted `unknown=true`.
+- Predicted `unknown=true` on 11 of 60 scored cases; 6 of them are full
+  abstentions (`actions=[]`).
+- Extra `unknown` on resolvable cases: CU02, CU03, CM01, CS06 (4/53).
+- No case expected `unknown=true` and got `false`.
+- Pending cases U07, E01, CS03 all return `actions=[]`, `unknown=true`.
+
+### 4.5 Remaining mismatches
 
 | Case | Expected | Predicted | Cause |
 |---|---|---|---|
-| CU01 | read, write; unknown=T | none; unknown=T | `sync` verb not in vocabulary |
-| CU02 | delete; unknown=F | none; unknown=T | `expunge` verb not in vocabulary |
-| CU03 | send_data; unknown=F | send_data; unknown=T | unrecognised verb `dispatch` keeps unknown |
-| CM01 | write; unknown=F | write; unknown=T | unrecognised verb `overwrite` keeps unknown |
-| CX06 | read, delete; unknown=F | delete; unknown=F | read inferred from name is dropped on name conflict |
-| CS06 | read, send_data; unknown=F | send_data; unknown=T | `tar` not recognised as a read |
+| CU01 | read, write; unknown=T | none; unknown=T | verb `sync` not in vocabulary (D5) |
+| CU02 | delete; unknown=F | none; unknown=T | verb `expunge` not in vocabulary (D5) |
+| CU03 | send_data; unknown=F | send_data; unknown=T | unrecognised verb keeps unknown (D4) |
+| CM01 | write; unknown=F | write; unknown=T | unrecognised verb `overwrite` keeps unknown (D4) |
+| CX06 | read, delete; unknown=F | delete; unknown=F | read inferred from name dropped (D7) |
+| CS06 | read, send_data; unknown=F | send_data; unknown=T | `tar` not recognised (D5) |
 
-Five of six fail in the safe direction (extra `unknown`, which policy turns into
-Ask). CX06 is the one confident partial answer: `delete` is kept, `read` is lost.
-The original report marked CU01, CU03, CM01 and CX06 as disputed gold labels.
-Labels were **not** changed to make the classifier pass.
+The original evaluation marked CU01, CU03, CM01 and CX06 as disputed gold labels.
 
-### 3.5 Progress over time
+### 4.6 Latency
 
-| Date | Classifier state | Core suites | All suites |
+Rule baseline only, in-process, 63 inputs x 20 rounds after warmup: p50 0.058 ms,
+p95 0.147 ms, max 3.2 ms. This is classifier time, not pipeline or policy time,
+and one local run is not a latency gate. No model latency was measured.
+
+## 5. Historical runs (provisional, kept for traceability)
+
+| Run | Date | Classifier | Core suites | With UX add-on | Source |
+|---|---|---|---|---|---|
+| 1 | 8 Oct | original baseline, sha256 `c0a307ad...de39` | 43/55 | not run | [sou5_original](../../eval/evidence/sou5_original/summary.md) |
+| 2 | 8 Oct | same | 43/55 | **43/59** (UX 0/4) | evaluation v0.4.2 archive |
+| 3 | 9 to 10 Oct | after owner fixes, blob `ab01f17b` | 49/55 | 54/60 | [SOU-19 review](../../eval/evidence/sou19_review/README.md), [SOU-21 post-fix](../../eval/evidence/sou21_postfix/summary.md) |
+| Final | 10 Oct | same as run 3 | 49/55 | 54/60 | section 4 of this report |
+
+The 43/59 result was reported against provisional gold labels and an earlier
+classifier revision. It stays provisional evidence, not a target score.
+
+### 5.1 Defect notes D1 to D9 and DX, rechecked on the final classifier
+
+The minimal inputs from the evaluation report were rerun on blob `ab01f17b`.
+
+| ID | Finding (8 Oct) | Status now | Owner |
 |---|---|---|---|
-| 8 Oct | Original baseline (SOU-5 evidence) | 43/55 | 43/59 |
-| 9 Oct | After owner fixes (quotes, `#` comments, redirects, nested data) | 49/55 | 54/60 |
-| 10 Oct | Rerun for this report | 49/55 | 54/60 |
+| D1 | `;` inside quotes split the command (`echo 'a; rm -rf x'` gave delete) | **Fixed**: no delete | @sake_ai |
+| D2 | `#` comment not recognised (`ls # ; rm -rf x` gave delete) | **Fixed**: read only | @sake_ai |
+| D3 | `cat a > b` lost read | **Fixed**: read + write | @sake_ai |
+| D4 | Unrecognised verb keeps unknown even when effect is proven (CU03, CM01) | **Open**, design decision | @sake_ai |
+| D5 | Vocabulary gaps (`expunge`, `sync`, `tar`) (CU01, CU02, CS06) | **Open**; fix with reviewed data, not word-by-word tuning | @sake_ai, SOU-13 |
+| D6 | `attachment_path` not read evidence | **Fixed**: read + send_data | @sake_ai |
+| D7 | Read inferred from name dropped on name conflict (CX06) | **Open**, gold label disputed | @sake_ai, @aisarasd |
+| D8 | `echo`/`printf` counted as read | **Changed**: now unknown; D07 no-op not yet emitted | @sake_ai |
+| D9 | Null arguments return unknown, not a technical error | **Open** vs D06; runtime adapter rejects null before classification | @sake_ai, interface owners |
+| DX | Evidence merged across steps and nested data (UX01 to UX04 spurious labels) | **Fixed**: UX 4/4 | @sake_ai |
 
-The fixes removed every spurious `delete` (for example `echo 'a; rm -rf x'`
-and `ls # ; rm -rf x`) and all four SOU-21 mixed-action false labels.
+## 6. Model-based candidates
 
-### 3.6 Latency
+| | Rule baseline | v5 research plan (SOU-9) | Jev adapter (SOU-6) | Local linear pilot (SOU-16) |
+|---|---|---|---|---|
+| What it is | Merged classifier | Proposal: ModernBERT-base with five sigmoid heads, vs DistilBERT and TF-IDF baselines, masked loss for unknown labels | Shadow adapter for the Jev typed-question API | CPU logistic regression, five heads + unknown head |
+| Status | Evaluated (section 4) | Not trained | Mock only (4/55 is plumbing, not Jev) | Smoke test only |
+| Measured quality | 54/60 | none | none | none |
+| Uses description | No | Untrusted input | Data only | Excluded from features |
+| Blocker | none | needs reviewed dataset and GPU time | no approved API access or budget | no approved dataset (SOU-13) |
 
-Rule baseline, in-process, 63 inputs x 20 rounds after warmup: p50 0.058 ms,
-p95 0.147 ms, max 3.2 ms. This is classification only, not the full pipeline,
-and one local run is not a latency gate.
+The v5 report also proposed pilot gates (for example at most 1% critical misses
+per action with an exact binomial bound). These are proposals, not measured
+results. SOU-13 pilot data will extend this report; it does not block it.
 
-## 4. Rule-based vs model-based comparison
+## 7. Classification vs policy vs execution
 
-| | Rule baseline | Jev adapter (SOU-6) | Local linear pilot (SOU-16) |
-|---|---|---|---|
-| Status | Merged, evaluated | Shadow adapter, mock only | Pipeline ready, smoke test only |
-| Real quality numbers | 54/60 | None (4/55 is mock plumbing, not Jev) | None |
-| Uses description | No, untrusted | Data only, under fixed instructions | Excluded from features |
-| Cost / external calls | 0 | 0 so far; needs API key and budget | 0, CPU only |
-| Blocker | None for the milestone | No approved access or budget | No approved dataset (SOU-13) |
+This report measures **classification only**: which actions a call performs.
 
-Details: [Jev experiment](../../experiments/classification/README.md),
-[local pilot](../../experiments/local_classifier/README.md).
+- **Policy** (Allow/Ask/Deny) belongs to Team 2. Under D08, `unknown=true`
+  forwards to policy as Ask or a trusted Deny. No policy was run here.
+- **Execution protection** (blocked calls never reach the executor, results
+  withheld) belongs to Task 2/3 and SOU-15/SOU-17. Integrated runtime acceptance
+  is still pending ([SOU-17 verification](sou17_verification.md)).
+- A correct label does not prove a call was blocked, and a wrong label does not
+  prove it executed. Read these results only as classifier quality.
 
-**Conclusion:** only the rule baseline has measured results. Its weak point is
-vocabulary on unfamiliar verbs (CU01, CU02, CU03, CM01), which is exactly where a
-learned model could help. That needs a reviewed, family-split dataset first.
-Adding words one by one to pass this suite would overfit it.
-
-## 5. Contract alignment (SOU-10 v0.4)
+## 8. Contract alignment (SOU-10 v0.4)
 
 | Rule | Baseline today |
 |---|---|
 | D01 `actions` + Boolean `unknown`, partial actions kept | Yes |
-| D02 call ID outside the semantic input | Yes, classifier never sees it |
-| D03 GET is read; no implied write/read | Yes (U06 passes) |
-| D04 description is untrusted | Yes (misleading slice 12/13) |
-| D05 bounded shell parsing, else unknown | Yes (shell slice 19/20) |
-| D06 technical failures on a separate channel | **Not yet.** Baseline still uses local `status="error"`, and null arguments (E01) return `unknown` instead of a failure. The runtime adapter rejects null before classification, so this is not an execution risk. |
-| D07 proven no-op is `[]` + `unknown=false` | **Not yet.** U07 and CS03 return `unknown=true`. This is conservative (Ask), but will fail once fixtures are updated. |
+| D02 call ID outside the semantic input | Yes |
+| D03 GET is read; no implied write/read | Yes |
+| D04 description is untrusted | Yes |
+| D05 bounded shell parsing, else unknown | Yes |
+| D06 technical failures on a separate channel | **Not yet** (D9; local `status="error"`) |
+| D07 proven no-op is `[]` + `unknown=false` | **Not yet** (U07, CS03 return unknown; conservative) |
 
-## 6. Limitations
+## 9. Open items and owners
 
-- 60 synthetic scored cases, written by the team. Not a held-out benchmark.
-- Gold labels are provisional; the D07/D04 fixture updates are deferred to SOU-13/SOU-21.
-- This runner checks classification only. Policy, execution blocking and result
-  delivery are Task 2/3 scope. Integrated runtime acceptance is still pending
-  SOU-15 ([SOU-17 verification](sou17_verification.md)).
-- A rule list cannot reveal hidden or dishonest tool behaviour. Execution
-  enforcement and reviewed tool metadata remain necessary.
+| Item | Owner |
+|---|---|
+| Update U07/CS03 to the D07 no-op; decide E01 | @aisarasd, SOU-13 / SOU-21 |
+| Second review of disputed labels CU01, CU03, CM01, CX06 | @aisarasd, @sake_ai |
+| D06 failure channel, D4, D5, D9 in the baseline | @sake_ai |
+| Approved pilot dataset and family-held-out split | SOU-13 |
+| Live Jev run | SOU-6, after access and budget approval |
+| Integrated runtime acceptance | SOU-15 / SOU-17 |
 
-## 7. Follow-ups
-
-1. Update U07/CS03 to the D07 no-op and decide E01 (SOU-13/SOU-21 fixture owners).
-2. Second review of disputed gold labels CU01, CU03, CM01, CX06.
-3. Baseline: move invalid input to the D06 failure channel; decide whether
-   unrecognised verbs should keep `unknown` when other arguments already prove
-   the effect (CU03, CM01).
-4. Run a real model comparison after SOU-13 data approval, and Jev only after
-   access and budget are approved.
-
-## 8. Reproduce
+## 10. Reproduce
 
 From the repository root (use `python` on Windows):
 
@@ -179,8 +217,6 @@ python3 eval/eval_runner.py \
   --classifier-path rule_baseline --out-dir /tmp/task1-eval
 ```
 
-Expected: 59 baseline tests OK, 32 runner tests OK, evaluation prints 54/60 and
-exits 1 (classification mismatches, not a crash). Recorded evidence:
-[SOU-19 run](../../eval/evidence/sou19_review/README.md),
-[SOU-21 before/after](../../eval/evidence/sou21_postfix/summary.md),
-[original SOU-5 report](../../eval/evidence/sou5_original/EVALUATION_REPORT.md).
+Expected: 59 and 32 tests OK; evaluation prints 54/60 and exits 1 (recorded
+mismatches, not a crash). The runner writes `summary.md`, `results.csv` and
+`results.json` with expected/actual labels, unknown, errors and per-label counts.
