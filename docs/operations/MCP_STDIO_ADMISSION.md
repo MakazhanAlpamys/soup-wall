@@ -337,8 +337,8 @@ It consumes the same validated `Invocation` produced by the SOU-11 collector,
 an operator-reviewed `ResourceProfile`, and the selected local executor's
 `ExecutorContext`. It does not create a new collector, classifier, admission
 endpoint or policy pipeline. This increment depends on the SOU-11 input work
-at `de241f7b81408897168b3c7b6eec15c3c96a8d3c`; merge that prerequisite before
-retargeting a dependent SOU-12 PR to `main`.
+at `de241f7b81408897168b3c7b6eec15c3c96a8d3c`, accepted into `main` through
+PR #60. The SOU-12 branch incorporates that accepted prerequisite from `main`.
 
 ### Reviewed selectors and defaults
 
@@ -474,6 +474,13 @@ symlink privileges or explicitly selected AgentDojo/native-daemon environments.
 No GitHub CI, Linux/macOS, live model/provider or deployment acceptance outcome
 is claimed. Review and the SOU-15 resource-aware runtime integration remain
 outstanding; successful extraction is not execution authorization.
+
+After incorporating `main` at `ca55eda16c2826b770f169dee152950a0aa17575`,
+the same Rust workspace command passed 907 tests with zero failures and five
+ignored checks. The four additional passing tests came from main's adapter
+attack scenarios, not this SOU-12 increment. Formatting, Clippy and the
+documentation check also passed again; Python results above are from the
+pre-merge run. This recheck does not claim a GitHub CI outcome.
 
 ## Local demonstration
 
