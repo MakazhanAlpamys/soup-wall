@@ -2611,3 +2611,44 @@ async fn sou15_multi_action_and_unknown_classification_handling() {
         "unauthorized mixed actions must be withheld without execution"
     );
 }
+
+#[tokio::test]
+async fn sou24_readonly_write_with_high_uncertainty_is_hard_denied() {
+    use agentfw::mcp::admission::{compose_production_policy, Classification, ProductionVerdict};
+    use soup_wall_agent::ActionClass;
+
+    // 1. Write on ReadOnly with high uncertainty (0.9) must yield hard Deny (SOU-24)
+    let cl_high = Classification {
+        actions: vec!["write".into()],
+        unknown: false,
+        confidence: 0.95,
+        uncertainty: 0.9,
+        reason: "high uncertainty write".into(),
+    };
+    assert_eq!(
+        compose_production_policy(&cl_high, ActionClass::ReadOnly, false).unwrap(),
+        ProductionVerdict::Deny,
+        "high uncertainty write on ReadOnly must be a hard Deny"
+    );
+
+    // 2. Write on ReadOnly with low uncertainty (0.05) must also yield hard Deny
+    let cl_low = Classification {
+        actions: vec!["write".into()],
+        unknown: false,
+        confidence: 0.95,
+        uncertainty: 0.05,
+        reason: "low uncertainty write".into(),
+    };
+    assert_eq!(
+        compose_production_policy(&cl_low, ActionClass::ReadOnly, false).unwrap(),
+        ProductionVerdict::Deny,
+        "low uncertainty write on ReadOnly must be a hard Deny"
+    );
+
+    // 3. Write on SideEffecting (non-ReadOnly) with high uncertainty yields Ask
+    assert_eq!(
+        compose_production_policy(&cl_high, ActionClass::SideEffecting, false).unwrap(),
+        ProductionVerdict::Ask,
+        "high uncertainty write on SideEffecting must yield Ask"
+    );
+}

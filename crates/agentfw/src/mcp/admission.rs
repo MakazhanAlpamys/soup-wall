@@ -392,14 +392,15 @@ pub fn compose_production_policy(
         return Ok(ProductionVerdict::Deny);
     }
 
+    if baseline == ActionClass::ReadOnly && classification.actions.iter().any(|a| a == "write") {
+        return Ok(ProductionVerdict::Deny);
+    }
+
     if classification.unknown || classification.uncertainty >= 0.8 {
         return Ok(ProductionVerdict::Ask);
     }
 
     if classification.actions.iter().any(|a| a == "write") {
-        if baseline == ActionClass::ReadOnly {
-            return Ok(ProductionVerdict::Deny);
-        }
         return Ok(ProductionVerdict::Ask);
     }
 
@@ -1717,6 +1718,13 @@ mod input_identity_tests {
 
         // write on read_only baseline -> Deny
         let cl = make_cl(vec!["write"], false, 0.05);
+        assert_eq!(
+            compose_production_policy(&cl, ActionClass::ReadOnly, false).unwrap(),
+            ProductionVerdict::Deny
+        );
+
+        // write on read_only baseline with high uncertainty -> hard Deny (SOU-24)
+        let cl = make_cl(vec!["write"], false, 0.9);
         assert_eq!(
             compose_production_policy(&cl, ActionClass::ReadOnly, false).unwrap(),
             ProductionVerdict::Deny
